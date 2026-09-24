@@ -2,7 +2,7 @@
   "name": "rvln-web",
   "private": true,
   "version": "0.1.0",
-  "packageManager": "pnpm@10.34.4",
+  "packageManager": "pnpm@10.34.5",
   "scripts": {
     "postinstall": "node scripts/copy_ort_assets.mjs",
     "sync-assets": "bash scripts/sync_assets.sh && node scripts/gen_model_manifest.mjs",
