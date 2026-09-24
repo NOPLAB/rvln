@@ -18,8 +18,8 @@ def test_navida_first_chunk_action_is_metric():
 
 def test_navida_turn_and_stop():
     path = action_to_embedding('turn right 15 degree')
-    np.testing.assert_allclose(path[0, 2:], [math.cos(math.pi / 12),
-                                              -math.sin(math.pi / 12)], atol=1e-6)
+    expected = [math.cos(math.pi / 12), -math.sin(math.pi / 12)]
+    np.testing.assert_allclose(path[0, 2:], expected, atol=1e-6)
     np.testing.assert_allclose(action_to_embedding('stop'), [[0.0, 0.0, 1.0, 0.0]])
 
 
