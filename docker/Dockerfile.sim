@@ -1,4 +1,4 @@
-# Dockerfile.sim — raspicat Gazebo simulation + raspicat-vla edge stack.
+# Dockerfile.sim — raspicat Gazebo simulation + rvla edge stack.
 #
 # Bundles:
 #  - ROS2 Humble desktop-full (Gazebo Classic 11)
@@ -13,7 +13,7 @@
 #  - external/MBRA on PYTHONPATH (vint_train.models.vint.self_attention).
 #
 # Used by scripts/vla.sh `run {asyncvla,omnivla} --sim --host HOST[:PORT]`.
-# At runtime mount the repo at /workspace; the user-side raspicat-vla
+# At runtime mount the repo at /workspace; the user-side rvla
 # packages are built on first launch by the entry script.
 FROM osrf/ros:humble-desktop-full
 
@@ -59,7 +59,7 @@ RUN pip3 install --no-cache-dir \
         'protobuf>=4.21'
 
 # Pin setuptools to the ROS2 Humble default. colcon's `--symlink-install` runs
-# `setup.py develop --editable` for ament_python packages (raspicat_vla_proto/
+# `setup.py develop --editable` for ament_python packages (rvla_proto/
 # remote/edge), which setuptools>=80 has removed; and setuptools>=66 paired with
 # Ubuntu's apt packaging 21.3 breaks ament_cmake_python egg builds via
 # `canonicalize_version(strip_trailing_zero=...)`. 59.6.0 avoids both. Keep this

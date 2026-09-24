@@ -1,4 +1,0 @@
-vla_inference_node:
-  ros__parameters:
-    observation_topic: "/raspicat_vla/observation"
-    embedding_topic: "/raspicat_vla/remote_embedding"

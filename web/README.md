@@ -1,4 +1,4 @@
-# raspicat-vla-web
+# rvla-web
 
 OmniVLA-edge を**ブラウザ内で推論**する Web ポート (React + Next.js 静的エクスポート)。
 `app/` (Flutter) と同じ ONNX 資産・前処理・データ契約 (docs/design/mobile_port_spec.md §3)

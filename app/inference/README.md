@@ -1,4 +1,4 @@
-# raspicat_vla_app — OmniVLA-edge スマホアプリ
+# rvla_app — OmniVLA-edge スマホアプリ
 
 スマホがカメラ取得と **OmniVLA-edge のオンデバイス推論** を担い、Raspberry Pi
 (raspicat) はモーター制御だけを行う構成のクライアント。既存 Path 3 の Jetson を

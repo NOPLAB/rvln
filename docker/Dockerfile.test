@@ -1,4 +1,4 @@
-# Dockerfile.test — minimal CI / pytest container for raspicat-vla.
+# Dockerfile.test — minimal CI / pytest container for rvla.
 #
 # Bundles ROS2 humble-ros-base + grpcio + protobuf + CPU torch so the full
 # pytest suite (Plan 1 + Plan 2A/2B unit + smoke tests) runs in one shot.

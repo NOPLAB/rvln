@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# control.sh — drive a running raspicat_vla stack: motor power + VLA goals.
+# control.sh — drive a running rvla stack: motor power + VLA goals.
 #
 # Works against whichever vla.sh mode is up — edge, cmd_vel, sim, or edge-local
 # — because all of them run the same edge node, which subscribes to the goal
@@ -9,7 +9,7 @@
 # no motors. Point this at the host running the *edge* side instead.
 #
 # Thin host wrapper around scripts/control.py: it runs the Python helper inside
-# the running edge container (where rclpy + the raspicat_vla_msgs overlay live),
+# the running edge container (where rclpy + the rvla_msgs overlay live),
 # sourcing the ROS overlays first. /workspace is bind-mounted into the container,
 # so the helper is reached at /workspace/scripts/control.py.
 #
@@ -35,9 +35,9 @@
 #
 # Container selection: by default we probe the edge-capable images in order
 # (real, sim, test) and use the first running container. Override with
-# RASPICAT_VLA_CONTAINER=<name-or-id> to pin one explicitly (RASPICAT_SIM_CONTAINER
+# RVLA_CONTAINER=<name-or-id> to pin one explicitly (RASPICAT_SIM_CONTAINER
 # is still honoured for backward compatibility). If a ROS environment with
-# raspicat_vla_msgs is already on PATH (e.g. you're inside the container), the
+# rvla_msgs is already on PATH (e.g. you're inside the container), the
 # helper runs directly instead of via docker exec.
 #
 # ROS_DOMAIN_ID: if set in the host environment it is forwarded into the
@@ -49,15 +49,15 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Edge-capable images, most-specific first (shared by `logs` and the exec path).
 CANDIDATE_IMAGES=(
-    "${RASPICAT_VLA_REAL_IMAGE:-raspicat-vla-real}"
-    "${RASPICAT_VLA_SIM_IMAGE:-raspicat-vla-sim}"
-    "${RASPICAT_VLA_TEST_IMAGE:-raspicat-vla-test}"
+    "${RVLA_REAL_IMAGE:-rvla-real}"
+    "${RVLA_SIM_IMAGE:-rvla-sim}"
+    "${RVLA_TEST_IMAGE:-rvla-test}"
 )
 
 # First running edge container across the candidate images (honours the
-# RASPICAT_VLA_CONTAINER / RASPICAT_SIM_CONTAINER overrides).
+# RVLA_CONTAINER / RASPICAT_SIM_CONTAINER overrides).
 find_edge_cid() {
-    local cid="${RASPICAT_VLA_CONTAINER:-${RASPICAT_SIM_CONTAINER:-}}"
+    local cid="${RVLA_CONTAINER:-${RASPICAT_SIM_CONTAINER:-}}"
     if [[ -z $cid ]]; then
         local img
         for img in "${CANDIDATE_IMAGES[@]}"; do
@@ -82,10 +82,10 @@ if [[ ${1:-} == logs ]]; then
         esac
     done
 
-    # compose names the server container raspicat-vla-remote-<n> (service
-    # "remote" in docker/compose.yaml); raspicat-vla-cmdvel-server-<pid> is the
+    # compose names the server container rvla-remote-<n> (service
+    # "remote" in docker/compose.yaml); rvla-cmdvel-server-<pid> is the
     # pre-compose name, kept for stacks started by an older vla.sh.
-    server_cid="$(docker ps -q --filter name=raspicat-vla-remote --filter name=raspicat-vla-cmdvel-server | head -1)"
+    server_cid="$(docker ps -q --filter name=rvla-remote --filter name=rvla-cmdvel-server | head -1)"
     edge_cid="$(find_edge_cid)"
 
     case "$target" in
@@ -96,7 +96,7 @@ if [[ ${1:-} == logs ]]; then
     esac
 
     if [[ -z ${cid:-} ]]; then
-        echo "error: no ${target:-raspicat-vla} container running to show logs for." >&2
+        echo "error: no ${target:-rvla} container running to show logs for." >&2
         echo "       start a stack first, e.g.: scripts/vla.sh run omnivla_edge --mode cmd_vel --gpu" >&2
         exit 1
     fi
@@ -105,7 +105,7 @@ if [[ ${1:-} == logs ]]; then
 fi
 
 # Already inside a ROS env with our messages? Run directly.
-if python3 -c 'import rclpy, raspicat_vla_msgs.msg' >/dev/null 2>&1; then
+if python3 -c 'import rclpy, rvla_msgs.msg' >/dev/null 2>&1; then
     exec python3 "${REPO_ROOT}/scripts/control.py" "$@"
 fi
 
@@ -114,13 +114,13 @@ fi
 # (omnivla/asyncvla) run no ROS node, so they are intentionally omitted.
 cid="$(find_edge_cid)"
 if [[ -z $cid ]]; then
-    echo "error: no running raspicat-vla edge container found." >&2
+    echo "error: no running rvla edge container found." >&2
     echo "       looked for images: ${CANDIDATE_IMAGES[*]}" >&2
     echo "       start the edge side first, e.g.:" >&2
     echo "         scripts/vla.sh run omnivla --mode cmd_vel --gpu" >&2
     echo "         scripts/vla.sh run omnivla --mode edge --host HOST:PORT" >&2
     echo "         scripts/vla.sh run omnivla --mode sim  --host HOST:PORT" >&2
-    echo "       (or set RASPICAT_VLA_CONTAINER=<name-or-id>)" >&2
+    echo "       (or set RVLA_CONTAINER=<name-or-id>)" >&2
     exit 1
 fi
 

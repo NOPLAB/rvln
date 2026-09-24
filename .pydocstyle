@@ -1,4 +1,4 @@
-# raspicat_vla_* パッケージ共通の pydocstyle (pep257) 設定。
+# rvla_* パッケージ共通の pydocstyle (pep257) 設定。
 # 素の pydocstyle (pre-commit) が自動発見して読む。ament_pep257 は自前の CLI 引数で
 # この設定を上書きしてしまうため、ament 経由の呼び出し (colcon test / CI /
 # test_pep257.py) には同じリストを --add-ignore で明示的に渡すこと。

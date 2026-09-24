@@ -52,7 +52,7 @@ class ActionChunk extends $pb.GeneratedMessage {
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'ActionChunk',
       package:
-          const $pb.PackageName(_omitMessageNames ? '' : 'raspicat_vla.edge'),
+          const $pb.PackageName(_omitMessageNames ? '' : 'rvla.edge'),
       createEmptyInstance: create)
     ..a<$fixnum.Int64>(1, _omitFieldNames ? '' : 'frameId', $pb.PbFieldType.OU6,
         defaultOrMaker: $fixnum.Int64.ZERO)
@@ -185,7 +185,7 @@ class ControlAck extends $pb.GeneratedMessage {
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(
       _omitMessageNames ? '' : 'ControlAck',
       package:
-          const $pb.PackageName(_omitMessageNames ? '' : 'raspicat_vla.edge'),
+          const $pb.PackageName(_omitMessageNames ? '' : 'rvla.edge'),
       createEmptyInstance: create)
     ..a<$fixnum.Int64>(1, _omitFieldNames ? '' : 'frameId', $pb.PbFieldType.OU6,
         defaultOrMaker: $fixnum.Int64.ZERO)

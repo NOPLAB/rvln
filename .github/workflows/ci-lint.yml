@@ -1,4 +1,4 @@
-# raspicat_vla_* パッケージを ament linter (flake8 / pep257 / xmllint / lint_cmake)
+# rvla_* パッケージを ament linter (flake8 / pep257 / xmllint / lint_cmake)
 # でチェックする。C++ ソースが無いため clang-format / uncrustify / cpplint は
 # 回さない。copyright はライセンスヘッダを付けない方針のため対象外。
 #
@@ -55,9 +55,9 @@ jobs:
           linter: ${{ matrix.linter }}
           arguments: ${{ matrix.arguments }}
           package-name: >-
-            raspicat_vla_bringup
-            raspicat_vla_core
-            raspicat_vla_edge
-            raspicat_vla_msgs
-            raspicat_vla_proto
-            raspicat_vla_remote
+            rvla_bringup
+            rvla_core
+            rvla_edge
+            rvla_msgs
+            rvla_proto
+            rvla_remote

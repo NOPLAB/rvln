@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUT_DIR="${REPO_ROOT}/src/raspicat_vla_proto/raspicat_vla_proto"
+OUT_DIR="${REPO_ROOT}/src/rvla_proto/rvla_proto"
 PROTO_DIR="${REPO_ROOT}/proto"
 
 mkdir -p "${OUT_DIR}"

@@ -4,7 +4,7 @@
 #   flake8     - ament_flake8 と同じ設定 (.flake8) を読む
 #   pydocstyle - ament_pep257 と同じ ignore リスト (.pydocstyle を自動発見)
 # 導入: pip install pre-commit && pre-commit install
-# 対象は ROS ワークスペース側 (src/ は git 管理下 = raspicat_vla_* のみ) と
+# 対象は ROS ワークスペース側 (src/ は git 管理下 = rvla_* のみ) と
 # tools/ scripts/。app/ (Flutter) は各自のツールチェーンに任せる。
 # web/ (Next.js) は Biome を local hook で回す (要 `cd web && pnpm install`)。
 repos:

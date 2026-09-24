@@ -6,10 +6,10 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:raspicat_vla_app/src/action_chunk.dart';
-import 'package:raspicat_vla_app/src/config.dart';
-import 'package:raspicat_vla_app/src/grpc/edge_action_client.dart';
-import 'package:raspicat_vla_app/src/preprocessing.dart';
+import 'package:rvla_app/src/action_chunk.dart';
+import 'package:rvla_app/src/config.dart';
+import 'package:rvla_app/src/grpc/edge_action_client.dart';
+import 'package:rvla_app/src/preprocessing.dart';
 
 void main() {
   test('normalizeChw は CHW・ImageNet 正規化で正しい長さ/値', () {

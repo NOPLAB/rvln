@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/vla.sh — thin driver for the raspicat-vla Docker stacks.
+# scripts/vla.sh — thin driver for the rvla Docker stacks.
 #
 # The container topology of every mode lives in docker/compose.yaml (one
 # compose profile per mode; see its header for the service map). This script
@@ -33,9 +33,9 @@ HOST_ARCH="$(uname -m)"
 # Jetson (L4T/aarch64) needs the ARM remote images + the nvidia container
 # runtime for GPU (compose.jetson.yaml), not x86's `gpus: all`
 # (compose.gpu.yaml). Auto-detected from the host arch; force with
-# RASPICAT_VLA_JETSON=1 (or =0 to disable, e.g. cross-build on an aarch64 host).
+# RVLA_JETSON=1 (or =0 to disable, e.g. cross-build on an aarch64 host).
 is_jetson() {
-    case "${RASPICAT_VLA_JETSON:-}" in
+    case "${RVLA_JETSON:-}" in
         1) return 0 ;;
         0) return 1 ;;
     esac
@@ -44,20 +44,20 @@ is_jetson() {
 
 # Image / Dockerfile / model knob registries. Bash 4 associative arrays.
 declare -A IMAGES=(
-    [asyncvla]="raspicat-vla-asyncvla"
-    [omnivla]="raspicat-vla-omnivla"
+    [asyncvla]="rvla-asyncvla"
+    [omnivla]="rvla-omnivla"
     # omnivla_edge (Path 3) reuses the OmniVLA remote image (it adds CLIP +
     # efficientnet); the remote backend just loads a different checkpoint.
-    [omnivla_edge]="raspicat-vla-omnivla"
+    [omnivla_edge]="rvla-omnivla"
     # movla (external/movla): in-house LFM2.5-VL Stage A policy. No Jetson
     # variant yet (needs an aarch64 torch-2.12 wheel story first).
-    [movla]="raspicat-vla-movla"
-    [asyncvla-jetson]="raspicat-vla-asyncvla-jetson"
-    [omnivla-jetson]="raspicat-vla-omnivla-jetson"
-    [omnivla_edge-jetson]="raspicat-vla-omnivla-jetson"
-    [test]="raspicat-vla-test"
-    [real]="raspicat-vla-real"
-    [sim]="raspicat-vla-sim"
+    [movla]="rvla-movla"
+    [asyncvla-jetson]="rvla-asyncvla-jetson"
+    [omnivla-jetson]="rvla-omnivla-jetson"
+    [omnivla_edge-jetson]="rvla-omnivla-jetson"
+    [test]="rvla-test"
+    [real]="rvla-real"
+    [sim]="rvla-sim"
 )
 declare -A DOCKERFILES=(
     [asyncvla]="docker/Dockerfile.asyncvla"
@@ -175,11 +175,11 @@ Commands:
     0.0.0.0:$EDGE_ACTION_PORT). Point the app at this host's IP. As with the
     other models, the follower publishes /cmd_vel_vla unless --drive-motors.
     Requires scripts/gen_proto.sh to have generated the edge_action stubs.
-  test [PYTEST_ARGS...]   Run pytest in raspicat-vla-test (CPU). Auto-builds
+  test [PYTEST_ARGS...]   Run pytest in rvla-test (CPU). Auto-builds
                           the image if missing. Pass extra args to pytest:
                             vla.sh test                        # full suite
                             vla.sh test -k checkpoint          # filter
-                            vla.sh test src/raspicat_vla_edge/test  # subset
+                            vla.sh test src/rvla_edge/test  # subset
   help, -h, --help        Show this help
 
 Examples:
@@ -207,19 +207,19 @@ Jetson AGX Orin (ARM64):
   swaps compose.gpu.yaml for compose.jetson.yaml (nvidia runtime). Build + run
   on the device:
     vla.sh build omnivla-jetson
-    vla.sh run omnivla --mode remote --gpu           # uses raspicat-vla-omnivla-jetson
+    vla.sh run omnivla --mode remote --gpu           # uses rvla-omnivla-jetson
   Match the image to your JetPack via Docker build args (see the Dockerfile
   header), e.g.:
     docker build -f docker/Dockerfile.omnivla.jetson \
       --build-arg L4T_BASE=nvcr.io/nvidia/l4t-jetpack:r36.4.0 \
-      --build-arg TORCH_VERSION=2.8.0 -t raspicat-vla-omnivla-jetson .
-  Force/disable Jetson mode with RASPICAT_VLA_JETSON=1 / =0.
+      --build-arg TORCH_VERSION=2.8.0 -t rvla-omnivla-jetson .
+  Force/disable Jetson mode with RVLA_JETSON=1 / =0.
 
 Environment overrides:
   ROS_DOMAIN_ID        ROS 2 discovery domain; set identically on both PCs
   EDGE_ACTION_PORT     phone->Pi EdgeActionService port (default 50061)
   HF_CACHE_DIR         HuggingFace cache mount (default $HOME/.cache/huggingface)
-  RASPICAT_VLA_JETSON  1 = force Jetson images + nvidia runtime; 0 = force x86
+  RVLA_JETSON  1 = force Jetson images + nvidia runtime; 0 = force x86
   ROS_DOMAIN_ID        forwarded into every ROS container to isolate DDS
                        discovery (unset => ROS default 0). Under sudo pass it
                        through: sudo ROS_DOMAIN_ID=N ./scripts/vla.sh ...
@@ -421,7 +421,7 @@ export_remote_env() {
 }
 
 # Export the `edge` service's image + overlay, falling back to the test image
-# when raspicat-vla-real isn't built. $1 = model (for the fallback warnings).
+# when rvla-real isn't built. $1 = model (for the fallback warnings).
 export_edge_image() {
     local model=$1
     local image="${IMAGES[real]}"
@@ -468,7 +468,7 @@ run_edge() {
     export_edge_image "$model"
     compose_add_camera "$camera_kind" "$camera_device"
     local launch=(
-        raspicat_vla_edge edge_only.launch.py
+        rvla_edge edge_only.launch.py
         "adapter_kind:=${adapter_kind}"
         with_follower:=true
     )
@@ -499,7 +499,7 @@ run_cmd_vel() {
     export_edge_image "$model"
     compose_add_camera "$camera_kind" "$camera_device"
     local launch=(
-        raspicat_vla_edge edge_only.launch.py
+        rvla_edge edge_only.launch.py
         "adapter_kind:=${adapter_kind}"
         "cmd_vel_topic:=${cmd_vel_topic}"
         with_follower:=true
@@ -528,7 +528,7 @@ run_mobile_cmd_vel() {
     log "point the smartphone app at this host's IP, port ${bind_port}"
     export_edge_image omnivla_edge_mobile
     local launch=(
-        raspicat_vla_bringup mobile_cmd_vel.launch.py
+        rvla_bringup mobile_cmd_vel.launch.py
         "listen_host:=${bind_host}"
         "listen_port:=${bind_port}"
         "cmd_vel_topic:=${cmd_vel_topic}"
@@ -548,7 +548,7 @@ run_sim() {
         export VLA_EDGE_IMAGE="${IMAGES[test]}"
         export VLA_EDGE_OVERLAY=""
         local launch=(
-            raspicat_vla_edge edge_only.launch.py
+            rvla_edge edge_only.launch.py
             "adapter_kind:=${adapter_kind}"
             with_follower:=true
         )
@@ -590,7 +590,7 @@ run_sim() {
     export VLA_SIM_GROUP="$passwd_dir/group"
 
     local launch=(
-        raspicat_vla_bringup sim.launch.py
+        rvla_bringup sim.launch.py
         "adapter_kind:=${adapter_kind}"
     )
     export VLA_SIM_LAUNCH="${launch[*]}"
@@ -617,7 +617,7 @@ run_edge_local() {
     compose_add_gpu
     compose_add_camera "$camera_kind" "$camera_device"
     local launch=(
-        raspicat_vla_bringup omnivla_edge_local.launch.py
+        rvla_bringup omnivla_edge_local.launch.py
         "device:=cuda:0"
     )
     _append_camera_launch_args launch "$camera_kind" "$camera_device"

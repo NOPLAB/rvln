@@ -1,7 +1,7 @@
 # docker/compose.jetson.yaml — Jetson/L4T GPU overlay. The iGPU is exposed
 # through the nvidia container runtime; x86's `--gpus all` invokes the
 # prestart hook directly there and fails. vla.sh appends this instead of
-# compose.gpu.yaml on aarch64 hosts (force with RASPICAT_VLA_JETSON=1/0).
+# compose.gpu.yaml on aarch64 hosts (force with RVLA_JETSON=1/0).
 services:
   remote:
     runtime: nvidia

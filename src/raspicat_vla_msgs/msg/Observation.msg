@@ -1,3 +1,0 @@
-uint64 frame_id
-sensor_msgs/CompressedImage image
-raspicat_vla_msgs/GoalSpec goal

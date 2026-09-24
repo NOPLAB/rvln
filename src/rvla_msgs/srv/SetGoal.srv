@@ -1,0 +1,4 @@
+rvla_msgs/GoalSpec goal
+---
+bool success
+string message

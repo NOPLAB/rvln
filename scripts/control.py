@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Send goals / motor commands to a running raspicat_vla edge (sim or real).
+"""Send goals / motor commands to a running rvla edge (sim or real).
 
 Mode-agnostic: it talks to whatever edge node is up (edge, cmd_vel, sim, or
 edge-local) — the goal topic and /motor_power service are the same across them.
 A bare ``--mode remote`` box has no edge node, so there is nothing here to drive.
 
-Runs *inside* the ROS environment — it needs rclpy and the raspicat_vla_msgs
+Runs *inside* the ROS environment — it needs rclpy and the rvla_msgs
 overlay on the path. From the host use the ``scripts/control.sh`` wrapper, which
 execs this inside the running edge container with the overlays sourced.
 
@@ -37,9 +37,9 @@ from rclpy.qos import DurabilityPolicy, QoSProfile
 
 from geometry_msgs.msg import Twist
 from std_srvs.srv import SetBool
-from raspicat_vla_msgs.msg import GoalSpec
+from rvla_msgs.msg import GoalSpec
 
-GOAL_TOPIC = '/raspicat_vla/goal'
+GOAL_TOPIC = '/rvla/goal'
 MOTOR_SERVICE = '/motor_power'
 
 
@@ -150,7 +150,7 @@ def main(argv: list[str]) -> int:
         print(__doc__)
         return 2
     rclpy.init()
-    node = rclpy.create_node('raspicat_vla_control')
+    node = rclpy.create_node('rvla_control')
     try:
         cmd = argv[0]
         if cmd == 'motor':

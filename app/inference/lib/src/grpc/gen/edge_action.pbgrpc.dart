@@ -20,7 +20,7 @@ import 'edge_action.pb.dart' as $0;
 
 export 'edge_action.pb.dart';
 
-@$pb.GrpcServiceName('raspicat_vla.edge.EdgeActionService')
+@$pb.GrpcServiceName('rvla.edge.EdgeActionService')
 class EdgeActionServiceClient extends $grpc.Client {
   /// The hostname for this service.
   static const $core.String defaultHost = '';
@@ -44,14 +44,14 @@ class EdgeActionServiceClient extends $grpc.Client {
 
   static final _$streamActions =
       $grpc.ClientMethod<$0.ActionChunk, $0.ControlAck>(
-          '/raspicat_vla.edge.EdgeActionService/StreamActions',
+          '/rvla.edge.EdgeActionService/StreamActions',
           ($0.ActionChunk value) => value.writeToBuffer(),
           $0.ControlAck.fromBuffer);
 }
 
-@$pb.GrpcServiceName('raspicat_vla.edge.EdgeActionService')
+@$pb.GrpcServiceName('rvla.edge.EdgeActionService')
 abstract class EdgeActionServiceBase extends $grpc.Service {
-  $core.String get $name => 'raspicat_vla.edge.EdgeActionService';
+  $core.String get $name => 'rvla.edge.EdgeActionService';
 
   EdgeActionServiceBase() {
     $addMethod($grpc.ServiceMethod<$0.ActionChunk, $0.ControlAck>(

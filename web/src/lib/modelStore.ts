@@ -6,7 +6,7 @@
  * Cache API が使えない文脈 (非 secure context 等) では素の fetch に落ちる。
  */
 
-const CACHE_NAME = 'raspicat-vla-models-v1';
+const CACHE_NAME = 'rvla-models-v1';
 
 export interface FetchProgress {
   /** 取得済みバイト。 */

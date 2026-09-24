@@ -1,17 +1,17 @@
 // スマホ(推論) -> Raspberry Pi(制御) の軽量インターフェース。
-// docs/design/mobile_port_spec.md §4。既存 raspicat_vla.proto とは独立。
+// docs/design/mobile_port_spec.md §4。既存 rvla.proto とは独立。
 //
 // スマホが client、Pi が server。スマホは推論結果の action chunk を stream 送信し、
 // Pi は追従状態を stream で返す。Pi 側はウォッチドッグで古い chunk を破棄しモーター停止。
 //
-// 生成: scripts/gen_proto.sh (Python: raspicat_vla_proto/edge_action_pb2*.py,
+// 生成: scripts/gen_proto.sh (Python: rvla_proto/edge_action_pb2*.py,
 //       Dart: app/lib/src/grpc/gen/ — 要 `dart pub global activate protoc_plugin`)
-// Pi 側 server: raspicat_vla_edge/edge_action_grpc_node.py
+// Pi 側 server: rvla_edge/edge_action_grpc_node.py
 //               (vla.sh run omnivla_edge_mobile --mode cmd_vel)
 
 syntax = "proto3";
 
-package raspicat_vla.edge;
+package rvla.edge;
 
 service EdgeActionService {
   // スマホ -> Pi: action chunk を stream 送信、Pi -> スマホ: 制御 ACK を stream 返却。
