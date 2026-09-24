@@ -37,4 +37,14 @@ if [[ -n ${_need_build} ]]; then
 fi
 source install/setup.bash
 
+if [[ ${VLA_GAZEBO_VIRTUAL_DISPLAY:-} == 1 && -z ${DISPLAY:-} ]]; then
+    Xvfb :99 -screen 0 1280x720x24 -nolisten tcp >/tmp/rvln-xvfb.log 2>&1 &
+    export DISPLAY=:99
+    for ((i=0; i<50; i++)); do
+        [[ -S /tmp/.X11-unix/X99 ]] && break
+        sleep 0.1
+    done
+    [[ -S /tmp/.X11-unix/X99 ]] || { echo 'Xvfb failed to start' >&2; exit 1; }
+fi
+
 exec "$@"

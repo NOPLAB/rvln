@@ -97,6 +97,7 @@ services:
       <<: *ros-env
       VLA_WS_OVERLAY: /opt/sim_ws/install/setup.bash
       ROS_LOCALHOST_ONLY: "0"
+      VLA_GAZEBO_VIRTUAL_DISPLAY: "1"
     volumes:
       - ${VLA_REPO_ROOT:-..}:/workspace
       - ${VLA_HF_CACHE:-~/.cache/huggingface}:/tmp/.cache/huggingface
