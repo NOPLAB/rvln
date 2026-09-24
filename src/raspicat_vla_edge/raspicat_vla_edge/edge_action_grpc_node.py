@@ -15,26 +15,22 @@
   をロック付きスロットへ置くだけで、publish は ROS タイマが行う
   (grpc_client.py の coalesce+pace の受け側に相当)。
 
-LifecycleNode にはしない: ブリッジ自体は状態を持たず、安全機構は follower 側に
-既にあるため。``grpc`` はサーバ起動時に遅延 import する (単体テストは
+LifecycleNode にはしない: 通信サーバーはプロセスと同じ期間動き、停止はウォッチドッグと
+follower が担う。``grpc`` はサーバ起動時に遅延 import する (単体テストは
 decode / ウォッチドッグを grpc 依存なしで直接叩ける)。
 """
 from __future__ import annotations
 
-import threading
 import time
 from concurrent import futures
 from typing import Optional, Tuple
 
-import numpy as np
 import rclpy
 from nav_msgs.msg import Path
 from rclpy.node import Node
 
 from raspicat_vla_proto import edge_action_pb2
-from raspicat_vla_proto.conversions import fp16_bytes_to_float32_list
-
-from .adapters._path_util import trajectory_to_path
+from .action_path_bridge import ActionPathBridge, decode_path
 
 
 def decode_action_chunk(
@@ -51,17 +47,11 @@ def decode_action_chunk(
     """
     num_tokens = int(chunk.num_tokens)
     embed_dim = int(chunk.embed_dim)
-    if num_tokens < 1 or embed_dim < 4:
-        raise ValueError(f'bad shape: num_tokens={num_tokens} embed_dim={embed_dim}')
-
-    values = fp16_bytes_to_float32_list(chunk.values_fp16)
-    if len(values) != num_tokens * embed_dim:
-        raise ValueError(
-            f'values length {len(values)} != num_tokens*embed_dim {num_tokens * embed_dim}'
-        )
-    waypoints = np.asarray(values, dtype=np.float32).reshape(num_tokens, embed_dim)
-    spacing = 1.0 if chunk.scaled_to_m else waypoint_spacing
-    path = trajectory_to_path(waypoints, spacing=spacing, frame_id=frame_id)
+    path = decode_path(
+        chunk.values_fp16, num_tokens=num_tokens, embed_dim=embed_dim,
+        scaled_to_m=chunk.scaled_to_m,
+        waypoint_spacing=waypoint_spacing, frame_id=frame_id,
+    )
     return path, int(chunk.frame_id), str(chunk.goal_id)
 
 
@@ -88,11 +78,7 @@ class EdgeActionGrpcNode(Node):
         self._pub = self.create_publisher(
             Path, self.get_parameter('path_topic').value, 1)
 
-        self._lock = threading.Lock()
-        self._pending: Optional[Path] = None
-        self._last_rx: Optional[float] = None  # time.monotonic()
-        self._goal_id = ''
-        self._stopped = True  # 最初の chunk まで「停止済み」扱い (空Path連打を防ぐ)
+        self._bridge = ActionPathBridge(frame_id=self._frame_id, max_age_sec=self._max_age_sec)
 
         rate = float(self.get_parameter('publish_rate_hz').value)
         self._timer = self.create_timer(1.0 / rate, self._on_timer)
@@ -112,20 +98,14 @@ class EdgeActionGrpcNode(Node):
                 chunk, waypoint_spacing=self._spacing, frame_id=self._frame_id)
         except ValueError as e:
             self.get_logger().warning(f'bad chunk: {e}')
-            with self._lock:
-                following = not self._stopped
+            following = self._bridge.following
             return edge_action_pb2.ControlAck(
                 frame_id=int(chunk.frame_id), following=following,
                 status=f'error: {e}')
 
-        with self._lock:
-            if goal_id != self._goal_id:
-                self.get_logger().info(
-                    f'goal changed: {self._goal_id!r} -> {goal_id!r}')
-                self._goal_id = goal_id
-            self._pending = path
-            self._last_rx = now
-            self._stopped = False
+        previous = self._bridge.receive(path, goal_id, now)
+        if previous is not None:
+            self.get_logger().info(f'goal changed: {previous!r} -> {goal_id!r}')
         # from_model=false (アプリに ONNX 未配置、ダミー軌道) もそのまま追従する。
         # cmd_vel preview (非モータートピック) での配管確認が主用途のため。実モーター
         # 運用 (--drive-motors) では ack の status で送信側に見えるようにしておく。
@@ -140,23 +120,11 @@ class EdgeActionGrpcNode(Node):
 
     def _tick(self, now: float) -> None:
         """最新 chunk の publish とウォッチドッグ。テストから直接叩ける。"""
-        with self._lock:
-            pending, self._pending = self._pending, None
-            last_rx = self._last_rx
-            stopped = self._stopped
-
-        if pending is not None:
-            pending.header.stamp = self.get_clock().now().to_msg()
-            self._pub.publish(pending)
-            return
-
-        if last_rx is not None and not stopped and now - last_rx > self._max_age_sec:
-            empty = Path()
-            empty.header.frame_id = self._frame_id
-            empty.header.stamp = self.get_clock().now().to_msg()
-            self._pub.publish(empty)
-            with self._lock:
-                self._stopped = True
+        path, timed_out = self._bridge.tick(now)
+        if path is not None:
+            path.header.stamp = self.get_clock().now().to_msg()
+            self._pub.publish(path)
+        if timed_out:
             self.get_logger().warning(
                 f'no chunk for > {self._max_age_sec:.1f}s -> 空 Path で safe-stop')
 

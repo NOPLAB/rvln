@@ -4,7 +4,6 @@ from __future__ import annotations
 import numpy as np
 
 
-
 def float32_array_to_fp16_bytes(arr: np.ndarray) -> bytes:
     """Convert a contiguous float32 array to little-endian fp16 bytes."""
     if arr.dtype != np.float32:

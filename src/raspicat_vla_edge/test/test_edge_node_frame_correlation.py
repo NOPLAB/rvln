@@ -52,7 +52,7 @@ def _embedding(frame_id: int) -> ActionEmbedding:
 
 
 def test_reply_pairs_embedding_with_sent_frame_and_prunes_older(node):
-    node._sent_frames = {5: _frame(5), 6: _frame(6), 7: _frame(7)}
+    node._observations._sent_frames = {5: _frame(5), 6: _frame(6), 7: _frame(7)}
 
     node._on_embedding_received(_embedding(6))
 
@@ -62,11 +62,11 @@ def test_reply_pairs_embedding_with_sent_frame_and_prunes_older(node):
     np.testing.assert_array_equal(cached.obs_image_rgb, _frame(6))
     # 5 can never be answered any more (server replies in order); 7 is still
     # in flight and must survive.
-    assert list(node._sent_frames) == [7]
+    assert list(node._observations._sent_frames) == [7]
 
 
 def test_reply_without_matching_frame_caches_none(node):
-    node._sent_frames = {}
+    node._observations._sent_frames = {}
     node._on_embedding_received(_embedding(3))
     cached = node._cache.get_latest_raw()
     assert cached is not None
@@ -98,9 +98,8 @@ def test_action_tick_passes_embedding_frame_as_past_image(node):
     adapter = _RecordingAdapter()
     node._adapter = adapter
     node._path_pub = _StubPub()
-    node._latest_image = _frame(200)          # newest camera frame
-    node._latest_image_stamp_ns = time.monotonic_ns()
-    node._sent_frames = {1: _frame(10)}       # frame the cloud consumed
+    node._camera_frames.put(_frame(200))      # newest camera frame
+    node._observations._sent_frames = {1: _frame(10)}  # cloud frame
     node._on_embedding_received(_embedding(1))
 
     node._action_tick()
@@ -115,9 +114,8 @@ def test_action_tick_falls_back_to_cur_when_frame_uncorrelated(node):
     adapter = _RecordingAdapter()
     node._adapter = adapter
     node._path_pub = _StubPub()
-    node._latest_image = _frame(200)
-    node._latest_image_stamp_ns = time.monotonic_ns()
-    node._sent_frames = {}
+    node._camera_frames.put(_frame(200))
+    node._observations._sent_frames = {}
     node._on_embedding_received(_embedding(1))
 
     node._action_tick()
@@ -136,9 +134,8 @@ def test_action_tick_safe_stops_on_stale_camera_frame(node):
     node._adapter = adapter
     pub = _StubPub()
     node._path_pub = pub
-    node._latest_image = _frame(200)
-    node._latest_image_stamp_ns = time.monotonic_ns() - int(10e9)  # 10 s old
-    node._sent_frames = {1: _frame(10)}
+    node._camera_frames.put(_frame(200), stamp_ns=time.monotonic_ns() - int(10e9))
+    node._observations._sent_frames = {1: _frame(10)}
     node._on_embedding_received(_embedding(1))
 
     node._action_tick()
@@ -159,12 +156,11 @@ def test_send_tick_skips_stale_camera_frame(node):
 
     publisher = _RecordingPublisher()
     node._observation_pub = publisher
-    node._latest_image = _frame(200)
-    node._latest_image_stamp_ns = time.monotonic_ns() - int(10e9)  # 10 s old
+    node._camera_frames.put(_frame(200), stamp_ns=time.monotonic_ns() - int(10e9))
     goal = GoalSpecMsg()
     goal.mode = GoalSpecMsg.MODE_TEXT
     goal.text = 'go forward'
-    node._latest_goal = goal
+    node._observations.change_goal(goal, lambda floor: None)
 
     node._send_observation_tick()
 

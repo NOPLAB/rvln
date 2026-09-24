@@ -30,13 +30,13 @@ def test_configure_fails_when_camera_device_cannot_be_opened(node):
         rclpy.parameter.Parameter('camera_device', value='/dev/nonexistent-video99'),
     ])
     assert node.on_configure(None) == TransitionCallbackReturn.FAILURE
-    assert node._camera_cap is None
+    assert node._camera._cap is None
     assert node._image_sub is None  # no fallback subscription in camera mode
 
 
 def test_configure_without_camera_device_subscribes_to_image_topic(node):
     assert node.on_configure(None) == TransitionCallbackReturn.SUCCESS
-    assert node._camera_cap is None
+    assert node._camera._cap is None
     assert node._image_sub is not None
     node.on_cleanup(None)
 
@@ -44,11 +44,15 @@ def test_configure_without_camera_device_subscribes_to_image_topic(node):
 class _StubCap:
     """VideoCapture stand-in: yields one BGR frame, then stops the loop."""
 
-    def __init__(self, node):
-        self._node = node
+    def __init__(self, camera):
+        self._camera = camera
+        self._reads = 0
 
     def read(self):
-        self._node._camera_stop.set()  # exit after this frame
+        self._reads += 1
+        if self._reads > 1:
+            self._camera._stop.set()
+            return False, None
         frame_bgr = np.zeros((4, 4, 3), dtype=np.uint8)
         frame_bgr[..., 0] = 255  # blue plane in BGR
         return True, frame_bgr
@@ -58,16 +62,16 @@ class _StubCap:
 
 
 def test_camera_loop_stores_rgb_frame_and_stamp(node):
-    node._camera_cap = _StubCap(node)
-    node._camera_stop.clear()
+    node._camera._cap = _StubCap(node._camera)
+    node._camera._stop.clear()
 
-    node._camera_loop()
+    node._camera.capture_loop()
 
-    assert node._latest_image is not None
+    image = node._camera_frames.fresh(int(1e9))
+    assert image is not None
     # BGR blue must land in the RGB blue channel (i.e. cvtColor happened).
-    assert node._latest_image[0, 0, 2] == 255
-    assert node._latest_image[0, 0, 0] == 0
-    assert node._latest_image_stamp_ns > 0
+    assert image[0, 0, 2] == 255
+    assert image[0, 0, 0] == 0
 
 
 def test_compressed_image_callback_decodes_jpeg_to_rgb(node):
@@ -84,11 +88,11 @@ def test_compressed_image_callback_decodes_jpeg_to_rgb(node):
 
     node._on_compressed_image(msg)
 
-    assert node._latest_image is not None
+    image = node._camera_frames.fresh(int(1e9))
+    assert image is not None
     # Blue in BGR must land in the RGB blue channel (allow JPEG loss).
-    assert node._latest_image[16, 16, 2] > 200
-    assert node._latest_image[16, 16, 0] < 50
-    assert node._latest_image_stamp_ns > 0
+    assert image[16, 16, 2] > 200
+    assert image[16, 16, 0] < 50
 
 
 def test_compressed_topic_selects_compressed_subscription(node):

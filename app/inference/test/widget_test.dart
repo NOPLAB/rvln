@@ -1,6 +1,7 @@
 // 前処理コアの単体テスト (docs/design/mobile_port_spec.md §3 の正解定義)。
 // Phase 2 で PyTorch 参照とゴールデン一致させる際の足場。
 
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -74,4 +75,62 @@ void main() {
     final bytes = packFp16(vals);
     expect(bytes.length, vals.length * 2);
   });
+
+  test('CoalescingSender は close 後に保留 chunk を送らない', () async {
+    final client = _RecordingClient();
+    final sender = CoalescingSender(
+      client,
+      minInterval: const Duration(milliseconds: 50),
+    );
+    final chunk = ActionChunk(
+      Float32List(OmniVlaConfig.lenTrajPred * OmniVlaConfig.actionDim),
+    );
+    sender.submit(chunk, frameId: 1, goalId: 'g');
+    sender.submit(chunk, frameId: 2, goalId: 'g');
+    await sender.close();
+    sender.submit(chunk, frameId: 3, goalId: 'g');
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    expect(client.sent, [1]);
+  });
+
+  test('CoalescingSender は送信中の chunk 完了後に接続を閉じる', () async {
+    final client = _RecordingClient()..pending = Completer<void>();
+    final sender = CoalescingSender(client);
+    final chunk = ActionChunk(
+      Float32List(OmniVlaConfig.lenTrajPred * OmniVlaConfig.actionDim),
+    );
+    sender.submit(chunk, frameId: 1, goalId: 'g');
+    final closing = sender.close();
+    expect(client.closed, isFalse);
+    client.pending!.complete();
+    await closing;
+    expect(client.closed, isTrue);
+  });
+}
+
+class _RecordingClient implements EdgeActionClient {
+  final List<int> sent = [];
+  Completer<void>? pending;
+  bool closed = false;
+
+  @override
+  Future<void> connect() async {}
+
+  @override
+  Future<void> send(
+    ActionChunk chunk, {
+    required int frameId,
+    required String goalId,
+  }) async {
+    sent.add(frameId);
+    await pending?.future;
+  }
+
+  @override
+  String get status => 'test';
+
+  @override
+  Future<void> close() async {
+    closed = true;
+  }
 }

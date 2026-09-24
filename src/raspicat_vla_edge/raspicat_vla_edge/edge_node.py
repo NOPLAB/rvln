@@ -6,7 +6,6 @@ real Edge Adapter PyTorch model (model-specific, e.g. AsyncVLA / OmniVLA).
 """
 from __future__ import annotations
 
-import threading
 import time
 from typing import Optional
 
@@ -31,6 +30,8 @@ from raspicat_vla_msgs.msg import (
 from .preprocess import resize_and_jpeg
 from .embedding_cache import EmbeddingCache, CachedEmbedding
 from .adapters.base import EdgeAdapter, EdgeGoal
+from .camera_capture import V4L2CameraCapture
+from .observation_state import CameraFrameStore, ObservationLedger
 
 
 def _build_adapter(kind: str, *, params: dict) -> EdgeAdapter:
@@ -82,22 +83,8 @@ class VLAEdgeNode(LifecycleNode):
         super().__init__('vla_edge_node')
         self._declare_parameters()
         self._bridge = CvBridge()
-        self._latest_image: Optional[np.ndarray] = None
-        # monotonic ns of the last camera frame; 0 = never received. Guards
-        # against a dead camera driver: without it the node keeps sending and
-        # acting on the last frame forever, blindly driving the model's prior.
-        self._latest_image_stamp_ns = 0
-        self._latest_image_lock = threading.Lock()
-        self._latest_goal: Optional[GoalSpecMsg] = None
-        self._latest_goal_lock = threading.Lock()
-        # frame_id -> RGB frame for observations published to ROS 2,
-        # so the reply's embedding can be paired with the exact frame it was
-        # computed from (AsyncVLA's Edge_adapter needs that frame as its
-        # ``past_img`` to compensate for cloud latency). Bounded FIFO: most
-        # entries are never answered because the client coalesces sends.
-        self._sent_frames: 'dict[int, np.ndarray]' = {}
-        self._sent_frames_lock = threading.Lock()
-        self._sent_frames_max = 8
+        self._camera_frames = CameraFrameStore()
+        self._observations = ObservationLedger(max_frames=8)
         # Monotonic timestamp of the last action-tick diagnostic log line.
         self._last_diag_log_ns = 0
         # Duration of the most recent adapter inference, for the diag line.
@@ -107,9 +94,10 @@ class VLAEdgeNode(LifecycleNode):
         # to a separate driver node's topic. One process fewer on the robot and
         # no 30 fps raw-Image DDS hop — both matter on a Pi where CPU contention
         # was starving the camera feed.
-        self._camera_cap: Optional[cv2.VideoCapture] = None
-        self._camera_thread: Optional[threading.Thread] = None
-        self._camera_stop = threading.Event()
+        self._camera = V4L2CameraCapture(
+            self._camera_frames,
+            lambda message: self.get_logger().warn(message, throttle_duration_sec=5.0),
+        )
         # Callback groups: rclpy puts every callback in ONE mutually exclusive
         # group by default, so a CPU-heavy adapter inference in the action tick
         # blocks the image callback for its whole duration — on a Pi the camera
@@ -124,7 +112,6 @@ class VLAEdgeNode(LifecycleNode):
         self._adapter: Optional[EdgeAdapter] = None
         # True when the adapter runs the policy on-edge (no remote/cache).
         self._local_mode = False
-        self._frame_counter = 0
         self._send_timer = None
         self._action_timer = None
         self._status_timer = None
@@ -260,12 +247,7 @@ class VLAEdgeNode(LifecycleNode):
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:  # noqa: ARG002
         self.get_logger().info('on_activate')
-        if self._camera_cap is not None:
-            self._camera_stop.clear()
-            self._camera_thread = threading.Thread(
-                target=self._camera_loop, name='camera-capture', daemon=True,
-            )
-            self._camera_thread.start()
+        self._camera.start()
         act_rate = float(self.get_parameter('action_rate_hz').value)
         # In local mode there is no cloud: skip the ROS observation and the
         # observation-send loop; the action loop drives the local policy directly.
@@ -288,10 +270,8 @@ class VLAEdgeNode(LifecycleNode):
 
     def on_deactivate(self, state: State) -> TransitionCallbackReturn:  # noqa: ARG002
         self.get_logger().info('on_deactivate')
-        if self._camera_thread is not None:
-            self._camera_stop.set()
-            self._camera_thread.join(timeout=2.0)
-            self._camera_thread = None
+        self._camera.stop()
+        self._camera_frames.clear()
         for t in (self._send_timer, self._action_timer, self._status_timer):
             if t is not None:
                 self.destroy_timer(t)
@@ -300,9 +280,8 @@ class VLAEdgeNode(LifecycleNode):
 
     def on_cleanup(self, state: State) -> TransitionCallbackReturn:  # noqa: ARG002
         self.get_logger().info('on_cleanup')
-        if self._camera_cap is not None:
-            self._camera_cap.release()
-            self._camera_cap = None
+        self._camera.close()
+        self._observations.reset()
         if self._remote_embedding_sub is not None:
             self.destroy_subscription(self._remote_embedding_sub)
             self._remote_embedding_sub = None
@@ -341,46 +320,15 @@ class VLAEdgeNode(LifecycleNode):
         launch-side retry loop keeps re-running configure until the device is
         available.
         """
-        cap = cv2.VideoCapture(device, cv2.CAP_V4L2)
-        if not cap.isOpened():
+        opened = self._camera.open(
+            device,
+            width=int(self.get_parameter('camera_width').value),
+            height=int(self.get_parameter('camera_height').value),
+            fps=float(self.get_parameter('camera_fps').value),
+        )
+        if not opened:
             self.get_logger().error(f'cannot open camera device {device}')
-            cap.release()
-            return False
-        width = int(self.get_parameter('camera_width').value)
-        height = int(self.get_parameter('camera_height').value)
-        fps = float(self.get_parameter('camera_fps').value)
-        if width > 0:
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
-        if height > 0:
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
-        if fps > 0.0:
-            cap.set(cv2.CAP_PROP_FPS, fps)
-        # Keep the driver queue at one frame so read() always returns the
-        # newest capture instead of a backlog (same rationale as the
-        # depth=1 subscription QoS).
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-        self._camera_cap = cap
-        return True
-
-    def _camera_loop(self) -> None:
-        """Capture thread: read frames at the driver's pace into _latest_image.
-
-        cv2.VideoCapture.read() blocks until the next frame, so this thread is
-        naturally rate-limited by the camera. Failures are logged and retried —
-        the freshness guard downstream safe-stops the robot if frames actually
-        stop flowing.
-        """
-        while not self._camera_stop.is_set():
-            ok, frame_bgr = self._camera_cap.read()
-            if not ok:
-                self.get_logger().warn(
-                    'camera read failed; retrying', throttle_duration_sec=5.0)
-                time.sleep(0.1)
-                continue
-            rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-            with self._latest_image_lock:
-                self._latest_image = rgb
-                self._latest_image_stamp_ns = time.monotonic_ns()
+        return opened
 
     # ----------------------------------------------------------- subscribers
 
@@ -390,9 +338,7 @@ class VLAEdgeNode(LifecycleNode):
         except Exception as exc:  # noqa: BLE001
             self.get_logger().warn(f'cv_bridge failed: {exc}')
             return
-        with self._latest_image_lock:
-            self._latest_image = cv_img
-            self._latest_image_stamp_ns = time.monotonic_ns()
+        self._camera_frames.put(cv_img)
 
     def _on_compressed_image(self, msg: CompressedImage) -> None:
         buf = np.frombuffer(bytes(msg.data), dtype=np.uint8)
@@ -402,9 +348,7 @@ class VLAEdgeNode(LifecycleNode):
                 'compressed image decode failed', throttle_duration_sec=5.0)
             return
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-        with self._latest_image_lock:
-            self._latest_image = rgb
-            self._latest_image_stamp_ns = time.monotonic_ns()
+        self._camera_frames.put(rgb)
 
     def _ros_goal_to_edge_goal(self, goal: GoalSpecMsg) -> Optional[EdgeGoal]:
         """Convert a GoalSpec ROS msg to the adapter-facing EdgeGoal.
@@ -437,21 +381,14 @@ class VLAEdgeNode(LifecycleNode):
 
     def _on_goal(self, msg: GoalSpecMsg) -> None:
         self.get_logger().info(f'received goal mode={msg.mode}')
-        with self._latest_goal_lock:
-            self._latest_goal = msg
+        self._observations.change_goal(
+            msg,
+            lambda floor: self._cache.invalidate(floor=floor) if self._cache else None,
+        )
         if self._adapter is not None:
             edge_goal = self._ros_goal_to_edge_goal(msg)
             if edge_goal is not None:
                 self._adapter.set_goal(edge_goal)
-        if self._cache is not None:
-            # Read of _frame_counter is unlocked: _send_observation_tick (on
-            # another executor thread) increments without a lock. Worst-case
-            # we read one too low/high — both are tolerable: too low keeps a
-            # stale embedding for at most one tick, too high rejects one fresh
-            # embedding. Locking here would just trade a one-tick delay for a
-            # rare lock contention, so we accept the race for the MVP.
-            floor = self._frame_counter
-            self._cache.invalidate(floor=floor)
 
     # ------------------------------------------------------------ tick: send
 
@@ -464,25 +401,19 @@ class VLAEdgeNode(LifecycleNode):
         drive the model's constant output for that frozen frame.
         """
         max_age_ns = int(float(self.get_parameter('image_max_age_sec').value) * 1e9)
-        with self._latest_image_lock:
-            img = self._latest_image
-            stamp = self._latest_image_stamp_ns
+        img = self._camera_frames.fresh(max_age_ns)
         if img is None:
-            return None
-        if time.monotonic_ns() - stamp > max_age_ns:
             self.get_logger().warn(
                 f'camera frame stale (>{max_age_ns / 1e9:.1f}s old); treating as no image',
                 throttle_duration_sec=2.0,
             )
-            return None
-        return img.copy()
+        return img
 
     def _send_observation_tick(self) -> None:
         if self._observation_pub is None:
             return
         img = self._fresh_image()
-        with self._latest_goal_lock:
-            goal = self._latest_goal
+        goal, generation = self._observations.snapshot_goal()
         if img is None or goal is None:
             return
         size = self.get_parameter('image_size').value
@@ -492,17 +423,15 @@ class VLAEdgeNode(LifecycleNode):
         except Exception as exc:  # noqa: BLE001
             self.get_logger().warn(f'preprocess failed: {exc}')
             return
-        self._frame_counter += 1
+        frame_id = self._observations.record_sent(generation, img)
+        if frame_id is None:
+            return
         obs = ObservationMsg()
-        obs.frame_id = self._frame_counter
+        obs.frame_id = frame_id
         obs.image.header.stamp = self.get_clock().now().to_msg()
         obs.image.format = 'jpeg'
         obs.image.data = jpeg
         obs.goal = goal
-        with self._sent_frames_lock:
-            self._sent_frames[int(obs.frame_id)] = img
-            while len(self._sent_frames) > self._sent_frames_max:
-                del self._sent_frames[next(iter(self._sent_frames))]
         self._observation_pub.publish(obs)
 
     # -------------------------------------------------- callback: embeddings
@@ -514,12 +443,7 @@ class VLAEdgeNode(LifecycleNode):
             self.get_logger().warn(f'invalid embedding shape for frame {emb.frame_id}')
             return
         arr = np.asarray(emb.embedding, dtype=np.float32)
-        with self._sent_frames_lock:
-            obs_img = self._sent_frames.pop(int(emb.frame_id), None)
-            # The server answers in send order, so frames older than this
-            # reply will never be answered — drop them.
-            for fid in [f for f in self._sent_frames if f < int(emb.frame_id)]:
-                del self._sent_frames[fid]
+        obs_img = self._observations.take_reply_frame(int(emb.frame_id))
         cached = CachedEmbedding(
             frame_id=emb.frame_id,
             recv_time_ns=time.monotonic_ns(),
@@ -613,8 +537,7 @@ class VLAEdgeNode(LifecycleNode):
             return
         self._last_diag_log_ns = now_ns
         age_ms = (now_ns - emb.recv_time_ns) / 1e6
-        with self._latest_image_lock:
-            img_age_ms = (now_ns - self._latest_image_stamp_ns) / 1e6
+        img_age_ms = self._camera_frames.age_ms(now_ns)
         arr = np.asarray(emb.embedding, dtype=np.float32)
         wp = 'none'
         if len(path.poses) > 4:
@@ -666,10 +589,9 @@ class VLAEdgeNode(LifecycleNode):
             return
         if self._local_mode:
             # No cloud/cache: readiness is "do we have an image and a goal".
-            with self._latest_image_lock:
-                have_img = self._latest_image is not None
-            with self._latest_goal_lock:
-                have_goal = self._latest_goal is not None
+            max_age_ns = int(float(self.get_parameter('image_max_age_sec').value) * 1e9)
+            have_img = self._camera_frames.has_fresh(max_age_ns)
+            have_goal = self._observations.has_goal
             status_str = 'OK' if (have_img and have_goal) else 'WAITING_REMOTE'
         elif self._cache is None:
             return
@@ -687,7 +609,8 @@ class VLAEdgeNode(LifecycleNode):
             if status_str in ('DEGRADED', 'WAITING_REMOTE')
             else DiagnosticStatus.ERROR
         )
-        ds.values.append(KeyValue(key='frame_counter', value=str(self._frame_counter)))
+        ds.values.append(KeyValue(
+            key='frame_counter', value=str(self._observations.frame_counter)))
         msg.status.append(ds)
         self._status_pub.publish(msg)
 

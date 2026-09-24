@@ -58,6 +58,8 @@ export default function VlaApp() {
   );
   const busyRef = useRef(false);
   const frameIdRef = useRef(0);
+  const generationRef = useRef(0);
+  const connectionRef = useRef(0);
   const goalRef = useRef<Goal | null>(null);
   const runningRef = useRef(true);
   const currentFrameRef = useRef<RgbaImage | null>(null);
@@ -82,6 +84,11 @@ export default function VlaApp() {
 
   // --- エンジン初期化 (シングルトン) ---
   useEffect(() => {
+    clientRef.current = new LoggingEdgeClient();
+    senderRef.current = new CoalescingSender(
+      clientRef.current,
+      SEND_MIN_INTERVAL_MS,
+    );
     const listener = (p: OrtInitProgress) => setInitProgress(p);
     progressListeners.add(listener);
     const { engine, ready } = ensureEngine();
@@ -100,6 +107,9 @@ export default function VlaApp() {
     setWsUrl(localStorage.getItem(WS_URL_STORAGE_KEY) ?? '');
     return () => {
       cancelled = true;
+      generationRef.current += 1;
+      connectionRef.current += 1;
+      void senderRef.current.close();
       progressListeners.delete(listener);
     };
   }, []);
@@ -173,6 +183,7 @@ export default function VlaApp() {
     const engine = engineRef.current;
     const video = videoRef.current;
     const goalNow = goalRef.current;
+    const generation = generationRef.current;
     if (busyRef.current || !runningRef.current || !engine || !video || !goalNow)
       return;
     if (video.readyState < 2 || video.videoWidth === 0) return;
@@ -207,6 +218,7 @@ export default function VlaApp() {
       currentFrameRef.current = frame;
 
       const result = await engine.inferChunk(frame, goalNow);
+      if (generation !== generationRef.current) return;
       frameIdRef.current += 1;
       senderRef.current.submit(result, {
         frameId: frameIdRef.current,
@@ -232,6 +244,8 @@ export default function VlaApp() {
 
   // --- ゴール設定 (履歴リセット) ---
   const handleGoal = useCallback((g: Goal) => {
+    generationRef.current += 1;
+    senderRef.current.clearPending();
     engineRef.current?.reset();
     goalRef.current = g;
     setGoal(g);
@@ -239,10 +253,13 @@ export default function VlaApp() {
   }, []);
 
   const handleToggleRunning = useCallback(() => {
-    setRunning((r) => {
-      runningRef.current = !r;
-      return !r;
-    });
+    const next = !runningRef.current;
+    if (!next) {
+      generationRef.current += 1;
+      senderRef.current.clearPending();
+    }
+    runningRef.current = next;
+    setRunning(next);
   }, []);
 
   // --- Pi WebSocket 接続 ---
@@ -250,22 +267,35 @@ export default function VlaApp() {
     const url = wsUrl.trim();
     if (url === '') return;
     localStorage.setItem(WS_URL_STORAGE_KEY, url);
-    void clientRef.current.close();
-    const client = new WsEdgeClient(url);
-    void client.connect();
-    clientRef.current = client;
-    senderRef.current = new CoalescingSender(client, SEND_MIN_INTERVAL_MS);
-    setWsConnected(true);
-    setSenderStatus(client.status);
+    generationRef.current += 1;
+    const connection = ++connectionRef.current;
+    const old = senderRef.current;
+    void (async () => {
+      await old.close();
+      if (connection !== connectionRef.current) return;
+      const client = new WsEdgeClient(url);
+      clientRef.current = client;
+      senderRef.current = new CoalescingSender(client, SEND_MIN_INTERVAL_MS);
+      await client.connect();
+      if (connection !== connectionRef.current) return;
+      setWsConnected(true);
+      setSenderStatus(client.status);
+    })();
   }, [wsUrl]);
 
   const handleWsDisconnect = useCallback(() => {
-    void clientRef.current.close();
-    const client = new LoggingEdgeClient();
-    clientRef.current = client;
-    senderRef.current = new CoalescingSender(client, SEND_MIN_INTERVAL_MS);
-    setWsConnected(false);
-    setSenderStatus(client.status);
+    generationRef.current += 1;
+    const connection = ++connectionRef.current;
+    const old = senderRef.current;
+    void (async () => {
+      await old.close();
+      if (connection !== connectionRef.current) return;
+      const client = new LoggingEdgeClient();
+      clientRef.current = client;
+      senderRef.current = new CoalescingSender(client, SEND_MIN_INTERVAL_MS);
+      setWsConnected(false);
+      setSenderStatus(client.status);
+    })();
   }, []);
 
   const handleClearCache = useCallback(() => {

@@ -60,6 +60,9 @@ export class CoalescingSender {
   private pending: { chunk: ActionChunk; meta: SendMeta } | null = null;
   private sending = false;
   private lastSent = 0;
+  private closed = false;
+  private draining: Promise<void> | null = null;
+  private sendError: string | null = null;
 
   constructor(
     private readonly client: EdgeActionClient,
@@ -67,29 +70,48 @@ export class CoalescingSender {
   ) {}
 
   get status(): string {
-    return this.client.status;
+    return this.sendError ?? this.client.status;
   }
 
   /** 送信キューへ投入 (最新のみ保持)。 */
   submit(chunk: ActionChunk, meta: SendMeta): void {
+    if (this.closed) return;
     this.pending = { chunk, meta };
-    void this.drain();
+    this.startDrain();
+  }
+
+  private startDrain(): void {
+    if (this.draining === null) {
+      this.draining = this.drain().finally(() => {
+        this.draining = null;
+        if (!this.closed && this.pending !== null) this.startDrain();
+      });
+    }
+  }
+
+  clearPending(): void {
+    this.pending = null;
   }
 
   private async drain(): Promise<void> {
     if (this.sending) return;
     this.sending = true;
     try {
-      while (this.pending !== null) {
+      while (!this.closed && this.pending !== null) {
         const since = Date.now() - this.lastSent;
         if (since < this.minIntervalMs) {
           await sleep(this.minIntervalMs - since);
         }
         const item = this.pending;
-        if (item === null) break;
+        if (this.closed || item === null) break;
         this.pending = null;
         this.lastSent = Date.now();
-        await this.client.send(item.chunk, item.meta);
+        try {
+          await this.client.send(item.chunk, item.meta);
+          this.sendError = null;
+        } catch (e) {
+          this.sendError = `send error: ${e instanceof Error ? e.message : e}`;
+        }
       }
     } finally {
       this.sending = false;
@@ -97,7 +119,13 @@ export class CoalescingSender {
   }
 
   async close(): Promise<void> {
-    await this.client.close();
+    this.closed = true;
+    this.clearPending();
+    try {
+      await this.draining;
+    } finally {
+      await this.client.close();
+    }
   }
 }
 

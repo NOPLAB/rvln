@@ -199,9 +199,12 @@ class CoalescingSender {
   int _pendingFrameId = 0;
   String _pendingGoalId = '';
   bool _sending = false;
+  bool _closed = false;
+  Future<void>? _draining;
+  String? _sendError;
   DateTime _lastSent = DateTime.fromMillisecondsSinceEpoch(0);
 
-  String get status => _client.status;
+  String get status => _sendError ?? _client.status;
 
   /// 送信キューへ投入 (最新のみ保持)。
   void submit(
@@ -209,38 +212,67 @@ class CoalescingSender {
     required int frameId,
     required String goalId,
   }) {
+    if (_closed) return;
     _pending = chunk;
     _pendingFrameId = frameId;
     _pendingGoalId = goalId;
-    unawaited(_drain());
+    _startDrain();
   }
+
+  void _startDrain() {
+    if (_draining == null) {
+      final draining = _drain();
+      _draining = draining;
+      unawaited(
+        draining.whenComplete(() {
+          _draining = null;
+          if (!_closed && _pending != null) _startDrain();
+        }),
+      );
+    }
+  }
+
+  void clearPending() => _pending = null;
 
   Future<void> _drain() async {
     if (_sending) return;
     _sending = true;
     try {
-      while (_pending != null) {
+      while (!_closed && _pending != null) {
         final now = DateTime.now();
         final since = now.difference(_lastSent);
         if (since < _minInterval) {
           await Future<void>.delayed(_minInterval - since);
         }
         final chunk = _pending;
-        if (chunk == null) break;
+        if (_closed || chunk == null) break;
         _pending = null;
         _lastSent = DateTime.now();
-        await _client.send(
-          chunk,
-          frameId: _pendingFrameId,
-          goalId: _pendingGoalId,
-        );
+        try {
+          await _client.send(
+            chunk,
+            frameId: _pendingFrameId,
+            goalId: _pendingGoalId,
+          );
+          _sendError = null;
+        } catch (e) {
+          _sendError = 'send error: $e';
+        }
       }
     } finally {
       _sending = false;
     }
   }
 
-  Future<void> close() => _client.close();
+  Future<void> close() async {
+    _closed = true;
+    clearPending();
+    try {
+      await _draining;
+    } finally {
+      await _client.close();
+    }
+  }
 }
 
 // --- IEEE754 float32 -> float16 (half) ---

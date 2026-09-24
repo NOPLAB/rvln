@@ -51,6 +51,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Timer? _loop;
   bool _busy = false;
   int _frameId = 0;
+  int _generation = 0;
+  int _connectionGeneration = 0;
   int _lastLatencyMs = 0;
   String _error = '';
   String _tickError = '';
@@ -67,6 +69,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   Future<void> _init() async {
     await _engine.init();
+    if (!mounted) return;
     _engineReady = true;
     setState(() {
       _engineStatus = _engine.modelAvailable
@@ -83,6 +86,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       return;
     }
     final granted = await Permission.camera.request();
+    if (!mounted) return;
     if (!granted.isGranted) {
       setState(() => _error = 'カメラ権限がありません');
       return;
@@ -120,7 +124,11 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         }
       }
     }
-    if (!mounted || controller == null) return;
+    if (!mounted) {
+      await controller?.dispose();
+      return;
+    }
+    if (controller == null) return;
     setState(() {
       _error = '';
       _controller = controller;
@@ -136,6 +144,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   Future<void> _tick() async {
     if (_busy || !_running) return;
     final goal = _goal;
+    final generation = _generation;
     final camImage = _latestCameraImage;
     if (goal == null || camImage == null) return;
     _busy = true;
@@ -144,6 +153,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       final rgb = centerCropToAspect(cameraImageToRgb(camImage));
       _currentFrame = rgb;
       final chunk = await _engine.inferChunk(rgb, goal);
+      if (!mounted || generation != _generation || !_running) return;
       _frameId++;
       _sender.submit(chunk, frameId: _frameId, goalId: goal.id);
       sw.stop();
@@ -163,6 +173,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   }
 
   void _setGoal(Goal goal) {
+    _generation++;
+    _sender.clearPending();
     _engine.reset();
     setState(() {
       _goal = goal;
@@ -182,24 +194,36 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
         : int.tryParse(trimmed.substring(sep + 1)) ?? kDefaultEdgeActionPort;
 
     final old = _sender;
+    _generation++;
+    _connectionGeneration++;
+    final connectionGeneration = _connectionGeneration;
+    await old.close();
+    if (!mounted || connectionGeneration != _connectionGeneration) return;
     final client = GrpcEdgeClient(host, port: port);
     _sender = CoalescingSender(
       client,
       minInterval: const Duration(milliseconds: 100),
     );
-    unawaited(old.close());
     await client.connect();
-    if (mounted) setState(() => _piAddress = '$host:$port');
+    if (!mounted || connectionGeneration != _connectionGeneration) {
+      await client.close();
+      return;
+    }
+    setState(() => _piAddress = '$host:$port');
   }
 
   Future<void> _disconnectPi() async {
     final old = _sender;
+    _generation++;
+    _connectionGeneration++;
+    final connectionGeneration = _connectionGeneration;
+    await old.close();
+    if (!mounted || connectionGeneration != _connectionGeneration) return;
     _sender = CoalescingSender(
       LoggingEdgeClient(),
       minInterval: const Duration(milliseconds: 100),
     );
-    unawaited(old.close());
-    if (mounted) setState(() => _piAddress = '');
+    setState(() => _piAddress = '');
   }
 
   void _openPiDialog() {
@@ -262,6 +286,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
+      _generation++;
+      _sender.clearPending();
+      _latestCameraImage = null;
       // 画面 OFF 等ではカメラだけ解放 (モデルは保持)。
       _controller?.dispose();
       if (mounted) setState(() => _controller = null);
@@ -275,6 +302,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _generation++;
+    _connectionGeneration++;
     WidgetsBinding.instance.removeObserver(this);
     _loop?.cancel();
     _controller?.dispose();
@@ -300,7 +329,13 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
           IconButton(
             tooltip: _running ? '推論を停止' : '推論を再生',
             icon: Icon(_running ? Icons.pause_circle : Icons.play_circle),
-            onPressed: () => setState(() => _running = !_running),
+            onPressed: () {
+              if (_running) {
+                _generation++;
+                _sender.clearPending();
+              }
+              setState(() => _running = !_running);
+            },
           ),
           IconButton(
             icon: const Icon(Icons.info_outline),

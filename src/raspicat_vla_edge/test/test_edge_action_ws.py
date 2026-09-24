@@ -127,6 +127,17 @@ def test_new_chunk_after_stale_resumes(ros_runtime):
         node.destroy_node()
 
 
+def test_stale_pending_chunk_is_never_published(ros_runtime):
+    node, published = _make_node()
+    try:
+        node.handle_message(json.dumps(_chunk_msg()), now=0.0)
+        node._tick(2.0)
+        assert len(published) == 1
+        assert published[0].poses == []
+    finally:
+        node.destroy_node()
+
+
 def test_malformed_message_acks_error_and_never_publishes(ros_runtime):
     node, published = _make_node()
     try:

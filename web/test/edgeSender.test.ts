@@ -73,4 +73,51 @@ describe('CoalescingSender', () => {
     await client.send(chunkOf(1), { frameId: 7, goalId: 'g' });
     expect(client.status).toContain('#7');
   });
+
+  it('close 後は保留 chunk と新規 chunk を送らない', async () => {
+    const sent: number[] = [];
+    const client: EdgeActionClient = {
+      async connect() {},
+      async send(_chunk, meta) {
+        sent.push(meta.frameId);
+      },
+      get status() {
+        return 'test';
+      },
+      async close() {},
+    };
+    const sender = new CoalescingSender(client, 50);
+    sender.submit(chunkOf(1), { frameId: 1, goalId: 'g' });
+    sender.submit(chunkOf(2), { frameId: 2, goalId: 'g' });
+    await sender.close();
+    sender.submit(chunkOf(3), { frameId: 3, goalId: 'g' });
+    await new Promise((r) => setTimeout(r, 80));
+    expect(sent).toEqual([1]);
+  });
+
+  it('close は送信中の chunk が終わるまで接続を閉じない', async () => {
+    let finishSend: (() => void) | undefined;
+    let closed = false;
+    const client: EdgeActionClient = {
+      async connect() {},
+      async send() {
+        await new Promise<void>((resolve) => {
+          finishSend = resolve;
+        });
+      },
+      get status() {
+        return 'test';
+      },
+      async close() {
+        closed = true;
+      },
+    };
+    const sender = new CoalescingSender(client);
+    sender.submit(chunkOf(1), { frameId: 1, goalId: 'g' });
+    const closing = sender.close();
+    expect(closed).toBe(false);
+    finishSend?.();
+    await closing;
+    expect(closed).toBe(true);
+  });
 });
