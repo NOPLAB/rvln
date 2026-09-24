@@ -323,7 +323,7 @@ export default function VlaApp() {
   return (
     <main className="app">
       <header className="app-header">
-        <h1>Raspicat OmniVLA — Web Console</h1>
+        <h1>rvln — Web Console</h1>
         <span
           className={`badge ${engineReady ? (chunk?.fromModel ? 'ok' : 'warn') : ''}`}
         >
