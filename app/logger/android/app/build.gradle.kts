@@ -43,7 +43,7 @@ kotlin {
 
 dependencies {
     // ARCore: VIO 姿勢 + カメラフレーム取得 (app/logger 独自)。minSdk 24 が要件。
-    implementation("com.google.ar:core:1.49.0")
+    implementation("com.google.ar:core:1.56.0")
 }
 
 flutter {
