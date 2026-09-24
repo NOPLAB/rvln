@@ -1,4 +1,4 @@
-# web/ (rvla-web) の CI。Biome (lint + format)・型チェック・ユニット
+# web/ (rvln-web) の CI。Biome (lint + format)・型チェック・ユニット
 # テスト・SSG ビルドを行う。Pages への公開は deploy-pages.yml が担当。
 #
 # 注意:

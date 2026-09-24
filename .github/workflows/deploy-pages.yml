@@ -1,4 +1,4 @@
-# web/ (rvla-web) を GitHub Pages へデプロイする。
+# web/ (rvln-web) を GitHub Pages へデプロイする。
 #
 # 注意:
 # - ONNX モデル (~590MB) と CLIP 語彙は git 管理外。ビルド時に GitHub Release

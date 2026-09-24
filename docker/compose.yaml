@@ -22,7 +22,7 @@
 #
 # All services share the host network so ROS 2 DDS discovers nodes across PCs.
 
-name: rvla
+name: rvln
 
 # Shared shape of every workspace-building ROS container (edge / sim /
 # edge-local / test). They run as the host user so files written under the
@@ -40,16 +40,16 @@ x-ros-env: &ros-env
   HOME: /tmp  # the mapped host user has no home dir inside the image
   ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
   ROS_LOCALHOST_ONLY: "0"
-  RVLA_REBUILD: ${RVLA_REBUILD:-}
+  RVLN_REBUILD: ${RVLN_REBUILD:-}
 
 services:
   # Remote VLA ROS 2 inference node. Runs as root in the
-  # model image (rvla-{asyncvla,omnivla}[-jetson]) with ROS 2 installed.
+  # model image (rvln-{asyncvla,omnivla}[-jetson]) with ROS 2 installed.
   # remote_ros_entrypoint.sh builds the message and remote packages into a
   # container-local overlay before running the ROS 2 launch file.
   remote:
     profiles: [remote, cmd_vel]
-    image: ${VLA_REMOTE_IMAGE:-rvla-omnivla}
+    image: ${VLA_REMOTE_IMAGE:-rvln-omnivla}
     network_mode: host
     entrypoint: ["bash", "/workspace/docker/remote_ros_entrypoint.sh"]
     working_dir: /workspace
@@ -67,7 +67,7 @@ services:
       # Python silently skips the absent ones, so one list serves every image.
       PYTHONPATH: /opt/OmniVLA:/opt/AsyncVLA:/opt/MBRA/train:/opt/movla/src
     command: >
-      ros2 launch rvla_remote inference.launch.py
+      ros2 launch rvln_remote inference.launch.py
       backend:=${VLA_BACKEND:-dummy}
       vla_path:=${VLA_WEIGHTS:-/workspace/models/omnivla-original}
       resume_step:=${VLA_RESUME_STEP:-120000}
@@ -75,24 +75,24 @@ services:
 
   # Robot-side stack: VLA edge lifecycle node + path follower (+ optional
   # camera), i.e. `ros2 launch <VLA_EDGE_LAUNCH>`. vla.sh falls back to the
-  # test image (VLA_EDGE_IMAGE/VLA_EDGE_OVERLAY) when rvla-real isn't
+  # test image (VLA_EDGE_IMAGE/VLA_EDGE_OVERLAY) when rvln-real isn't
   # built. The "mobile" profile runs the same container with
   # mobile_cmd_vel.launch.py — no VLA server anywhere; the phone infers.
   edge:
     <<: *ros-workspace
     profiles: [edge, cmd_vel, mobile]
-    image: ${VLA_EDGE_IMAGE:-rvla-real}
+    image: ${VLA_EDGE_IMAGE:-rvln-real}
     environment:
       <<: *ros-env
       VLA_WS_OVERLAY: ${VLA_EDGE_OVERLAY:-/opt/real_ws/install/setup.bash}
-    command: ros2 launch ${VLA_EDGE_LAUNCH:-rvla_edge edge_only.launch.py with_follower:=true cmd_vel_topic:=/cmd_vel_vla}
+    command: ros2 launch ${VLA_EDGE_LAUNCH:-rvln_edge edge_only.launch.py with_follower:=true cmd_vel_topic:=/cmd_vel_vla}
 
   # Gazebo + edge stack in one container (Plan 3). Discovery must reach the
   # remote inference node on the LAN when the simulation uses a separate PC.
   sim:
     <<: *ros-workspace
     profiles: [sim]
-    image: rvla-sim
+    image: rvln-sim
     environment:
       <<: *ros-env
       VLA_WS_OVERLAY: /opt/sim_ws/install/setup.bash
@@ -107,7 +107,7 @@ services:
       # lookups working.
       - ${VLA_SIM_PASSWD:-/etc/passwd}:/etc/passwd:ro
       - ${VLA_SIM_GROUP:-/etc/group}:/etc/group:ro
-    command: ros2 launch ${VLA_SIM_LAUNCH:-rvla_bringup sim.launch.py}
+    command: ros2 launch ${VLA_SIM_LAUNCH:-rvln_bringup sim.launch.py}
 
   # Plan 2B Path 2: the whole OmniVLA-edge policy runs ON the robot —
   # no cloud, no gRPC. Needs CUDA (pair with compose.gpu.yaml / compose.jetson.yaml)
@@ -115,7 +115,7 @@ services:
   edge-local:
     <<: *ros-workspace
     profiles: [edge-local]
-    image: rvla-real
+    image: rvln-real
     environment:
       <<: *ros-env
       VLA_WS_OVERLAY: /opt/real_ws/install/setup.bash
@@ -123,7 +123,7 @@ services:
       - ${VLA_REPO_ROOT:-..}:/workspace
       - ${VLA_HF_CACHE:-~/.cache/huggingface}:/tmp/.cache/huggingface
       - ${VLA_CLIP_CACHE:-~/.cache/clip}:/tmp/.cache/clip
-    command: ros2 launch ${VLA_EDGE_LOCAL_LAUNCH:-rvla_bringup omnivla_edge_local.launch.py device:=cuda:0}
+    command: ros2 launch ${VLA_EDGE_LOCAL_LAUNCH:-rvln_bringup omnivla_edge_local.launch.py device:=cuda:0}
 
   # One-shot pytest container (`vla.sh test` -> `docker compose run --rm test
   # python3 -m pytest ...`). CPU only. Plain bridge networking: the suite spins
@@ -132,7 +132,7 @@ services:
   test:
     <<: *ros-workspace
     profiles: [test]
-    image: rvla-test
+    image: rvln-test
     network_mode: bridge
     environment: *ros-env
     command: python3 -m pytest

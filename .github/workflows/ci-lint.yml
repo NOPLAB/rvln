@@ -1,4 +1,4 @@
-# rvla_* パッケージを ament linter (flake8 / pep257 / xmllint / lint_cmake)
+# rvln_* パッケージを ament linter (flake8 / pep257 / xmllint / lint_cmake)
 # でチェックする。C++ ソースが無いため clang-format / uncrustify / cpplint は
 # 回さない。copyright はライセンスヘッダを付けない方針のため対象外。
 #
@@ -55,9 +55,9 @@ jobs:
           linter: ${{ matrix.linter }}
           arguments: ${{ matrix.arguments }}
           package-name: >-
-            rvla_bringup
-            rvla_core
-            rvla_edge
-            rvla_msgs
-            rvla_proto
-            rvla_remote
+            rvln_bringup
+            rvln_core
+            rvln_edge
+            rvln_msgs
+            rvln_proto
+            rvln_remote

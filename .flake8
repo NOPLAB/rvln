@@ -1,4 +1,4 @@
-# rvla_* パッケージ共通の flake8 設定。
+# rvln_* パッケージ共通の flake8 設定。
 # ament_flake8 (colcon test / CI) と pre-commit / ホストの flake8 の両方から
 # --config で参照される。ament_flake8 のデフォルト (max-line-length=99) に合わせる。
 [flake8]
@@ -15,7 +15,7 @@ max-line-length = 99
 extend-ignore = B902, C408, C816, CNL100, D, I, Q
 import-order-style = google
 # 注意: ./ 無しの裸のパターンは同名ディレクトリすべてに一致する
-# (例: "models" は src/rvla_core/rvla_core/models/ も除外してしまう)。
+# (例: "models" は src/rvln_core/rvln_core/models/ も除外してしまう)。
 # リポジトリ直下だけを除外したいものは ./ を付けてルート相対にする。
 # omnivla_edge_model.py は external/OmniVLA からの verbatim 移植
 # (checkpoint 契約: リファクタ禁止) のため lint しない。

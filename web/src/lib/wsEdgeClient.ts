@@ -3,7 +3,7 @@
  *
  * ワイヤ形式は docs/design/web_port_spec.md §WS プロトコル (edge_action.proto の
  * ActionChunk/ControlAck と意味的に同一)。values は fp16 + base64 で、Pi 側は
- * 既存 `rvla_proto.conversions.fp16_bytes_to_float32_list` で復元する。
+ * 既存 `rvln_proto.conversions.fp16_bytes_to_float32_list` で復元する。
  *
  * 再接続は指数バックオフ (1s -> 5s 上限)。切断中の send は捨てる (coalesce+pace
  * は上位の CoalescingSender が担う; ここで溜めると詰まりの原因になる)。

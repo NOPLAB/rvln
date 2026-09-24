@@ -10,7 +10,7 @@
 # the wheels bundle the CUDA runtime and also run fine on CPU-only hosts.
 # For a slim CPU-only image:
 #   docker build -f docker/Dockerfile.movla --build-arg TORCH_INDEX=cpu \
-#     -t rvla-movla .
+#     -t rvln-movla .
 FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive

@@ -4,7 +4,7 @@ set -euo pipefail
 source "/opt/ros/${ROS_DISTRO}/setup.bash"
 cd /workspace
 colcon --log-base /tmp/remote_ros_log build \
-    --packages-select rvla_msgs rvla_core rvla_remote \
+    --packages-select rvln_msgs rvln_core rvln_remote \
     --build-base /tmp/remote_ros_build \
     --install-base /tmp/remote_ros_install
 source /tmp/remote_ros_install/setup.bash

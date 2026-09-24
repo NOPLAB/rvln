@@ -1,0 +1,28 @@
+vla_edge_node:
+  ros__parameters:
+    observation_topic: "/rvln/observation"
+    remote_embedding_topic: "/rvln/remote_embedding"
+    obs_publish_rate_hz: 2.0
+    action_rate_hz: 10.0
+    image_size: [224, 224]
+    jpeg_quality: 85
+    embedding_max_age_sec: 6.0
+    embedding_hard_timeout_sec: 15.0
+    goal_tolerance_m: 0.3
+    image_topic: "/camera/image_raw"
+    goal_topic: "/rvln/goal"
+    path_topic: "/rvln/predicted_path"
+    status_topic: "/rvln/status"
+    embedding_debug_topic: "/rvln/embedding"
+    publish_embedding_debug: true
+    adapter_kind: "stub"   # stub|asyncvla|omnivla|omnivla_edge_local
+    # AsyncVLA-edge knobs (used when adapter_kind=asyncvla):
+    asyncvla_weights_path: "/workspace/models/AsyncVLA_release"
+    asyncvla_resume_step: 750000
+    asyncvla_device: "cpu"
+    # OmniVLA-edge local knobs (used when adapter_kind=omnivla_edge_local).
+    # Path 2: the full OmniVLA-edge policy runs on the robot (requires CUDA);
+    # the cloud only emits a heartbeat embedding (a dummy backend is enough).
+    omnivla_edge_weights_path: "/workspace/models/omnivla-edge/omnivla-edge.pth"
+    omnivla_edge_clip_type: "ViT-B/32"
+    omnivla_edge_device: "cuda:0"

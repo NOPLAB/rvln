@@ -30,7 +30,7 @@ import PathOverlay from './PathOverlay';
 const OBS_RATE_HZ = 2.0;
 /** 送信ペーシングの最小間隔 (ms)。Flutter 版 CoalescingSender と同値。 */
 const SEND_MIN_INTERVAL_MS = 100;
-const WS_URL_STORAGE_KEY = 'rvla-ws-url';
+const WS_URL_STORAGE_KEY = 'rvln-ws-url';
 
 // エンジンはモジュールシングルトン: StrictMode の二重マウントや HMR で
 // 590MB のモデルロードを繰り返さないため。

@@ -8,7 +8,7 @@ from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile
 from sensor_msgs.msg import Image
 
-from rvla_msgs.msg import GoalSpec as GoalSpecMsg
+from rvln_msgs.msg import GoalSpec as GoalSpecMsg
 
 
 class FakePub(Node):
@@ -18,7 +18,7 @@ class FakePub(Node):
         # Latched goal: the edge subscribes TRANSIENT_LOCAL, so publish with the
         # same durability (a VOLATILE writer would not match its reader).
         goal_qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
-        self._goal_pub = self.create_publisher(GoalSpecMsg, '/rvla/goal', goal_qos)
+        self._goal_pub = self.create_publisher(GoalSpecMsg, '/rvln/goal', goal_qos)
         self._timer = self.create_timer(0.2, self._tick)
         self._goal_sent = False
 

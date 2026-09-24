@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>rvln_edge</name>
+  <version>0.1.0</version>
+  <description>Edge ROS2 nodes for VLA navigation on raspicat.</description>
+  <maintainer email="noplab90@gmail.com">nop</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>nav_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>diagnostic_msgs</exec_depend>
+  <exec_depend>lifecycle_msgs</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+  <!-- launch_util.py (shared launch building blocks) imports these. -->
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <!-- Optional camera drivers, launched by edge_only.launch.py when
+       camera_kind is set (v4l2 = webcam, realsense = Intel RealSense). -->
+  <exec_depend>v4l2_camera</exec_depend>
+  <exec_depend>realsense2_camera</exec_depend>
+  <exec_depend>rvln_msgs</exec_depend>
+  <exec_depend>rvln_proto</exec_depend>
+  <!-- adapters/omnivla_edge_local.py wraps the shared OmniVLAEdgeEngine. -->
+  <exec_depend>rvln_core</exec_depend>
+  <!-- edge_action_ws_node.py (Web/スマホ -> Pi の action chunk WS ブリッジ)。 -->
+  <exec_depend>python3-websockets</exec_depend>
+
+  <test_depend>ament_flake8</test_depend>
+  <test_depend>ament_pep257</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

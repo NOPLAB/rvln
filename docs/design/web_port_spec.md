@@ -1,7 +1,7 @@
 # OmniVLA Web ポート (WebGPU) 仕様書 (v1.0)
 
 > 実装: `web/` (React + Next.js 静的エクスポート) と
-> `src/rvla_edge/rvla_edge/edge_action_ws_node.py` (Pi 側受け口)。
+> `src/rvln_edge/rvln_edge/edge_action_ws_node.py` (Pi 側受け口)。
 > データ契約は mobile_port_spec.md §3 (7 ONNX 入力 / 出力 (1,8,4)) をそのまま共有する。
 
 ## 0. 目的とスコープ
@@ -22,9 +22,9 @@ Pi 側受け口は `edge_action_ws_node.py` — mobile_port_spec Phase 4 の gRP
 └──────────────┬────────────────────────────────┘
                │ WebSocket (JSON, values は fp16+base64)
 ┌──────────────▼────────────────────────────────┐
-│ Pi: edge_action_ws_server (rvla_edge)  │
+│ Pi: edge_action_ws_server (rvln_edge)  │
 │ 受信 → fp16 decode → trajectory_to_path        │
-│ → /rvla/predicted_path                 │
+│ → /rvln/predicted_path                 │
 │ ウォッチドッグ: chunk_max_age 超過 → 空 Path    │
 │ → 既存 path_follower が pure-pursuit / safe-stop│
 └────────────────────────────────────────────────┘
@@ -34,7 +34,7 @@ Pi 側受け口は `edge_action_ws_node.py` — mobile_port_spec Phase 4 の gRP
 
 - Next.js App Router + `output: 'export'` — `out/` は完全静的。推論は全てクライアント。
 - `web/src/lib/*` は `app/lib/src/*` (Dart) の 1:1 移植。**`config.ts` は
-  `rvla_core/omnivla_edge_engine.py` / `app/lib/src/config.dart` と定数一致必須**。
+  `rvln_core/omnivla_edge_engine.py` / `app/lib/src/config.dart` と定数一致必須**。
 - リサイズは cv2.INTER_AREA 相当の面積平均を TS で自前実装
   (`preprocessing.ts`)。canvas `drawImage` はブラウザ依存で数値が揺れるため不使用。
 - モデル (`public/models/*.onnx`, 計 ~590MB) と CLIP 語彙は git 管理外。
@@ -60,7 +60,7 @@ Pi 側受け口は `edge_action_ws_node.py` — mobile_port_spec Phase 4 の gRP
   "num_tokens": 8,
   "embed_dim": 4,            // (x, y, cos, sin)
   "values_fp16_b64": "...",  // fp16 LE 64byte を base64。web: packFp16 /
-                             // Pi: rvla_proto.conversions で往復
+                             // Pi: rvln_proto.conversions で往復
   "scaled_to_m": false,      // false なら Pi 側で ×waypoint_spacing (0.1)
   "goal_id": "text:go to the door"
 }
@@ -81,7 +81,7 @@ Pi 側受け口は `edge_action_ws_node.py` — mobile_port_spec Phase 4 の gRP
   スロットへ置き、ROS タイマ (20Hz) が publish する (coalesce の受け側)。
 - **ウォッチドッグ**: `chunk_max_age_sec` (既定 1.0s) 新規 chunk が無ければ
   空 Path を 1 回発行 → follower が「empty path (edge safe-stop)」で停止。
-- 起動: `ros2 launch rvla_bringup phone_ws.launch.py`
+- 起動: `ros2 launch rvln_bringup phone_ws.launch.py`
   (follower 出力は既定 `/cmd_vel_vla`。実機駆動は `cmd_vel_topic:=/cmd_vel` を明示)。
 
 ## 4. 動作環境の制約
@@ -96,7 +96,7 @@ Pi 側受け口は `edge_action_ws_node.py` — mobile_port_spec Phase 4 の gRP
 
 - web: `pnpm test` (vitest) — 面積平均リサイズ / 正規化 / リングバッファ /
   fp16 pack / coalesce+pace / CLIP BPE の構造検証 (実語彙使用)。
-- Pi: `scripts/vla.sh test src/rvla_edge/test/test_edge_action_ws.py`
+- Pi: `scripts/vla.sh test src/rvln_edge/test/test_edge_action_ws.py`
   — decode (spacing / scaled_to_m / malformed) とウォッチドッグ。gRPC 双子は
   `test_edge_action_grpc.py`。
 - ONNX 出力・前処理の PyTorch 参照とのゴールデン照合は mobile_port_spec

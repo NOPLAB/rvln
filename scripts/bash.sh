@@ -29,11 +29,11 @@
 #      up) yet `ros2 topic echo` stays silent. We sidestep that by pinning THIS
 #      container to a UDP-only FastDDS profile — works over --network host without
 #      sharing /dev/shm, and needs no change to the vla.sh container. Opt out with
-#      RVLA_UDP_ONLY=0 (e.g. if you later run vla.sh with --ipc host).
+#      RVLN_UDP_ONLY=0 (e.g. if you later run vla.sh with --ipc host).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-IMAGE="${RVLA_BASE_IMAGE:-ros:humble-ros-base}"
+IMAGE="${RVLN_BASE_IMAGE:-ros:humble-ros-base}"
 
 # Map the host user so files created under the bind-mounted /workspace are owned
 # by you, not root. The mapped uid has no /etc/passwd entry, hence HOME=/tmp.
@@ -64,9 +64,9 @@ fi
 # UDP-only FastDDS profile (see header). Written into the container at /tmp (the
 # mapped user's HOME) and selected via FASTRTPS_DEFAULT_PROFILES_FILE. Attributes
 # use single quotes so the XML carries no `"` that would close the outer bash -lc
-# string. Disable with RVLA_UDP_ONLY=0.
+# string. Disable with RVLN_UDP_ONLY=0.
 udp_only_setup=":"
-if [[ ${RVLA_UDP_ONLY:-1} != 0 ]]; then
+if [[ ${RVLN_UDP_ONLY:-1} != 0 ]]; then
     udp_only_setup="
     cat > /tmp/fastdds_udp_only.xml <<'XML'
 <?xml version='1.0' encoding='UTF-8'?>

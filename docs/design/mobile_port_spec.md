@@ -1,6 +1,6 @@
 # OmniVLA スマートフォン移植 仕様書 (v0.3)
 
-> 実装: `app/` (Flutter) + Pi 側受け口 `rvla_edge/edge_action_grpc_node.py`
+> 実装: `app/` (Flutter) + Pi 側受け口 `rvln_edge/edge_action_grpc_node.py`
 > (`vla.sh run omnivla_edge_mobile --mode cmd_vel`)。Phase 1–4 実装済み、残るは
 > Phase 5 (実機統合) — §6 参照。ONNX モデル・CLIP 語彙が未配置の環境でも
 > ダミー軌道で end-to-end 動作する。ブラウザ版の姉妹実装は `web_port_spec.md`
@@ -166,7 +166,7 @@ CUDA 依存は `forward` 内の `tensor.get_device()` 1 箇所のみ。ONNX expo
 
 - stub 生成は `scripts/gen_proto.sh` に統合 (Python は gitignore、Dart は
   `app/lib/src/grpc/gen/` にコミット。要 `dart pub global activate protoc_plugin`)。
-- Pi 側 server は `rvla_edge/edge_action_grpc_node.py`。Web 版ブリッジ
+- Pi 側 server は `rvln_edge/edge_action_grpc_node.py`。Web 版ブリッジ
   `edge_action_ws_node.py` の gRPC 双子で、同じ設計を守る
   (受信スレッドはロック付きスロットへ置くだけ / publish は ROS タイマ /
   `chunk_max_age_sec` 超過で空 Path safe-stop)。既定ポート 50061

@@ -63,7 +63,7 @@ OUTPUT_NAMES = ["action_pred"]
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_SRC = os.path.join(
-    REPO, "src/rvla_core/rvla_core/models/omnivla_edge_model.py"
+    REPO, "src/rvln_core/rvln_core/models/omnivla_edge_model.py"
 )
 
 
