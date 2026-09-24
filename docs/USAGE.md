@@ -189,7 +189,7 @@ resume step とウェイトパスは `scripts/vla.sh` の `RESUME_STEP` /
 
 | モード       | 走る場所                        | イメージ                      | コンテナ内で動くもの                                                     |
 |--------------|---------------------------------|-------------------------------|--------------------------------------------------------------------------|
-| `remote`     | GPU ワークステーション / Jetson | `asyncvla`/`omnivla`          | gRPC サーバ (`raspicat_vla_remote.server_main`)。`--cpu`/`--gpu` 必須    |
+| `remote`     | GPU ワークステーション / Jetson | `asyncvla`/`omnivla`          | ROS 2 推論ノード (`raspicat_vla_remote/inference.launch.py`)。`--cpu`/`--gpu` 必須    |
 | `edge`       | ロボット (Pi)                   | `real`                        | `edge_only.launch.py` (エッジノード + follower)。`--host` 必須           |
 | `cmd_vel`    | 単一ホスト                      | `asyncvla`/`omnivla` + `real` | **1 コマンドで 2 コンテナ**: 127.0.0.1 bind のリモート + エッジ。follower は非モータトピック `/cmd_vel_vla` に publish (`edge_only.launch.py cmd_vel_topic:=/cmd_vel_vla`)。`--cpu`/`--gpu` 必須 |
 | `sim`        | X11 の動くホスト                | `sim`                         | `sim.launch.py` (Gazebo + エッジ + follower)。`--host` 必須              |
@@ -505,11 +505,10 @@ dummy:
   model_version: "dummy-v1"
 ```
 
-`server_main` は同じ項目を CLI フラグで受ける (`--host`、`--port`、
-`--num-tokens`、`--embed-dim`、`--inference-ms`、`--model-version`、
-`--backend`、`--vla-path`、`--resume-step`、`--device`、`--clip-type`、
-`--log-level`)。YAML は CLI を経由しない consumer 用で、`scripts/vla.sh` は
-すべてフラグで渡している。
+リモート推論ノードは `ros2 launch raspicat_vla_remote inference.launch.py` で起動する。
+`backend`、`vla_path`、`resume_step`、`device`、`observation_topic`、
+`embedding_topic` を launch 引数として指定できる。Docker の `scripts/vla.sh` も
+同じ launch ファイルを使う。
 
 ### 7.3 path follower
 
@@ -697,7 +696,7 @@ HF トークンをクリア (`huggingface-cli logout`) してリトライ。期�
   (単一ホスト all-in-one、`backend:=` で選択) / `sim` / `omnivla_edge_local`
   / `mobile_cmd_vel` ほか)
 * `src/raspicat_vla_edge/config/edge_params.yaml` — エッジパラメータ全件
-* `src/raspicat_vla_remote/raspicat_vla_remote/server_main.py` — リモート CLI
+* `src/raspicat_vla_remote/launch/inference.launch.py` — リモート推論ノードの起動
 * `scripts/download_*_checkpoints.sh` — HF モデル取得ヘルパ
 * `scripts/download_movla_checkpoint.sh` — movla 重み取得 (rsync、HF 非経由)
 * `raspicat.repos` — rt-net ソースバージョンのピン (vcstool マニフェスト)

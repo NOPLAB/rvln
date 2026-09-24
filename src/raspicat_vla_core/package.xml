@@ -4,7 +4,7 @@
   <name>raspicat_vla_core</name>
   <version>0.1.0</version>
   <description>ROS-free OmniVLA-edge inference core shared by the edge (Pi) and remote (Jetson/cloud) stacks.</description>
-  <maintainer email="nop@example.com">nop</maintainer>
+  <maintainer email="noplab90@gmail.com">nop</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_python</buildtool_depend>

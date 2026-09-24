@@ -4,7 +4,7 @@ This is the no-Docker development bring-up — every piece runs as a local
 process on this host. Pick the server with ``backend:=``:
 
   backend:=dummy          Plan 1 MVP: deterministic embeddings, no weights
-                          (vla_dummy_server; edge adapter stays the yaml default).
+                          (vla_inference_node; edge adapter stays the yaml default).
   backend:=asyncvla       Plan 2A: AsyncVLA cloud backbone (GPU) + the small
                           Edge_adapter on the edge (adapter_kind=asyncvla).
   backend:=omnivla        Plan 2B Path 1: OmniVLA-original cloud (GPU); the edge
@@ -58,7 +58,7 @@ def _setup(context):
     if backend == 'dummy':
         server = ExecuteProcess(
             cmd=[
-                'ros2', 'run', 'raspicat_vla_remote', 'vla_dummy_server',
+                'ros2', 'run', 'raspicat_vla_remote', 'vla_inference_node',
                 '--inference-ms', LaunchConfiguration('inference_ms').perform(context),
                 '--num-tokens', '8',
                 '--embed-dim', '1024',

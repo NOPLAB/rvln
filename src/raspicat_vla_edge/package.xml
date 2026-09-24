@@ -4,7 +4,7 @@
   <name>raspicat_vla_edge</name>
   <version>0.1.0</version>
   <description>Edge ROS2 nodes for VLA navigation on raspicat.</description>
-  <maintainer email="nop@example.com">nop</maintainer>
+  <maintainer email="noplab90@gmail.com">nop</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_python</buildtool_depend>

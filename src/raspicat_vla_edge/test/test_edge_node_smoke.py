@@ -11,7 +11,7 @@ from sensor_msgs.msg import Image
 import numpy as np
 
 from raspicat_vla_remote.backends.dummy import DummyBackend
-from raspicat_vla_remote.server import VLAInferenceNode
+from raspicat_vla_remote.inference_node import VLAInferenceNode
 from raspicat_vla_edge.edge_node import VLAEdgeNode
 from raspicat_vla_msgs.msg import GoalSpec as GoalSpecMsg
 from geometry_msgs.msg import PoseStamped

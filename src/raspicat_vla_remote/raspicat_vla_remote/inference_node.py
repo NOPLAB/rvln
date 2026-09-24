@@ -1,4 +1,4 @@
-"""ROS 2 topic bridge from compressed observations to VLA backends."""
+"""ROS 2 inference node bridging observations to VLA backends."""
 from __future__ import annotations
 
 import io

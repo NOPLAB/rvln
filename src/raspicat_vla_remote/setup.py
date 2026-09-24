@@ -12,18 +12,19 @@ setup(
         ('share/ament_index/resource_index/packages',
          ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
+        (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
     ],
     install_requires=['setuptools', 'numpy'],
     zip_safe=True,
     maintainer='nop',
-    maintainer_email='nop@example.com',
+    maintainer_email='noplab90@gmail.com',
     description='VLA remote ROS 2 inference node (model-agnostic).',
     license='MIT',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'vla_dummy_server = raspicat_vla_remote.server_main:main',
+            'vla_inference_node = raspicat_vla_remote.inference_main:main',
         ],
     },
 )

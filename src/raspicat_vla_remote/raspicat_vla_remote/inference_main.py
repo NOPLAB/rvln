@@ -1,4 +1,4 @@
-"""Entry point for the `vla_dummy_server` console script.
+"""Entry point for the VLA inference console scripts.
 
 Selects a backend (``--backend {dummy,asyncvla,omnivla,omnivla_edge,movla}``)
 and hosts it via the ROS 2 :class:`VLAInferenceNode`. ``omnivla`` is Plan 2B Path 1
@@ -14,7 +14,7 @@ import logging
 import rclpy
 
 from .backends.dummy import DummyBackend
-from .server import VLAInferenceNode
+from .inference_node import VLAInferenceNode
 
 
 _LOG = logging.getLogger(__name__)
@@ -134,7 +134,3 @@ def main() -> None:
     finally:
         node.destroy_node()
         rclpy.shutdown()
-
-
-if __name__ == '__main__':
-    main()

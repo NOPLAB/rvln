@@ -4,134 +4,168 @@
 [![ci-flutter](https://github.com/NOPLAB/raspicat-vla/actions/workflows/ci-flutter.yml/badge.svg?branch=main)](https://github.com/NOPLAB/raspicat-vla/actions/workflows/ci-flutter.yml)
 [![ci-web](https://github.com/NOPLAB/raspicat-vla/actions/workflows/ci-web.yml/badge.svg?branch=main)](https://github.com/NOPLAB/raspicat-vla/actions/workflows/ci-web.yml)
 
-ROS2 Humble nodes for running Vision-Language-Action (VLA) navigation models on
-the Raspberry Pi Cat (rt-net `raspicat`).
+ROS 2 Humble VLA navigation for Raspberry Pi Cat. Nodes connect through ROS 2
+topics and can run either natively on the host or in Docker.
 
-The repository defines a model-agnostic edge / remote split: the lightweight
-edge runs on the robot, a remote workstation hosts the heavy VLA policy, and
-ROS 2 topics carry compressed observations and action embeddings. The
-same interface supports multiple backends — the dummy backend (for CI / MVP),
-[AsyncVLA](https://asyncvla.github.io/),
-[OmniVLA](https://omnivla-nav.github.io/), and `movla` (the in-house LFM2.5-VL
-Stage A policy from [`external/movla`](https://github.com/NOPLAB/movla)). For
-OmniVLA-edge the policy can also run fully on-robot with no cloud
-(`--mode edge-local`).
+## How the nodes connect
 
-A separate effort ports OmniVLA-edge off the workstation entirely:
-
-- `app/inference/` — Flutter smartphone app: on-device ONNX inference; the phone
-  streams action chunks to the Pi over its own gRPC interface
-  (`proto/edge_action.proto`). See [`docs/design/mobile_port_spec.md`](docs/design/mobile_port_spec.md).
-- `web/` — browser sibling of the mobile port (Next.js static export,
-  onnxruntime-web / WebGPU); chunks go to the Pi over WebSocket. See
-  [`docs/design/web_port_spec.md`](docs/design/web_port_spec.md).
-
-Independently, `app/logger/` is a standalone Flutter data-logging app for VLA
-fine-tuning: it captures camera / IMU / GNSS / audio to raw per-session logs and
-does **no** inference (offline conversion + prompt labeling happen downstream).
-See [`docs/design/logger_app_spec.md`](docs/design/logger_app_spec.md).
-
-## Workspace layout
-
-This repository is itself a colcon workspace.
-
-```
-src/raspicat_vla_msgs/      # ROS2 messages, services, actions (model-agnostic)
-src/raspicat_vla_proto/     # mobile gRPC stubs and fp16 helpers
-src/raspicat_vla_core/      # ROS-free OmniVLA-edge inference core (shared by edge & remote)
-src/raspicat_vla_remote/    # ROS 2 inference node and model backends
-src/raspicat_vla_edge/      # Edge ROS2 nodes (lifecycle, adapters, path follower,
-                            #   phone/browser action receivers)
-src/raspicat_vla_bringup/   # Launch composition
+```text
+Camera ── Image ──────────┐
+Goal ── GoalSpec ─────────┼─> vla_edge_node ── Observation ─> vla_inference_node
+                          │          ^                              │
+                          │          └──── ActionEmbedding ─────────┘
+                          │          │
+                          │          └── Path ─> path_follower_node ─> Twist
+Phone ── gRPC ─> edge_action_grpc ── Path ─────────────┘
+Browser ── WebSocket ─> edge_action_ws ── Path ──────┘
 ```
 
-Not built by colcon:
+Choose one node to produce `Path` for each deployment: `vla_edge_node` for the
+standard ROS 2 pipeline, `edge_action_grpc` for a phone, or `edge_action_ws`
+for a browser. With local OmniVLA-edge inference, `vla_edge_node` runs the
+model itself and does not need the remote inference node.
 
-```
-app/inference/              # Flutter on-device inference port (Dart, app/inference/README.md)
-app/logger/                 # Flutter VLA data-logger app (Dart, app/logger/README.md)
-web/                        # Browser port (pnpm toolchain, see web/README.md)
-docker/                     # Dockerfiles + compose topology for every run mode
-external/                   # Research submodules: AsyncVLA, OmniVLA, MBRA, movla,
-                            #   raspicat-sim-docker (reference code)
-models/                     # VLA weights, gitignored — scripts/download_*.sh
-```
+### Node inputs and outputs
 
-The rt-net ROS2 source packages (`raspicat_ros`, `raspicat_description`,
-`raspicat_sim`, `raspicat_slam_navigation`) are managed via vcstool, not
-submodules — see `raspicat.repos`.
+These are the default topic names; node parameters can change them.
 
-## Communication interfaces
+| Node (executable) | Input | Output | Purpose |
+| --- | --- | --- | --- |
+| `vla_edge_node` (`raspicat_vla_edge vla_edge_node`) | `/camera/image_raw` (`sensor_msgs/msg/Image`), `/raspicat_vla/goal` (`raspicat_vla_msgs/msg/GoalSpec`), `/raspicat_vla/remote_embedding` (`raspicat_vla_msgs/msg/ActionEmbedding`) | `/raspicat_vla/observation` (`raspicat_vla_msgs/msg/Observation`), `/raspicat_vla/predicted_path` (`nav_msgs/msg/Path`), `/raspicat_vla/status` (`diagnostic_msgs/msg/DiagnosticArray`), and `/raspicat_vla/embedding` (`ActionEmbedding`, when debug publishing is enabled) | Lifecycle node that combines images and goals for inference, then turns the result into a path in the robot frame. Local inference does not use Observation or remote embedding topics. |
+| `vla_inference_node` (`ros2 run raspicat_vla_remote vla_inference_node`) | `/raspicat_vla/observation` (`Observation`) | `/raspicat_vla/remote_embedding` (`ActionEmbedding`) | Runs the selected backend and returns a result correlated by `frame_id`. Select it with `backend:=` in the launch file or `--backend` with `ros2 run`. |
+| `path_follower_node` (`raspicat_vla_edge path_follower_node`) | `/raspicat_vla/predicted_path` (`nav_msgs/msg/Path`) | `/cmd_vel` (`geometry_msgs/msg/Twist`) | Converts a `base_link` path into velocity commands. Stops on an empty or stale path. The output topic is configurable. |
+| `edge_action_grpc` (`raspicat_vla_edge edge_action_grpc_server`) | `ActionChunk` via `EdgeActionService.StreamActions` (default `0.0.0.0:50061`) | `/raspicat_vla/predicted_path` (`Path`) and `ControlAck` to the sender | Receives phone inference results and publishes an empty path if chunks stop arriving. |
+| `edge_action_ws` (`raspicat_vla_edge edge_action_ws_server`) | Action chunks via WebSocket (default `0.0.0.0:8765`) | `/raspicat_vla/predicted_path` (`Path`) and an ack to the sender | Receives browser inference results and publishes an empty path if chunks stop arriving. |
 
-The edge publishes `raspicat_vla_msgs/msg/Observation` on
-`/raspicat_vla/observation`. The remote inference node publishes
-`raspicat_vla_msgs/msg/ActionEmbedding` on
-`/raspicat_vla/remote_embedding`. Use the same `ROS_DOMAIN_ID` on both PCs,
-allow DDS discovery between them, and build matching message definitions.
-Both topics use best-effort QoS with depth one so slow inference receives the
-newest available frame. The `movla` image runs ROS 2 Jazzy on Ubuntu 24.04;
-other runtime images use Humble. Its generated message definitions must match
-the edge package.
+`vla_edge_node` reads the camera directly when `camera_device` is set, for
+example to `/dev/video0`; in that mode it does not subscribe to an image
+topic. When `image_topic` ends in `/compressed`, it subscribes to
+`sensor_msgs/msg/CompressedImage`. Compressed images are suitable for cameras
+on another host. The edge node subscribes to `/raspicat_vla/goal` with
+`TRANSIENT_LOCAL` durability. Use the same durability when publishing a
+one-shot goal. Observation and remote embedding use best-effort QoS with depth 1.
 
-`proto/edge_action.proto` is the independent phone → Pi interface for the
-mobile port (`EdgeActionService.StreamActions`; the phone is the client, the
-Pi the server).
+`GoalSpec` represents a pose, text, or image goal. `Observation` carries a
+JPEG image and goal; `ActionEmbedding` carries the inference result and its
+`frame_id`. See [`src/raspicat_vla_msgs/`](src/raspicat_vla_msgs/) for the
+message definitions. `SetGoal.srv` and `NavigateVLA.action` are also defined,
+but the current nodes receive goals through a topic. The phone protocol is
+defined in [`proto/edge_action.proto`](proto/edge_action.proto).
 
-`scripts/gen_proto.sh` regenerates the mobile Python stubs (into
-`src/raspicat_vla_proto/raspicat_vla_proto/`) and the Dart stubs
-for `edge_action.proto` (into `app/inference/lib/src/grpc/gen/`, committed).
+## Native: run on ROS 2
 
-## Build
-
-First-time setup fetches the rt-net source packages into `src/` via vcstool,
-then resolves their transitive ROS dependencies via rosdep:
+These commands assume Ubuntu 22.04 and ROS 2 Humble. Run them from the
+repository root. Real hardware and simulation also require the rt-net packages
+listed in `raspicat.repos`. The `dummy` backend needs no model weights.
 
 ```bash
 source /opt/ros/humble/setup.bash
-vcs import src < raspicat.repos              # one-time / on raspicat.repos changes
+vcs import src < raspicat.repos
 rosdep install --from-paths src --ignore-src -r -y
+python3 -m pip install 'grpcio>=1.50' 'grpcio-tools>=1.50' 'Pillow' 'opencv-python' 'websockets>=10'
+scripts/gen_proto.sh
 colcon build --symlink-install
 source install/setup.bash
 ```
 
-To bump the pinned rt-net versions, edit `raspicat.repos` and re-run
-`vcs import src < raspicat.repos`.
+`scripts/gen_proto.sh` generates the Python gRPC stubs for the Pi. It also
+generates Flutter stubs if the Dart plugin is installed. Real model backends
+need their Python dependencies and checkpoints; the Dockerfiles provide
+dependency examples.
 
-## Running
+### Minimal connection check (one host, no motor output)
 
-`scripts/vla.sh` is the primary entry point for build/run/test. A run is
-`vla.sh run MODEL --mode MODE`; the container topology behind each mode is
-declared in `docker/compose.yaml` (one compose profile per mode). Run
-`scripts/vla.sh` with no arguments for the authoritative MODEL / MODE / flag
-list; the full operator guide lives at [`docs/USAGE.md`](docs/USAGE.md). A
-quick orientation:
+Run each command in a separate terminal. Source
+`/opt/ros/humble/setup.bash` and `install/setup.bash` in each terminal,
+and use the same `ROS_DOMAIN_ID`.
+
+```bash
+# Terminal 1: inference node with no model weights
+ROS_DOMAIN_ID=42 ros2 launch raspicat_vla_remote inference.launch.py backend:=dummy
+
+# Terminal 2: edge and follower; publish commands to a non-motor topic
+ROS_DOMAIN_ID=42 ros2 launch raspicat_vla_edge edge_only.launch.py \
+  adapter_kind:=stub with_follower:=true cmd_vel_topic:=/cmd_vel_vla
+
+# Terminal 3: publish a synthetic camera image and pose goal
+ROS_DOMAIN_ID=42 python3 tools/publish_fake_image.py
+
+# Terminal 4: inspect the result
+ROS_DOMAIN_ID=42 ros2 topic echo /cmd_vel_vla
+```
+
+The edge is a lifecycle node. This launch file automatically configures and
+activates it. Use `ros2 lifecycle get /vla_edge_node` to inspect its state and
+`ros2 topic list -t` to inspect topics. `local_stack.launch.py backend:=dummy`
+also starts the stack in one command, but its follower publishes to `/cmd_vel`.
+
+### Native split-host deployment
+
+Run `ros2 launch raspicat_vla_remote inference.launch.py backend:=dummy` on the
+inference PC and the `raspicat_vla_edge edge_only.launch.py` command above
+on the robot. Both hosts need the same `ROS_DOMAIN_ID` and message definitions,
+plus a network that permits DDS discovery. For a real model, match the remote
+`backend`, `vla_path`, and `device` launch arguments with the edge `adapter_kind`:
+`asyncvla` ↔ `asyncvla`, or `omnivla` / `omnivla_edge` ↔ `omnivla`.
+Set the weights path to a path that exists on the host.
+
+For example, run `ros2 launch raspicat_vla_remote inference.launch.py
+backend:=omnivla vla_path:=/path/to/omnivla-original device:=cuda:0` on the
+inference PC, with `adapter_kind:=omnivla` on the robot. The launch file also
+accepts `resume_step`, `observation_topic`, and `embedding_topic`. It uses
+the model's usual resume step for AsyncVLA and OmniVLA when none is supplied.
+
+Rebuild the workspace after updating to install the remote launch file and
+executable.
+
+For direct camera capture, pass `camera_kind:=v4l2
+camera_device:=/dev/video0` to the edge launch file. To use an existing ROS
+camera topic, pass `image_topic:=...`. To send velocity commands to the robot,
+set `with_follower:=true cmd_vel_topic:=/cmd_vel`. Local OmniVLA-edge runs with
+`ros2 launch raspicat_vla_bringup omnivla_edge_local.launch.py
+weights_path:=/path/to/omnivla-edge.pth` and requires a CUDA-capable edge host.
+
+To receive paths from a phone, run
+`ros2 launch raspicat_vla_bringup mobile_cmd_vel.launch.py`. For a browser,
+run `ros2 launch raspicat_vla_bringup phone_ws.launch.py`. Both publish to
+`/cmd_vel_vla` by default and do not start edge or remote inference nodes.
+
+## Docker: run the same ROS 2 interfaces
+
+Use Docker Compose on Linux. `scripts/vla.sh` selects the image and Compose
+profile. Topic names and message types are the same as in the table above.
 
 ```bash
 # Inference PC
+scripts/vla.sh build omnivla
 ROS_DOMAIN_ID=42 scripts/vla.sh run omnivla --mode remote --gpu
-# Robot PC, on the same reachable LAN
+
+# Robot PC (another host, same ROS_DOMAIN_ID)
+scripts/vla.sh build real
 ROS_DOMAIN_ID=42 scripts/vla.sh run omnivla --mode edge --camera edge
 ```
 
-* `scripts/vla.sh build TARGET` — build one of the images
-  (`asyncvla`, `omnivla`, `movla`, `real`, `sim`, `test`, plus `*-jetson` for ARM64).
-* `--mode remote {--cpu|--gpu}` — host the ROS 2 inference node here.
-* `--mode edge` ? on-robot edge stack; match `ROS_DOMAIN_ID` on both PCs.
-* `--mode cmd_vel` — all-in-one on this host, no robot: remote + edge in two
-  containers, follower on a non-motor topic (`/cmd_vel_vla`).
-* `--mode sim` — Gazebo + edge.
-* `--mode edge-local` — OmniVLA-edge policy standalone on the robot, no cloud
-  (needs CUDA + `models/omnivla-edge/omnivla-edge.pth`).
-* `run omnivla_edge_mobile --mode cmd_vel` — Pi side of the mobile port: the
-  phone infers, this host receives action chunks and follows.
-* `scripts/vla.sh test [PYTEST_ARGS...]` — pytest in the CPU test image.
+Put model weights under `models/` (excluded from Git). `--mode cmd_vel`
+starts remote and edge on one host and publishes to `/cmd_vel_vla`.
+`--mode sim` starts Gazebo, `--mode edge-local` runs OmniVLA-edge on the
+robot, and `run omnivla_edge_mobile --mode cmd_vel` receives phone actions
+over gRPC. For CPU tests, run `scripts/vla.sh build test` followed by
+`scripts/vla.sh test`. Run `scripts/vla.sh --help` for supported models,
+modes, and options.
 
-For a no-Docker single-host bring-up there is
-`ros2 launch raspicat_vla_bringup local_stack.launch.py backend:=dummy|asyncvla|omnivla|omnivla_edge`.
+## Repository layout
 
-With a stack running, `scripts/control.sh` drives it from the host (motor
-power + VLA goals).
+| Path | Contents |
+| --- | --- |
+| `src/raspicat_vla_msgs/` | ROS 2 message definitions |
+| `src/raspicat_vla_edge/` | Edge, path follower, and phone / browser receiver nodes |
+| `src/raspicat_vla_remote/` | Inference node and backends (`dummy`, `asyncvla`, `omnivla`, `omnivla_edge`, `movla`) |
+| `src/raspicat_vla_core/` | ROS-independent OmniVLA-edge inference core |
+| `src/raspicat_vla_proto/` | Python mobile gRPC stubs and conversion code |
+| `src/raspicat_vla_bringup/` | Launch files for different deployments |
+| `app/inference/`, `web/` | Phone and browser clients that infer and send paths |
+| `app/logger/` | Standalone Flutter training-data logger |
 
-Both `asyncvla` and `omnivla` backends work on CPU but are slow; GPU is
-strongly recommended for anything beyond wiring smoke tests. See
-[`docs/USAGE.md`](docs/USAGE.md) §5.6 for CPU-specific caveats.
+For current Docker options, run `scripts/vla.sh --help`. For client setup,
+see [`app/inference/README.md`](app/inference/README.md) and
+[`web/README.md`](web/README.md).

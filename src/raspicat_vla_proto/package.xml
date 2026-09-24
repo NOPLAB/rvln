@@ -4,7 +4,7 @@
   <name>raspicat_vla_proto</name>
   <version>0.1.0</version>
   <description>Mobile EdgeActionService gRPC stubs and fp16 conversion helpers.</description>
-  <maintainer email="nop@example.com">nop</maintainer>
+  <maintainer email="noplab90@gmail.com">nop</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_python</buildtool_depend>

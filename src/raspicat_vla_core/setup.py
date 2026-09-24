@@ -19,7 +19,7 @@ setup(
     ],
     zip_safe=True,
     maintainer='nop',
-    maintainer_email='nop@example.com',
+    maintainer_email='noplab90@gmail.com',
     description='ROS-free OmniVLA-edge inference core shared by edge and remote.',
     license='MIT',
     tests_require=['pytest'],

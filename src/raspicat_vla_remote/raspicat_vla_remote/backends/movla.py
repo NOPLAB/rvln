@@ -87,7 +87,7 @@ class MovlaBackend(VLABackend):
         context_size: int = 192,
     ) -> None:
         # torch / transformers / movla はここで初めて import する
-        # (server_main の --help やユニットテストを重い依存なしで通すため)。
+        # (推論ノードの --help やユニットテストを重い依存なしで通すため)。
         import collections
         from pathlib import Path
 

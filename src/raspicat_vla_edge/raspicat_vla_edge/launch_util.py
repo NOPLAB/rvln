@@ -142,7 +142,7 @@ def vla_server_process(*, backend: str, extra_args=()) -> ExecuteProcess:
     """A raspicat_vla_remote ROS 2 inference process for the backend."""
     return ExecuteProcess(
         cmd=[
-            'python3', '-m', 'raspicat_vla_remote.server_main',
+            'ros2', 'run', 'raspicat_vla_remote', 'vla_inference_node',
             '--backend', backend,
             *extra_args,
         ],

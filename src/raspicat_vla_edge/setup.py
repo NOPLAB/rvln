@@ -24,7 +24,7 @@ setup(
     ],
     zip_safe=True,
     maintainer='nop',
-    maintainer_email='nop@example.com',
+    maintainer_email='noplab90@gmail.com',
     description='Edge ROS2 nodes for VLA navigation.',
     license='MIT',
     tests_require=['pytest'],

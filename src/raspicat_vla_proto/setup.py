@@ -14,7 +14,7 @@ setup(
     install_requires=['setuptools', 'grpcio>=1.50', 'protobuf>=4.21'],
     zip_safe=True,
     maintainer='nop',
-    maintainer_email='nop@example.com',
+    maintainer_email='noplab90@gmail.com',
     description='Mobile EdgeActionService stubs and fp16 helpers.',
     license='MIT',
     tests_require=['pytest'],
