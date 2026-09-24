@@ -114,9 +114,11 @@ scripts/vla.sh build omnivla-jetson     # 同上
 `~/.cache/huggingface` を経由するため再実行は安価。
 
 ```bash
-scripts/download_asyncvla_checkpoints.sh      # → models/AsyncVLA_release/  (~15 GB)
-scripts/download_omnivla_checkpoints.sh       # → models/omnivla-original/  (Path 1)
-scripts/download_omnivla_edge_checkpoints.sh  # → models/omnivla-edge/      (Path 2/3)
+scripts/download_checkpoints.sh asyncvla      # → models/AsyncVLA_release/  (~15 GB)
+scripts/download_checkpoints.sh omnivla       # → models/omnivla-original/  (Path 1)
+scripts/download_checkpoints.sh omnivla_edge  # → models/omnivla-edge/      (Path 2/3)
+scripts/download_checkpoints.sh navila        # → models/navila-llama3-8b-8f/
+scripts/download_checkpoints.sh navida        # → models/NaVIDA/
 ```
 
 HuggingFace 上のリポジトリは公開設定なのでトークンは不要。実際に使う
@@ -126,8 +128,8 @@ HuggingFace 上のリポジトリは公開設定なのでトークンは不要�
 `movla` は例外で HF になく、学習ボックスから rsync で取得する:
 
 ```bash
-scripts/download_movla_checkpoint.sh          # → models/movla/stage_a_v2/  (default run)
-scripts/download_movla_checkpoint.sh RUN      # 別 run を指定
+scripts/download_checkpoints.sh movla          # → models/movla/stage_a_v2/  (default run)
+scripts/download_checkpoints.sh movla RUN      # 別 run を指定
 ```
 
 デフォルトは `nop@pve1ubuntu` の movla リポジトリ `runs/<run>/` を引く
@@ -333,7 +335,7 @@ scripts/vla.sh run omnivla_edge --mode edge --host 10.0.0.5 --camera edge
 ```
 
 どちらも `models/omnivla-edge/omnivla-edge.pth`
-(`scripts/download_omnivla_edge_checkpoints.sh`) が必要。
+(`scripts/download_checkpoints.sh omnivla_edge`) が必要。
 
 ### 5.6 OmniVLA を CPU で動かす (調査用)
 
@@ -407,7 +409,7 @@ scripts/vla.sh run movla --mode edge --host 10.0.0.5 --camera edge
 ```
 
 重みは `models/movla/stage_a_v2/`
-(`scripts/download_movla_checkpoint.sh`、§3.2)。Stage A は言語のみのポリシーで
+(`scripts/download_checkpoints.sh movla`、§3.2)。Stage A は言語のみのポリシーで
 学習済みインストラクションテンプレートしか知らないため、ゴールは
 `scripts/control.sh goal text "go straight ahead"` (ほか `"turn left ahead"` /
 `"turn right ahead"`) のようにテンプレート文言を使う。POSE/IMAGE ゴールや
@@ -697,8 +699,7 @@ HF トークンをクリア (`huggingface-cli logout`) してリトライ。期�
   / `mobile_cmd_vel` ほか)
 * `src/rvln_edge/config/edge_params.yaml` — エッジパラメータ全件
 * `src/rvln_remote/launch/inference.launch.py` — リモート推論ノードの起動
-* `scripts/download_*_checkpoints.sh` — HF モデル取得ヘルパ
-* `scripts/download_movla_checkpoint.sh` — movla 重み取得 (rsync、HF 非経由)
+* `scripts/download_checkpoints.sh` — HF モデルと movla 重みの取得
 * `raspicat.repos` — rt-net ソースバージョンのピン (vcstool マニフェスト)
 * `docs/design/mobile_port_spec.md` — スマートフォン推論移植 (`app/inference/`) の仕様
 * `docs/design/web_port_spec.md` — ブラウザ移植 (`web/`) の仕様

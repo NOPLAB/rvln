@@ -80,7 +80,7 @@ declare -A WEIGHTS_DIR=(
     [omnivla]="/workspace/models/omnivla-original"
     # For omnivla_edge --vla-path is the .pth weights file, not a checkpoint dir.
     [omnivla_edge]="/workspace/models/omnivla-edge/omnivla-edge.pth"
-    # movla: dir with checkpoint.pt + normalizer.json (scripts/download_movla_checkpoint.sh)
+    # movla: dir with checkpoint.pt + normalizer.json (scripts/download_checkpoints.sh movla)
     [movla]="/workspace/models/movla/stage_a_v2"
 )
 
@@ -160,7 +160,7 @@ Commands:
     split as omnivla_edge Path 3 — the movla image runs the policy (remote |
     cmd_vel here; CPU works, GPU faster) and streams metre-scaled waypoints;
     the edge side uses the path-only 'omnivla' adapter automatically. Weights:
-    models/movla/<run>/ via scripts/download_movla_checkpoint.sh (default run
+    models/movla/<run>/ via scripts/download_checkpoints.sh movla (default run
     stage_a_v2). The Stage A policy is language-only; goals should use the
     trained instruction templates ("go straight ahead" / "turn left ahead" /
     "turn right ahead").
@@ -611,7 +611,7 @@ run_edge_local() {
     fi
     warn "Path 2 runs the OmniVLA-edge policy on-device and REQUIRES CUDA."
     warn "Dockerfile.real ships CPU torch; on a GPU host, rebuild it with a CUDA torch wheel."
-    warn "Needs weights at models/omnivla-edge/omnivla-edge.pth (scripts/download_omnivla_edge_checkpoints.sh)."
+    warn "Needs weights at models/omnivla-edge/omnivla-edge.pth (scripts/download_checkpoints.sh omnivla_edge)."
     mkdir -p "${HOME}/.cache/clip"
     export VLA_CLIP_CACHE="${HOME}/.cache/clip"
     compose_add_gpu

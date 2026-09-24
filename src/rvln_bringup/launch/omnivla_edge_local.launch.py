@@ -12,7 +12,7 @@ a server.)
 
 Requirements: a CUDA-capable edge (the vendored OmniVLA_edge forward pass is
 GPU-only) and the omnivla-edge weights at ``omnivla_edge_weights_path``
-(``scripts/download_omnivla_checkpoints.sh edge``).
+(``scripts/download_checkpoints.sh omnivla_edge``).
 
 Inputs: publish RGB frames on the edge node's ``image_topic`` and a GoalSpec on
 ``goal_topic`` (text goals are the cleanest — see the adapter docstring).

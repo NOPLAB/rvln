@@ -4,7 +4,7 @@ movla (https://github.com/NOPLAB/movla) の Stage A ポリシー
 (凍結 LFM2.5-VL-1.6B バックボーン + flow matching action expert) をこの GPU/CPU
 ボックスで走らせ、予測ウェイポイントチャンクを gRPC で edge に流す。checkpoint は
 ``{checkpoint_dir}/checkpoint.pt`` (expert + state_encoder + expert_cfg) と
-``normalizer.json`` (scripts/download_movla_checkpoint.sh で取得)。
+``normalizer.json`` (scripts/download_checkpoints.sh movla で取得)。
 
 ワイヤ契約は OmniVLA-edge Path 3 と同じ「ウェイポイント直送」: モデル出力
 ``(horizon, 3)`` の (x, y, yaw) [m, rad] を ``(horizon, 4)`` の

@@ -1,11 +1,11 @@
 """Entry point for the VLA inference console scripts.
 
-Selects a backend (``--backend {dummy,asyncvla,omnivla,omnivla_edge,movla}``)
+Selects a backend (``--backend {dummy,asyncvla,omnivla,omnivla_edge,movla,navila,navida}``)
 and hosts it via the ROS 2 :class:`VLAInferenceNode`. ``omnivla`` is Plan 2B Path 1
 (cloud runs OmniVLA-original); ``omnivla_edge`` is Path 3 (a remote GPU box such
 as a Jetson runs the OmniVLA-edge policy and streams waypoints to the edge);
 ``movla`` serves the in-house LFM2.5-VL Stage A policy (external/movla) the same
-waypoint-streaming way.
+waypoint-streaming way. ``navila`` and ``navida`` serve published VLN models.
 """
 from __future__ import annotations
 
@@ -72,6 +72,14 @@ def _build_backend(args: argparse.Namespace):
             device=args.device,
             embodiment=args.embodiment,
         )
+    if args.backend == 'navila':
+        from .backends.navila import NaVILABackend
+
+        return NaVILABackend(checkpoint_dir=args.vla_path, device=args.device)
+    if args.backend == 'navida':
+        from .backends.navida import NaVIDABackend
+
+        return NaVIDABackend(checkpoint_dir=args.vla_path, device=args.device)
     if args.backend == 'omnivla_edge':
         # Plan 2B Path 3: run the OmniVLA-edge policy remotely (e.g. on a Jetson)
         # and stream waypoints to a Raspberry Pi. --vla-path is the .pth weights
@@ -94,10 +102,10 @@ def _build_backend(args: argparse.Namespace):
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description='VLA ROS 2 inference node (dummy/asyncvla/omnivla/omnivla_edge/movla)')
+        description='VLN ROS 2 inference node')
     parser.add_argument('--backend', default='dummy',
                         choices=['dummy', 'asyncvla', 'omnivla', 'omnivla_edge',
-                                 'movla'])
+                                 'movla', 'navila', 'navida'])
     parser.add_argument('--log-level', default='INFO')
 
     # Dummy-only knobs.
