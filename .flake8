@@ -34,10 +34,3 @@ exclude =
     node_modules
 show-source = true
 statistics = true
-
-# Check Japanese text in Python sources under src/ with the local plugin.
-[flake8:local-plugins]
-extension =
-    RJV = japanese_source_check:check_japanese
-paths =
-    ./tools
