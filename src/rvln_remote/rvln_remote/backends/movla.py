@@ -8,8 +8,9 @@ As in OmniVLA-edge Path 3, convert model output (x, y, yaw) to float32
 (x, y, cos(yaw), sin(yaw)) for the path-only OmniVLA adapter. x/y stay in meters.
 
 Training inputs: context frames approximate a 0.3 m stride with a ring buffer.
-With no remote odometry, history is padded with stationary rows and zero
-velocity. Previous-tail conditioning is disabled without frame transforms.
+History and velocity come from the benchmark bridge's measured robot state.
+Missing initial history is padded with stationary rows as in training.
+Previous-tail conditioning is disabled without frame transforms.
 Stage A was trained only on straight/left/right instruction templates; image
 and pose goals are unsupported. Raspicat is absent from the training data, so
 the default turtlebot2 embodiment supplies normalization statistics and spec.
@@ -18,6 +19,7 @@ Dockerfile.movla vendors the movla sources under /opt/movla/src.
 from __future__ import annotations
 
 import logging
+import math
 import time
 from typing import Optional, Tuple
 
@@ -118,6 +120,9 @@ class MovlaBackend(VLABackend):
         self._context_size = int(context_size)
         # Past thumbnails in oldest-first order, up to context_frames.
         self._past = collections.deque(maxlen=int(context_frames))
+        self._poses = collections.deque(maxlen=int(expert_cfg.history_len) + 1)
+        self._velocity = (0.0, 0.0)
+        self._motion_history_m = 0.0
         self._warned_goal = False
 
     # ------------------------------------------------------------- VLABackend
@@ -130,6 +135,21 @@ class MovlaBackend(VLABackend):
                 lang_instruction=_DEFAULT_INSTRUCTION,
                 goal_image=None, goal_pose_xy_theta=None)
         self._past.clear()
+        self._poses.clear()
+        self._motion_history_m = 0.0
+
+    def set_motion_state(self, pose: list[float], velocity: list[float]) -> None:
+        """Accept one measured pose and planar velocity per inference frame."""
+        if len(pose) != 3 or len(velocity) != 2:
+            raise ValueError('invalid MoVLA motion state shape')
+        if not all(math.isfinite(float(x)) for x in [*pose, *velocity]):
+            raise ValueError('nonfinite MoVLA motion state')
+        self._poses.append(tuple(map(float, pose)))
+        self._velocity = tuple(map(float, velocity))
+        poses = list(self._poses)
+        self._motion_history_m = sum(
+            math.hypot(b[0] - a[0], b[1] - a[1])
+            for a, b in zip(poses, poses[1:]))
 
     def infer(
         self,
@@ -164,6 +184,9 @@ class MovlaBackend(VLABackend):
         embedding = _chunk_to_embedding(chunk[0].float().cpu().numpy())
         return embedding, {
             'inference_ms': (time.monotonic() - t0) * 1000.0,
+            'motion_history_samples': len(self._poses),
+            'motion_velocity': list(self._velocity),
+            'motion_history_m': self._motion_history_m,
         }
 
     def model_info(self) -> ModelInfoDict:
@@ -201,16 +224,28 @@ class MovlaBackend(VLABackend):
         h = int(cfg.horizon)
         history = torch.zeros(1, int(cfg.history_len), 4)
         history[:, :, 2] = 1.0  # Stationary padding: (dx, dy, cos(dyaw), sin(dyaw)).
+        poses = list(self._poses)
+        for i in range(1, len(poses)):
+            px, py, pa = poses[i - 1]
+            x, y, a = poses[i]
+            dx, dy = x - px, y - py
+            c, s = math.cos(pa), math.sin(pa)
+            da = math.atan2(math.sin(a - pa), math.cos(a - pa))
+            history[0, -(len(poses) - i)] = torch.tensor(
+                [c * dx + s * dy, -s * dx + c * dy, math.cos(da), math.sin(da)])
+        cum_yaw = (math.degrees(math.atan2(math.sin(poses[-1][2] - poses[0][2]),
+                                               math.cos(poses[-1][2] - poses[0][2])))
+                   if poses else 0.0)
         return NavBatch(
             vlm_inputs=[VLMInputs(
                 images=images,
                 instruction=instruction,
                 robot_line=self._spec.to_prompt_line(),
-                status_line=_status_line(),
+                status_line=_status_line(cum_yaw, self._velocity[0]),
                 subgoal_line=f'Subgoal: {instruction}',
             )],
             history=history,
-            velocity=torch.zeros(1, 2),
+            velocity=torch.tensor([self._velocity]),
             prev_tail=torch.zeros(1, h, 3),
             prev_tail_mask=torch.zeros(1, h, dtype=torch.bool),
             embodiment_vec=torch.from_numpy(self._spec.to_vector()).unsqueeze(0),

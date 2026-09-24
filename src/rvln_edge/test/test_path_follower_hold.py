@@ -14,6 +14,7 @@ import rclpy
 from rclpy.time import Time
 from nav_msgs.msg import Path
 from geometry_msgs.msg import PoseStamped
+from std_srvs.srv import SetBool
 
 from rvln_edge.path_follower_node import PathFollowerNode
 
@@ -136,5 +137,25 @@ def test_hold_disabled_emits_zero_immediately(ros_runtime):
         node._on_path(_empty_path())
         stopped = node._decide_cmd(_t(0.01))
         assert stopped.linear == 0.0 and stopped.angular == 0.0
+    finally:
+        node.destroy_node()
+
+
+def test_forced_stop_gates_published_command_and_clears_hold(ros_runtime):
+    node = _make_node()
+    try:
+        published = []
+        node._pub.publish = published.append
+        node._on_path(_forward_path())
+        node._tick()
+        assert published[-1].linear.x > 0.0
+
+        response = node._on_forced_stop(
+            SetBool.Request(data=True), SetBool.Response())
+        assert response.success
+        assert node._held_cmd is None
+        node._tick()
+        assert published[-1].linear.x == 0.0
+        assert published[-1].angular.z == 0.0
     finally:
         node.destroy_node()

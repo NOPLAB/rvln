@@ -139,6 +139,7 @@ class NaVILABackend(VLABackend):
         response = response.removesuffix(stop_str).strip()
         return action_to_embedding(response), {
             'inference_ms': (time.monotonic() - t0) * 1000.0,
+            'raw_response': response,
         }
 
     def model_info(self) -> ModelInfoDict:

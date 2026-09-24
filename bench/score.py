@@ -46,6 +46,7 @@ def score_episode(episode: dict, tolerance_m: float = 0.30) -> dict:
         'endpoint_success': endpoint_success,
         'success': success,
         'collision_free_success': success and collisions == 0 if collisions is not None else None,
+        'had_collision': collisions > 0 if collisions is not None else None,
         'collisions': collisions,
         'stop_reason': stop_reason,
         'spl': spl,
@@ -80,6 +81,9 @@ def summarize(scored: list[dict]) -> dict:
             'collision_free_rate': (
                 _mean_ci([float(r['collision_free_success']) for r in rows])
                 if all(r['collision_free_success'] is not None for r in rows) else None),
+            'collision_episode_rate': (
+                _mean_ci([float(r['had_collision']) for r in rows])
+                if all(r['had_collision'] is not None for r in rows) else None),
             'collisions': (sum(r['collisions'] for r in rows)
                            if all(r['collisions'] is not None for r in rows) else None),
         }

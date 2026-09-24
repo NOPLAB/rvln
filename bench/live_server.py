@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import argparse
 import base64
+import gc
 import io
 import json
+import os
 import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -32,10 +34,23 @@ def main() -> None:
             if self.path != '/health':
                 self.send_error(404)
                 return
-            self._send({'backend': args.backend, 'model_version': version})
+            self._send({'backend': args.backend, 'model_version': version,
+                        'slurm_job_id': os.environ.get('SLURM_JOB_ID')})
 
         def do_POST(self) -> None:  # noqa: N802
-            nonlocal previous
+            nonlocal backend, previous, version
+            if self.path == '/reset':
+                previous = None
+                del backend
+                gc.collect()
+                if args.device.startswith('cuda'):
+                    import torch
+                    torch.cuda.empty_cache()
+                backend = build_backend(
+                    args.backend, args.checkpoint, args.device, args.resume_step)
+                version = backend.model_info().model_version
+                self._send({'reset': True, 'model_version': version})
+                return
             if self.path != '/infer':
                 self.send_error(404)
                 return
@@ -49,6 +64,8 @@ def main() -> None:
                 with Image.open(io.BytesIO(jpeg)) as source:
                     current = source.convert('RGB')
                 text = str(request['text'])
+                if args.backend == 'movla':
+                    backend.set_motion_state(request['pose_xyyaw'], request['velocity_vw'])
                 start = time.monotonic()
                 embedding, reported = backend.infer(
                     current_image=current,
@@ -62,7 +79,13 @@ def main() -> None:
                 payload = {'frame_id': int(request['frame_id']), 'embedding': output.tolist(),
                            'inference_ms': float(reported['inference_ms']),
                            'server_wall_ms': (time.monotonic() - start) * 1000.0,
-                           'model_version': version}
+                           'model_version': version,
+                           'diagnostics': {key: reported[key]
+                                           for key in ('modality_id', 'raw_response',
+                                                       'motion_history_samples',
+                                                       'motion_velocity',
+                                                       'motion_history_m')
+                                           if key in reported}}
                 print(json.dumps({'frame_id': payload['frame_id'],
                                   'server_wall_ms': payload['server_wall_ms']}), flush=True)
                 self._send(payload)

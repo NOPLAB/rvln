@@ -1,9 +1,9 @@
 # VLN benchmark harness
 
-`docs/VLN_BENCHMARK_PLAN.md` defines the evaluation protocol. The current
+`docs/bench/VLN_BENCHMARK_PLAN.md` defines the evaluation protocol. The current
 scripts cover camera capture, fixed-image GPU replay, a one-run live
 Remote/Edge bridge, and a route scorer. Results and limitations are in
-`docs/VLN_BENCHMARK_REPLAY_2026-09-24.md`.
+`docs/bench/VLN_BENCHMARK_REPLAY_2026-09-24.md`.
 
 ## Capture (local Gazebo and Edge)
 

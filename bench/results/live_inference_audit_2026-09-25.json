@@ -1,0 +1,212 @@
+{
+  "schema": 1,
+  "episodes": [
+    {
+      "model": "asyncvla",
+      "id": "c01",
+      "inferences": 13,
+      "nonempty_paths": 25,
+      "commanded": true,
+      "moved": true,
+      "model_version": "asyncvla-step750000"
+    },
+    {
+      "model": "asyncvla",
+      "id": "j01",
+      "inferences": 71,
+      "nonempty_paths": 159,
+      "commanded": true,
+      "moved": true,
+      "model_version": "asyncvla-step750000"
+    },
+    {
+      "model": "asyncvla",
+      "id": "j02",
+      "inferences": 71,
+      "nonempty_paths": 157,
+      "commanded": true,
+      "moved": true,
+      "model_version": "asyncvla-step750000"
+    },
+    {
+      "model": "asyncvla",
+      "id": "w01",
+      "inferences": 71,
+      "nonempty_paths": 154,
+      "commanded": true,
+      "moved": true,
+      "model_version": "asyncvla-step750000"
+    },
+    {
+      "model": "movla",
+      "id": "c01",
+      "inferences": 72,
+      "nonempty_paths": 352,
+      "commanded": true,
+      "moved": true,
+      "model_version": "movla-stage-a (/mnt/workspace/nop/vla/runs/stage_a_v9b)"
+    },
+    {
+      "model": "movla",
+      "id": "j01",
+      "inferences": 71,
+      "nonempty_paths": 351,
+      "commanded": true,
+      "moved": true,
+      "model_version": "movla-stage-a (/mnt/workspace/nop/vla/runs/stage_a_v9b)"
+    },
+    {
+      "model": "movla",
+      "id": "j02",
+      "inferences": 71,
+      "nonempty_paths": 350,
+      "commanded": true,
+      "moved": true,
+      "model_version": "movla-stage-a (/mnt/workspace/nop/vla/runs/stage_a_v9b)"
+    },
+    {
+      "model": "navida",
+      "id": "c01",
+      "inferences": 72,
+      "nonempty_paths": 354,
+      "commanded": true,
+      "moved": true,
+      "model_version": "models/NaVIDA attention=sdpa"
+    },
+    {
+      "model": "navida",
+      "id": "j01",
+      "inferences": 71,
+      "nonempty_paths": 351,
+      "commanded": true,
+      "moved": true,
+      "model_version": "models/NaVIDA attention=sdpa"
+    },
+    {
+      "model": "navida",
+      "id": "j02",
+      "inferences": 71,
+      "nonempty_paths": 351,
+      "commanded": true,
+      "moved": true,
+      "model_version": "models/NaVIDA attention=sdpa"
+    },
+    {
+      "model": "navida",
+      "id": "w01",
+      "inferences": 71,
+      "nonempty_paths": 351,
+      "commanded": true,
+      "moved": true,
+      "model_version": "models/NaVIDA attention=sdpa"
+    },
+    {
+      "model": "navila",
+      "id": "c01",
+      "inferences": 15,
+      "nonempty_paths": 57,
+      "commanded": true,
+      "moved": true,
+      "model_version": "models/navila-llama3-8b-8f"
+    },
+    {
+      "model": "navila",
+      "id": "j01",
+      "inferences": 76,
+      "nonempty_paths": 362,
+      "commanded": true,
+      "moved": true,
+      "model_version": "models/navila-llama3-8b-8f"
+    },
+    {
+      "model": "navila",
+      "id": "j02",
+      "inferences": 71,
+      "nonempty_paths": 351,
+      "commanded": true,
+      "moved": true,
+      "model_version": "models/navila-llama3-8b-8f"
+    },
+    {
+      "model": "navila",
+      "id": "w01",
+      "inferences": 56,
+      "nonempty_paths": 269,
+      "commanded": true,
+      "moved": true,
+      "model_version": "models/navila-llama3-8b-8f"
+    },
+    {
+      "model": "omnivla",
+      "id": "c01",
+      "inferences": 72,
+      "nonempty_paths": 352,
+      "commanded": true,
+      "moved": true,
+      "model_version": "omnivla-orig-step120000"
+    },
+    {
+      "model": "omnivla",
+      "id": "j01",
+      "inferences": 71,
+      "nonempty_paths": 350,
+      "commanded": true,
+      "moved": true,
+      "model_version": "omnivla-orig-step120000"
+    },
+    {
+      "model": "omnivla",
+      "id": "j02",
+      "inferences": 72,
+      "nonempty_paths": 352,
+      "commanded": true,
+      "moved": true,
+      "model_version": "omnivla-orig-step120000"
+    },
+    {
+      "model": "omnivla",
+      "id": "w01",
+      "inferences": 72,
+      "nonempty_paths": 352,
+      "commanded": true,
+      "moved": true,
+      "model_version": "omnivla-orig-step120000"
+    },
+    {
+      "model": "omnivla_edge",
+      "id": "c01",
+      "inferences": 13,
+      "nonempty_paths": 56,
+      "commanded": true,
+      "moved": true,
+      "model_version": "omnivla-edge-v1"
+    },
+    {
+      "model": "omnivla_edge",
+      "id": "j01",
+      "inferences": 71,
+      "nonempty_paths": 350,
+      "commanded": true,
+      "moved": true,
+      "model_version": "omnivla-edge-v1"
+    },
+    {
+      "model": "omnivla_edge",
+      "id": "j02",
+      "inferences": 11,
+      "nonempty_paths": 50,
+      "commanded": true,
+      "moved": true,
+      "model_version": "omnivla-edge-v1"
+    },
+    {
+      "model": "omnivla_edge",
+      "id": "w01",
+      "inferences": 71,
+      "nonempty_paths": 350,
+      "commanded": true,
+      "moved": true,
+      "model_version": "omnivla-edge-v1"
+    }
+  ]
+}

@@ -7,6 +7,7 @@ import rclpy
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Path
 from rclpy.node import Node
+from std_srvs.srv import SetBool
 
 from .pure_pursuit import TwistCmd
 from .waypoint_pd import PathPoint, WaypointPD
@@ -72,6 +73,8 @@ class PathFollowerNode(Node):
         self._held_at = None  # rclpy Time or None
         # Motion state of the last published command, for transition logging.
         self._was_moving = False
+        self._forced_stop = False
+        self.create_service(SetBool, '/rvln/follower_stop', self._on_forced_stop)
         self._sub = self.create_subscription(
             Path,
             self.get_parameter('path_topic').value,
@@ -110,12 +113,21 @@ class PathFollowerNode(Node):
         self._latest = wps
 
     def _tick(self) -> None:
-        cmd = self._decide_cmd(self.get_clock().now())
+        cmd = (TwistCmd(0.0, 0.0) if self._forced_stop
+               else self._decide_cmd(self.get_clock().now()))
         self._log_motion_transition(cmd)
         twist = Twist()
         twist.linear.x = float(cmd.linear)
         twist.angular.z = float(cmd.angular)
         self._pub.publish(twist)
+
+    def _on_forced_stop(self, request, response):
+        self._forced_stop = bool(request.data)
+        self._held_cmd = None
+        self._held_at = None
+        response.success = True
+        response.message = 'follower stopped' if self._forced_stop else 'follower resumed'
+        return response
 
     def _log_motion_transition(self, cmd: TwistCmd) -> None:
         """One INFO line per moving<->stopped transition, with the stop reason.

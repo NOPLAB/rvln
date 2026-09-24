@@ -1,17 +1,196 @@
 {
   "schema": 1,
   "episodes": [
-    {"id": "c01", "scene": "corridor", "start_xyyaw": [0, 0, 0], "goal_xy": [2.35, 0], "text": "Go straight down the corridor and stop before the red marker.", "shortest_m": null},
-    {"id": "c02", "scene": "corridor", "start_xyyaw": [0, 0, 0], "goal_xy": [2.35, 0], "text": "Move along the corridor to the red marker, then stop.", "shortest_m": null},
-    {"id": "c03", "scene": "corridor", "start_xyyaw": [0, 0, 0], "goal_xy": [2.35, 0], "text": "Continue forward until you reach the red marker.", "shortest_m": null},
-    {"id": "c04", "scene": "corridor", "start_xyyaw": [0, 0, 0], "goal_xy": [2.35, 0], "text": "Navigate to the red marker at the end of the corridor.", "shortest_m": null},
-    {"id": "j01", "scene": "junction", "start_xyyaw": [0, 0, 0], "goal_xy": [1.35, 1.0], "text": "At the junction turn left and stop near the red marker.", "shortest_m": null},
-    {"id": "j02", "scene": "junction", "start_xyyaw": [0, 0, 0], "goal_xy": [1.35, -1.0], "text": "At the junction turn right and stop near the blue marker.", "shortest_m": null},
-    {"id": "j03", "scene": "junction", "start_xyyaw": [0, 0, 0], "goal_xy": [1.35, 1.0], "text": "Find the red marker on the left side of the junction.", "shortest_m": null},
-    {"id": "j04", "scene": "junction", "start_xyyaw": [0, 0, 0], "goal_xy": [1.35, -1.0], "text": "Find the blue marker on the right side of the junction.", "shortest_m": null},
-    {"id": "w01", "scene": "weave", "start_xyyaw": [0, 0, 0], "goal_xy": [2.8, 0], "text": "Go around the blocks and stop at the red marker.", "shortest_m": null},
-    {"id": "w02", "scene": "weave", "start_xyyaw": [0, 0, 0], "goal_xy": [2.8, 0], "text": "Navigate past both obstacles to the red marker.", "shortest_m": null},
-    {"id": "w03", "scene": "weave", "start_xyyaw": [0, 0, 0], "goal_xy": [2.8, 0], "text": "Avoid the two blocks and finish by the red marker.", "shortest_m": null},
-    {"id": "w04", "scene": "weave", "start_xyyaw": [0, 0, 0], "goal_xy": [2.8, 0], "text": "Travel through the obstacles toward the red marker and stop.", "shortest_m": null}
-  ]
+    {
+      "id": "c01",
+      "scene": "corridor",
+      "start_xyyaw": [
+        0,
+        0,
+        0
+      ],
+      "goal_xy": [
+        2.35,
+        0
+      ],
+      "text": "Go straight down the corridor and stop before the red marker.",
+      "shortest_m": 2.0500000000000003
+    },
+    {
+      "id": "c02",
+      "scene": "corridor",
+      "start_xyyaw": [
+        0,
+        0,
+        0
+      ],
+      "goal_xy": [
+        2.35,
+        0
+      ],
+      "text": "Move along the corridor to the red marker, then stop.",
+      "shortest_m": 2.0500000000000003
+    },
+    {
+      "id": "c03",
+      "scene": "corridor",
+      "start_xyyaw": [
+        0,
+        0,
+        0
+      ],
+      "goal_xy": [
+        2.35,
+        0
+      ],
+      "text": "Continue forward until you reach the red marker.",
+      "shortest_m": 2.0500000000000003
+    },
+    {
+      "id": "c04",
+      "scene": "corridor",
+      "start_xyyaw": [
+        0,
+        0,
+        0
+      ],
+      "goal_xy": [
+        2.35,
+        0
+      ],
+      "text": "Navigate to the red marker at the end of the corridor.",
+      "shortest_m": 2.0500000000000003
+    },
+    {
+      "id": "j01",
+      "scene": "junction",
+      "start_xyyaw": [
+        0,
+        0,
+        0
+      ],
+      "goal_xy": [
+        1.35,
+        1.0
+      ],
+      "text": "At the junction turn left and stop near the red marker.",
+      "shortest_m": 1.3825361658922348
+    },
+    {
+      "id": "j02",
+      "scene": "junction",
+      "start_xyyaw": [
+        0,
+        0,
+        0
+      ],
+      "goal_xy": [
+        1.35,
+        -1.0
+      ],
+      "text": "At the junction turn right and stop near the blue marker.",
+      "shortest_m": 1.3825361658922344
+    },
+    {
+      "id": "j03",
+      "scene": "junction",
+      "start_xyyaw": [
+        0,
+        0,
+        0
+      ],
+      "goal_xy": [
+        1.35,
+        1.0
+      ],
+      "text": "Find the red marker on the left side of the junction.",
+      "shortest_m": 1.3825361658922348
+    },
+    {
+      "id": "j04",
+      "scene": "junction",
+      "start_xyyaw": [
+        0,
+        0,
+        0
+      ],
+      "goal_xy": [
+        1.35,
+        -1.0
+      ],
+      "text": "Find the blue marker on the right side of the junction.",
+      "shortest_m": 1.3825361658922344
+    },
+    {
+      "id": "w01",
+      "scene": "weave",
+      "start_xyyaw": [
+        0,
+        0,
+        0
+      ],
+      "goal_xy": [
+        2.8,
+        0
+      ],
+      "text": "Go around the blocks and stop at the red marker.",
+      "shortest_m": 3.152983447259274
+    },
+    {
+      "id": "w02",
+      "scene": "weave",
+      "start_xyyaw": [
+        0,
+        0,
+        0
+      ],
+      "goal_xy": [
+        2.8,
+        0
+      ],
+      "text": "Navigate past both obstacles to the red marker.",
+      "shortest_m": 3.152983447259274
+    },
+    {
+      "id": "w03",
+      "scene": "weave",
+      "start_xyyaw": [
+        0,
+        0,
+        0
+      ],
+      "goal_xy": [
+        2.8,
+        0
+      ],
+      "text": "Avoid the two blocks and finish by the red marker.",
+      "shortest_m": 3.152983447259274
+    },
+    {
+      "id": "w04",
+      "scene": "weave",
+      "start_xyyaw": [
+        0,
+        0,
+        0
+      ],
+      "goal_xy": [
+        2.8,
+        0
+      ],
+      "text": "Travel through the obstacles toward the red marker and stop.",
+      "shortest_m": 3.152983447259274
+    }
+  ],
+  "oracle": {
+    "method": "Theta* disk-to-goal-region",
+    "robot_radius_m": 0.34,
+    "goal_tolerance_m": 0.3,
+    "grid_resolution_m": 0.0125,
+    "world_sha256": {
+      "corridor": "0736f65b96fda4fb864adeb16afb893c2d9c323be7b9434a21b17525dc565134",
+      "junction": "fcbecd4ebdfd993d37db9e5270bf42808105f00a3c30ee8d406a2cfae1b222eb",
+      "weave": "755d13b1fc32975e6f427c4aa5266f22988152aaed60b58fe791362a24db9f80"
+    }
+  }
 }

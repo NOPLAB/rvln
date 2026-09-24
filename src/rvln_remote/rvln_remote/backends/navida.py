@@ -144,6 +144,7 @@ class NaVIDABackend(VLABackend):
             output[:, prefix_len:], skip_special_tokens=True)[0].strip()
         return action_to_embedding(response), {
             'inference_ms': (time.monotonic() - t0) * 1000.0,
+            'raw_response': response,
         }
 
     def model_info(self) -> ModelInfoDict:

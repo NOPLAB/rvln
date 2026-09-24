@@ -1,8 +1,10 @@
 # Raspicat VLN benchmark plan
 
-Status: gate-0/early gate-1 pilot completed on 2026-09-24; route evaluation
-remains open. See `VLN_BENCHMARK_REPLAY_2026-09-24.md` for measurements and limits.
-No navigation-quality ranking is claimed by this document.
+Status: gate-0 replay completed on 2026-09-24 and a 23-episode closed-loop
+pilot completed on 2026-09-25. See `VLN_BENCHMARK_REPLAY_2026-09-24.md` and
+`VLN_BENCHMARK_CLOSED_LOOP_2026-09-25.md` for measurements and limits.
+The measured contact and SPL rerun is in `VLN_CONTACT_SPL_2026-09-25.md`.
+The held-out 60-episode comparison remains open.
 
 ## Objective and comparison groups
 

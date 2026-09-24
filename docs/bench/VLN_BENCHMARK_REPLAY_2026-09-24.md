@@ -82,7 +82,7 @@ log, or shortest-path oracle was recorded, so it contributes no SR or SPL.
 ## Remaining navigation benchmark gates
 
 The 12 route pilot and 60 paired held-out episodes in
-`docs/VLN_BENCHMARK_PLAN.md` have **not** been executed. Before SR or SPL can be
+`docs/bench/VLN_BENCHMARK_PLAN.md` have **not** been executed. Before SR or SPL can be
 reported, the episode runner must reset Gazebo and model history per route,
 send each route's instruction, log model versus safety stops and contacts,
 and validate collision-free shortest paths. The current image replay leaves

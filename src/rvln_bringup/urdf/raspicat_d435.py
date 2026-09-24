@@ -22,6 +22,40 @@ def add_box(document, link, tag, size, material=None):
         add_element(document, geometry.parentNode, 'material', {'name': material})
 
 
+def add_benchmark_contact_sensors(document, robot):
+    """Expose every robot collision body to the closed-loop benchmark."""
+    collisions = (
+        ('base_footprint', 'base',
+         'base_footprint_fixed_joint_lump__base_link_collision'),
+        ('base_footprint', 'mount',
+         'base_footprint_fixed_joint_lump__camera_mount_link_collision_1'),
+        ('base_footprint', 'camera',
+         'base_footprint_fixed_joint_lump__camera_link_collision_2'),
+        ('caster_link', 'caster', 'caster_link_collision'),
+        ('caster_wheel_link', 'caster_wheel', 'caster_wheel_link_collision'),
+        ('left_wheel_link', 'left_wheel', 'left_wheel_link_collision'),
+        ('right_wheel_link', 'right_wheel', 'right_wheel_link_collision'),
+    )
+    for link_name, sensor_name, collision_name in collisions:
+        gazebo = add_element(document, robot, 'gazebo', {'reference': link_name})
+        sensor = add_element(document, gazebo, 'sensor', {
+            'name': f'bench_{sensor_name}_contact', 'type': 'contact',
+        })
+        add_element(document, sensor, 'always_on').appendChild(document.createTextNode('true'))
+        add_element(document, sensor, 'update_rate').appendChild(document.createTextNode('50'))
+        contact = add_element(document, sensor, 'contact')
+        add_element(document, contact, 'collision').appendChild(
+            document.createTextNode(collision_name))
+        plugin = add_element(document, sensor, 'plugin', {
+            'name': f'bench_{sensor_name}_bumper',
+            'filename': 'libgazebo_ros_bumper.so',
+        })
+        ros = add_element(document, plugin, 'ros')
+        add_element(document, ros, 'remapping').appendChild(
+            document.createTextNode(
+                f'bumper_states:=/bench/contacts/{sensor_name}'))
+
+
 def generate_urdf():
     upstream = os.path.join(
         get_package_share_directory('raspicat_description'), 'urdf', 'raspicat.urdf.xacro',
@@ -76,6 +110,9 @@ def generate_urdf():
     ):
         material = add_element(document, robot, 'material', {'name': name})
         add_element(document, material, 'color', {'rgba': rgba})
+
+    if os.environ.get('RVLN_BENCH_CONTACTS') == '1':
+        add_benchmark_contact_sensors(document, robot)
 
     return document.toxml()
 

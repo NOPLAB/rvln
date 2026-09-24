@@ -1,0 +1,1120 @@
+{
+  "schema": 1,
+  "groups": [
+    {
+      "model": "asyncvla",
+      "deployment": "remote_gpu_local_edge",
+      "episodes": 4,
+      "success_rate": {
+        "mean": 0.25,
+        "ci95": [
+          0.0,
+          0.75
+        ]
+      },
+      "endpoint_rate": {
+        "mean": 0.25,
+        "ci95": [
+          0.0,
+          0.75
+        ]
+      },
+      "collision_free_rate": {
+        "mean": 0.25,
+        "ci95": [
+          0.0,
+          0.75
+        ]
+      },
+      "collision_episode_rate": {
+        "mean": 0.75,
+        "ci95": [
+          0.25,
+          1.0
+        ]
+      },
+      "collisions": 3,
+      "spl": {
+        "mean": 0.24419660217256706,
+        "ci95": [
+          0.0,
+          0.7325898065177012
+        ]
+      },
+      "median_final_distance_m": 1.1397439902581459,
+      "median_travel_m": 2.0832766467061106,
+      "median_elapsed_sec": 35.01842370400004,
+      "round_trip_p95_ms": 171.71225825006786,
+      "goal_tolerance_stops": 1,
+      "timeouts": 3,
+      "track": "general_text"
+    },
+    {
+      "model": "movla",
+      "deployment": "remote_gpu_local_edge",
+      "episodes": 3,
+      "success_rate": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "endpoint_rate": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "collision_free_rate": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "collision_episode_rate": {
+        "mean": 1.0,
+        "ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "collisions": 3,
+      "spl": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "median_final_distance_m": 0.6359027479009441,
+      "median_travel_m": 2.484644227694802,
+      "median_elapsed_sec": 35.034756016999836,
+      "round_trip_p95_ms": 84.3016111001134,
+      "goal_tolerance_stops": 0,
+      "timeouts": 3,
+      "track": "template_commands"
+    },
+    {
+      "model": "navida",
+      "deployment": "remote_gpu_local_edge",
+      "episodes": 4,
+      "success_rate": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "endpoint_rate": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "collision_free_rate": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "collision_episode_rate": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "collisions": 0,
+      "spl": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "median_final_distance_m": 2.0156780128382543,
+      "median_travel_m": 0.008986813459538872,
+      "median_elapsed_sec": 35.09885796949993,
+      "round_trip_p95_ms": 356.8885564000084,
+      "goal_tolerance_stops": 0,
+      "timeouts": 4,
+      "track": "general_text"
+    },
+    {
+      "model": "navila",
+      "deployment": "remote_gpu_local_edge",
+      "episodes": 4,
+      "success_rate": {
+        "mean": 0.25,
+        "ci95": [
+          0.0,
+          0.75
+        ]
+      },
+      "endpoint_rate": {
+        "mean": 0.25,
+        "ci95": [
+          0.0,
+          0.75
+        ]
+      },
+      "collision_free_rate": {
+        "mean": 0.25,
+        "ci95": [
+          0.0,
+          0.75
+        ]
+      },
+      "collision_episode_rate": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "collisions": 0,
+      "spl": {
+        "mean": 0.23599850524300617,
+        "ci95": [
+          0.0,
+          0.7079955157290185
+        ]
+      },
+      "median_final_distance_m": 10.48499714212135,
+      "median_travel_m": 11.756889406049105,
+      "median_elapsed_sec": 35.040707156999815,
+      "round_trip_p95_ms": 399.3936291501313,
+      "goal_tolerance_stops": 1,
+      "timeouts": 3,
+      "track": "general_text"
+    },
+    {
+      "model": "omnivla",
+      "deployment": "remote_gpu_local_edge",
+      "episodes": 4,
+      "success_rate": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "endpoint_rate": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "collision_free_rate": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "collision_episode_rate": {
+        "mean": 1.0,
+        "ci95": [
+          1.0,
+          1.0
+        ]
+      },
+      "collisions": 4,
+      "spl": {
+        "mean": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ]
+      },
+      "median_final_distance_m": 1.2084704161261013,
+      "median_travel_m": 1.799651747588769,
+      "median_elapsed_sec": 35.137984591499844,
+      "round_trip_p95_ms": 103.24909819992172,
+      "goal_tolerance_stops": 0,
+      "timeouts": 4,
+      "track": "general_text"
+    },
+    {
+      "model": "omnivla_edge",
+      "deployment": "remote_gpu_local_edge",
+      "episodes": 4,
+      "success_rate": {
+        "mean": 0.5,
+        "ci95": [
+          0.0,
+          1.0
+        ]
+      },
+      "endpoint_rate": {
+        "mean": 0.5,
+        "ci95": [
+          0.0,
+          1.0
+        ]
+      },
+      "collision_free_rate": {
+        "mean": 0.5,
+        "ci95": [
+          0.0,
+          1.0
+        ]
+      },
+      "collision_episode_rate": {
+        "mean": 0.5,
+        "ci95": [
+          0.0,
+          1.0
+        ]
+      },
+      "collisions": 2,
+      "spl": {
+        "mean": 0.4260762458828655,
+        "ci95": [
+          0.0,
+          0.852152491765731
+        ]
+      },
+      "median_final_distance_m": 0.7889071013929126,
+      "median_travel_m": 2.140842466370998,
+      "median_elapsed_sec": 20.326167148999957,
+      "round_trip_p95_ms": 52.76396800002203,
+      "goal_tolerance_stops": 2,
+      "timeouts": 2,
+      "track": "general_text"
+    }
+  ],
+  "episodes": [
+    {
+      "id": "c01",
+      "model": "asyncvla",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 0.2847302529314476,
+      "travel_m": 2.0987188005090682,
+      "elapsed_sec": 5.771020812000188,
+      "endpoint_success": true,
+      "success": true,
+      "collision_free_success": true,
+      "had_collision": false,
+      "collisions": 0,
+      "stop_reason": "goal_tolerance",
+      "spl": 0.9767864086902682,
+      "scene": "corridor",
+      "instruction_sent": "Go straight down the corridor and stop before the red marker.",
+      "video": "asyncvla-c01.mp4",
+      "video_frames": 12,
+      "observations": 13,
+      "embeddings": 13,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 402,
+        "mount": 402,
+        "camera": 402,
+        "caster": 401,
+        "caster_wheel": 401,
+        "left_wheel": 401,
+        "right_wheel": 401
+      },
+      "model_version": "asyncvla-step750000",
+      "closest_distance_m": 0.2847302529314476,
+      "round_trip_p95_ms": 372.73248379997233
+    },
+    {
+      "id": "j01",
+      "model": "asyncvla",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 1.7971859975894164,
+      "travel_m": 2.067834492903153,
+      "elapsed_sec": 35.01246017599988,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": true,
+      "collisions": 1,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "junction",
+      "instruction_sent": "At the junction turn left and stop near the red marker.",
+      "video": "asyncvla-j01.mp4",
+      "video_frames": 70,
+      "observations": 71,
+      "embeddings": 71,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1760,
+        "mount": 1759,
+        "camera": 1759,
+        "caster": 1759,
+        "caster_wheel": 1759,
+        "left_wheel": 1759,
+        "right_wheel": 1759
+      },
+      "model_version": "asyncvla-step750000",
+      "closest_distance_m": 1.1903908399058936,
+      "round_trip_p95_ms": 155.6777595001222
+    },
+    {
+      "id": "j02",
+      "model": "asyncvla",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 0.4823019829268751,
+      "travel_m": 2.130992774460504,
+      "elapsed_sec": 35.032436190000226,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": true,
+      "collisions": 1,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "junction",
+      "instruction_sent": "At the junction turn right and stop near the blue marker.",
+      "video": "asyncvla-j02.mp4",
+      "video_frames": 70,
+      "observations": 71,
+      "embeddings": 71,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1772,
+        "mount": 1771,
+        "camera": 1771,
+        "caster": 1771,
+        "caster_wheel": 1771,
+        "left_wheel": 1771,
+        "right_wheel": 1771
+      },
+      "model_version": "asyncvla-step750000",
+      "closest_distance_m": 0.48227751535400093,
+      "round_trip_p95_ms": 152.818689500009
+    },
+    {
+      "id": "w01",
+      "model": "asyncvla",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 2.174472389325891,
+      "travel_m": 0.6378829956752067,
+      "elapsed_sec": 35.02438723200021,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": true,
+      "collisions": 1,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "weave",
+      "instruction_sent": "Go around the blocks and stop at the red marker.",
+      "video": "asyncvla-w01.mp4",
+      "video_frames": 70,
+      "observations": 71,
+      "embeddings": 71,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1783,
+        "mount": 1782,
+        "camera": 1782,
+        "caster": 1782,
+        "caster_wheel": 1782,
+        "left_wheel": 1782,
+        "right_wheel": 1782
+      },
+      "model_version": "asyncvla-step750000",
+      "closest_distance_m": 2.174472389325891,
+      "round_trip_p95_ms": 230.50945350018992
+    },
+    {
+      "id": "c01",
+      "model": "omnivla",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 1.073044056332853,
+      "travel_m": 3.3434951264414514,
+      "elapsed_sec": 35.13524371299991,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": true,
+      "collisions": 1,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "corridor",
+      "instruction_sent": "Go straight down the corridor and stop before the red marker.",
+      "video": "omnivla-c01.mp4",
+      "video_frames": 71,
+      "observations": 72,
+      "embeddings": 72,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1792,
+        "mount": 1792,
+        "camera": 1792,
+        "caster": 1792,
+        "caster_wheel": 1792,
+        "left_wheel": 1792,
+        "right_wheel": 1792
+      },
+      "model_version": "omnivla-orig-step120000",
+      "closest_distance_m": 0.45549019482321,
+      "round_trip_p95_ms": 103.12712775003092
+    },
+    {
+      "id": "j01",
+      "model": "omnivla",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 1.2678349313626363,
+      "travel_m": 1.8026768569794878,
+      "elapsed_sec": 35.01940569599992,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": true,
+      "collisions": 1,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "junction",
+      "instruction_sent": "At the junction turn left and stop near the red marker.",
+      "video": "omnivla-j01.mp4",
+      "video_frames": 70,
+      "observations": 71,
+      "embeddings": 71,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1762,
+        "mount": 1762,
+        "camera": 1762,
+        "caster": 1762,
+        "caster_wheel": 1762,
+        "left_wheel": 1762,
+        "right_wheel": 1762
+      },
+      "model_version": "omnivla-orig-step120000",
+      "closest_distance_m": 1.1030157806597318,
+      "round_trip_p95_ms": 102.88055099999838
+    },
+    {
+      "id": "j02",
+      "model": "omnivla",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 1.1491059008895665,
+      "travel_m": 1.7966266381980502,
+      "elapsed_sec": 35.152949156999966,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": true,
+      "collisions": 1,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "junction",
+      "instruction_sent": "At the junction turn right and stop near the blue marker.",
+      "video": "omnivla-j02.mp4",
+      "video_frames": 71,
+      "observations": 72,
+      "embeddings": 72,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1801,
+        "mount": 1800,
+        "camera": 1800,
+        "caster": 1800,
+        "caster_wheel": 1800,
+        "left_wheel": 1800,
+        "right_wheel": 1800
+      },
+      "model_version": "omnivla-orig-step120000",
+      "closest_distance_m": 0.9900499089666766,
+      "round_trip_p95_ms": 97.05472429986912
+    },
+    {
+      "id": "w01",
+      "model": "omnivla",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 2.174325564513444,
+      "travel_m": 0.637512809712092,
+      "elapsed_sec": 35.14072546999978,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": true,
+      "collisions": 1,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "weave",
+      "instruction_sent": "Go around the blocks and stop at the red marker.",
+      "video": "omnivla-w01.mp4",
+      "video_frames": 71,
+      "observations": 72,
+      "embeddings": 72,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1912,
+        "mount": 1911,
+        "camera": 1911,
+        "caster": 1911,
+        "caster_wheel": 1911,
+        "left_wheel": 1911,
+        "right_wheel": 1911
+      },
+      "model_version": "omnivla-orig-step120000",
+      "closest_distance_m": 2.174268115121304,
+      "round_trip_p95_ms": 119.12944164973852
+    },
+    {
+      "id": "c01",
+      "model": "omnivla_edge",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 0.26919647465634494,
+      "travel_m": 2.110819155236904,
+      "elapsed_sec": 5.631999483999607,
+      "endpoint_success": true,
+      "success": true,
+      "collision_free_success": true,
+      "had_collision": false,
+      "collisions": 0,
+      "stop_reason": "goal_tolerance",
+      "spl": 0.971186941768075,
+      "scene": "corridor",
+      "instruction_sent": "Go straight down the corridor and stop before the red marker.",
+      "video": "omnivla_edge-c01.mp4",
+      "video_frames": 12,
+      "observations": 13,
+      "embeddings": 13,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 342,
+        "mount": 341,
+        "camera": 341,
+        "caster": 341,
+        "caster_wheel": 341,
+        "left_wheel": 341,
+        "right_wheel": 341
+      },
+      "model_version": "omnivla-edge-v1",
+      "closest_distance_m": 0.26919647465634494,
+      "round_trip_p95_ms": 196.57509040016467
+    },
+    {
+      "id": "j01",
+      "model": "omnivla_edge",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 2.1180719239761476,
+      "travel_m": 2.170865777505092,
+      "elapsed_sec": 35.02033481400031,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": true,
+      "collisions": 1,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "junction",
+      "instruction_sent": "At the junction turn left and stop near the red marker.",
+      "video": "omnivla_edge-j01.mp4",
+      "video_frames": 70,
+      "observations": 71,
+      "embeddings": 71,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1798,
+        "mount": 1797,
+        "camera": 1797,
+        "caster": 1797,
+        "caster_wheel": 1797,
+        "left_wheel": 1797,
+        "right_wheel": 1797
+      },
+      "model_version": "omnivla-edge-v1",
+      "closest_distance_m": 1.2425353575951958,
+      "round_trip_p95_ms": 49.407657500069035
+    },
+    {
+      "id": "j02",
+      "model": "omnivla_edge",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 0.29894954607812524,
+      "travel_m": 1.8858302307862809,
+      "elapsed_sec": 5.019128568999804,
+      "endpoint_success": true,
+      "success": true,
+      "collision_free_success": true,
+      "had_collision": false,
+      "collisions": 0,
+      "stop_reason": "goal_tolerance",
+      "spl": 0.733118041763387,
+      "scene": "junction",
+      "instruction_sent": "At the junction turn right and stop near the blue marker.",
+      "video": "omnivla_edge-j02.mp4",
+      "video_frames": 10,
+      "observations": 11,
+      "embeddings": 11,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 277,
+        "mount": 276,
+        "camera": 276,
+        "caster": 276,
+        "caster_wheel": 276,
+        "left_wheel": 276,
+        "right_wheel": 276
+      },
+      "model_version": "omnivla-edge-v1",
+      "closest_distance_m": 0.29894954607812524,
+      "round_trip_p95_ms": 48.94791650008301
+    },
+    {
+      "id": "w01",
+      "model": "omnivla_edge",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 1.2788646567077,
+      "travel_m": 12.449125939522927,
+      "elapsed_sec": 35.024510055000064,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": true,
+      "collisions": 1,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "weave",
+      "instruction_sent": "Go around the blocks and stop at the red marker.",
+      "video": "omnivla_edge-w01.mp4",
+      "video_frames": 70,
+      "observations": 71,
+      "embeddings": 71,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1771,
+        "mount": 1770,
+        "camera": 1770,
+        "caster": 1770,
+        "caster_wheel": 1770,
+        "left_wheel": 1770,
+        "right_wheel": 1770
+      },
+      "model_version": "omnivla-edge-v1",
+      "closest_distance_m": 1.2788646567077,
+      "round_trip_p95_ms": 55.63923799991244
+    },
+    {
+      "id": "c01",
+      "model": "movla",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 0.5799854912595456,
+      "travel_m": 2.484644227694802,
+      "elapsed_sec": 35.12118495899995,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": true,
+      "collisions": 1,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "corridor",
+      "instruction_sent": "go straight ahead",
+      "video": "movla-c01.mp4",
+      "video_frames": 71,
+      "observations": 72,
+      "embeddings": 72,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1849,
+        "mount": 1848,
+        "camera": 1848,
+        "caster": 1848,
+        "caster_wheel": 1848,
+        "left_wheel": 1848,
+        "right_wheel": 1848
+      },
+      "model_version": "movla-stage-a (/mnt/workspace/nop/vla/runs/stage_a_v9b)",
+      "closest_distance_m": 0.5598299457148674,
+      "round_trip_p95_ms": 84.23167269972964
+    },
+    {
+      "id": "j01",
+      "model": "movla",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 0.6549958932200729,
+      "travel_m": 3.5157193903806694,
+      "elapsed_sec": 35.034756016999836,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": true,
+      "collisions": 1,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "junction",
+      "instruction_sent": "turn left ahead",
+      "video": "movla-j01.mp4",
+      "video_frames": 70,
+      "observations": 71,
+      "embeddings": 71,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1775,
+        "mount": 1774,
+        "camera": 1774,
+        "caster": 1774,
+        "caster_wheel": 1774,
+        "left_wheel": 1774,
+        "right_wheel": 1774
+      },
+      "model_version": "movla-stage-a (/mnt/workspace/nop/vla/runs/stage_a_v9b)",
+      "closest_distance_m": 0.6549913980940725,
+      "round_trip_p95_ms": 83.5346540000046
+    },
+    {
+      "id": "j02",
+      "model": "movla",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 0.6359027479009441,
+      "travel_m": 2.004914338320483,
+      "elapsed_sec": 35.018026502999874,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": true,
+      "collisions": 1,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "junction",
+      "instruction_sent": "turn right ahead",
+      "video": "movla-j02.mp4",
+      "video_frames": 70,
+      "observations": 71,
+      "embeddings": 71,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1805,
+        "mount": 1804,
+        "camera": 1804,
+        "caster": 1804,
+        "caster_wheel": 1804,
+        "left_wheel": 1804,
+        "right_wheel": 1804
+      },
+      "model_version": "movla-stage-a (/mnt/workspace/nop/vla/runs/stage_a_v9b)",
+      "closest_distance_m": 0.44153072270523935,
+      "round_trip_p95_ms": 86.31224850000763
+    },
+    {
+      "id": "c01",
+      "model": "navila",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 0.178337180550648,
+      "travel_m": 2.1716239239408828,
+      "elapsed_sec": 6.480939510000098,
+      "endpoint_success": true,
+      "success": true,
+      "collision_free_success": true,
+      "had_collision": false,
+      "collisions": 0,
+      "stop_reason": "goal_tolerance",
+      "spl": 0.9439940209720247,
+      "scene": "corridor",
+      "instruction_sent": "Go straight down the corridor and stop before the red marker.",
+      "video": "navila-c01.mp4",
+      "video_frames": 14,
+      "observations": 15,
+      "embeddings": 15,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 486,
+        "mount": 485,
+        "camera": 485,
+        "caster": 485,
+        "caster_wheel": 485,
+        "left_wheel": 485,
+        "right_wheel": 485
+      },
+      "model_version": "models/navila-llama3-8b-8f",
+      "closest_distance_m": 0.178337180550648,
+      "round_trip_p95_ms": 718.2014285000594
+    },
+    {
+      "id": "j01",
+      "model": "navila",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 10.634307291759526,
+      "travel_m": 12.113029265194411,
+      "elapsed_sec": 36.94842705799965,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": false,
+      "collisions": 0,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "junction",
+      "instruction_sent": "At the junction turn left and stop near the red marker.",
+      "video": "navila-j01.mp4",
+      "video_frames": 75,
+      "observations": 76,
+      "embeddings": 76,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1956,
+        "mount": 1955,
+        "camera": 1955,
+        "caster": 1955,
+        "caster_wheel": 1955,
+        "left_wheel": 1955,
+        "right_wheel": 1955
+      },
+      "model_version": "models/navila-llama3-8b-8f",
+      "closest_distance_m": 0.6082734390809805,
+      "round_trip_p95_ms": 398.25963525004227
+    },
+    {
+      "id": "j02",
+      "model": "navila",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 10.335686992483172,
+      "travel_m": 11.400749546903796,
+      "elapsed_sec": 35.04827799099985,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": false,
+      "collisions": 0,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "junction",
+      "instruction_sent": "At the junction turn right and stop near the blue marker.",
+      "video": "navila-j02.mp4",
+      "video_frames": 70,
+      "observations": 71,
+      "embeddings": 71,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1870,
+        "mount": 1869,
+        "camera": 1869,
+        "caster": 1869,
+        "caster_wheel": 1869,
+        "left_wheel": 1869,
+        "right_wheel": 1869
+      },
+      "model_version": "models/navila-llama3-8b-8f",
+      "closest_distance_m": 1.2957347365547802,
+      "round_trip_p95_ms": 396.30381200004194
+    },
+    {
+      "id": "w01",
+      "model": "navila",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 15.066859599236935,
+      "travel_m": 12.877576119090513,
+      "elapsed_sec": 35.03313632299978,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": false,
+      "collisions": 0,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "weave",
+      "instruction_sent": "Go around the blocks and stop at the red marker.",
+      "video": "navila-w01.mp4",
+      "video_frames": 55,
+      "observations": 56,
+      "embeddings": 56,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1950,
+        "mount": 1949,
+        "camera": 1949,
+        "caster": 1949,
+        "caster_wheel": 1949,
+        "left_wheel": 1949,
+        "right_wheel": 1949
+      },
+      "model_version": "models/navila-llama3-8b-8f",
+      "closest_distance_m": 2.799940413803067,
+      "round_trip_p95_ms": 400.4157817500982
+    },
+    {
+      "id": "c01",
+      "model": "navida",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 2.3492182161902666,
+      "travel_m": 0.00580651879917002,
+      "elapsed_sec": 35.37320600300018,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": false,
+      "collisions": 0,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "corridor",
+      "instruction_sent": "Go straight down the corridor and stop before the red marker.",
+      "video": "navida-c01.mp4",
+      "video_frames": 71,
+      "observations": 72,
+      "embeddings": 72,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1864,
+        "mount": 1863,
+        "camera": 1863,
+        "caster": 1863,
+        "caster_wheel": 1863,
+        "left_wheel": 1863,
+        "right_wheel": 1863
+      },
+      "model_version": "models/NaVIDA attention=sdpa",
+      "closest_distance_m": 2.348710493134453,
+      "round_trip_p95_ms": 359.0031268998473
+    },
+    {
+      "id": "j01",
+      "model": "navida",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 1.6817091483463016,
+      "travel_m": 0.01079584174948217,
+      "elapsed_sec": 35.07511334600031,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": false,
+      "collisions": 0,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "junction",
+      "instruction_sent": "At the junction turn left and stop near the red marker.",
+      "video": "navida-j01.mp4",
+      "video_frames": 70,
+      "observations": 71,
+      "embeddings": 71,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1817,
+        "mount": 1816,
+        "camera": 1816,
+        "caster": 1816,
+        "caster_wheel": 1816,
+        "left_wheel": 1816,
+        "right_wheel": 1816
+      },
+      "model_version": "models/NaVIDA attention=sdpa",
+      "closest_distance_m": 1.6798921423759923,
+      "round_trip_p95_ms": 359.0943850001622
+    },
+    {
+      "id": "j02",
+      "model": "navida",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 1.6821378094862425,
+      "travel_m": 0.0071777851695955745,
+      "elapsed_sec": 35.08864963899987,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": false,
+      "collisions": 0,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "junction",
+      "instruction_sent": "At the junction turn right and stop near the blue marker.",
+      "video": "navida-j02.mp4",
+      "video_frames": 70,
+      "observations": 71,
+      "embeddings": 71,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 1870,
+        "mount": 1868,
+        "camera": 1868,
+        "caster": 1868,
+        "caster_wheel": 1868,
+        "left_wheel": 1868,
+        "right_wheel": 1868
+      },
+      "model_version": "models/NaVIDA attention=sdpa",
+      "closest_distance_m": 1.6799132030952135,
+      "round_trip_p95_ms": 353.48377949981113
+    },
+    {
+      "id": "w01",
+      "model": "navida",
+      "deployment": "remote_gpu_local_edge",
+      "final_distance_m": 2.797187866238561,
+      "travel_m": 0.013686671173602285,
+      "elapsed_sec": 35.109066299999995,
+      "endpoint_success": false,
+      "success": false,
+      "collision_free_success": false,
+      "had_collision": false,
+      "collisions": 0,
+      "stop_reason": "timeout",
+      "spl": 0.0,
+      "scene": "weave",
+      "instruction_sent": "Go around the blocks and stop at the red marker.",
+      "video": "navida-w01.mp4",
+      "video_frames": 70,
+      "observations": 71,
+      "embeddings": 71,
+      "confirmed_stop": true,
+      "errors": [],
+      "contact_samples": {
+        "base": 2005,
+        "mount": 2004,
+        "camera": 2004,
+        "caster": 2004,
+        "caster_wheel": 2004,
+        "left_wheel": 2004,
+        "right_wheel": 2004
+      },
+      "model_version": "models/NaVIDA attention=sdpa",
+      "closest_distance_m": 2.7960663663009884,
+      "round_trip_p95_ms": 353.8234974998886
+    }
+  ],
+  "protocol": {
+    "pose_source": "gazebo_model_states",
+    "goal_tolerance_m": 0.3,
+    "max_duration_sec": 35,
+    "video_fps": 2,
+    "success_definition": "ground-truth endpoint within tolerance and gated follower stop",
+    "collision_rate": "episodes with at least one static obstacle contact event",
+    "spl": "SPL@0.30m using measured route and disk-footprint shortest route",
+    "oracle": {
+      "method": "Theta* disk-to-goal-region",
+      "robot_radius_m": 0.34,
+      "goal_tolerance_m": 0.3,
+      "grid_resolution_m": 0.0125,
+      "world_sha256": {
+        "corridor": "0736f65b96fda4fb864adeb16afb893c2d9c323be7b9434a21b17525dc565134",
+        "junction": "fcbecd4ebdfd993d37db9e5270bf42808105f00a3c30ee8d406a2cfae1b222eb",
+        "weave": "755d13b1fc32975e6f427c4aa5266f22988152aaed60b58fe791362a24db9f80"
+      }
+    }
+  }
+}
