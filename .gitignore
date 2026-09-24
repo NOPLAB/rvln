@@ -31,6 +31,7 @@ src/rvln_proto/rvln_proto/edge_action_pb2_grpc.py
 # does not swallow the vendored model *source* at
 # src/rvln_edge/rvln_edge/models/.
 /models/
+/bench/runs/
 
 # vla_logger のエクスポート/セッション実データ (端末から吸い出したログ; 大きい)。
 # 変換前の生ログや取得 zip はコミットしない。

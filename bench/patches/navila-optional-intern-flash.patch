@@ -1,0 +1,13 @@
+diff --git a/llava/model/multimodal_encoder/intern/modeling_intern_vit.py b/llava/model/multimodal_encoder/intern/modeling_intern_vit.py
+--- a/llava/model/multimodal_encoder/intern/modeling_intern_vit.py
++++ b/llava/model/multimodal_encoder/intern/modeling_intern_vit.py
+@@ -20,3 +20,6 @@
+-from .flash_attention import FlashAttention
+-
+-has_flash_attn = True
++try:
++    from .flash_attention import FlashAttention
++    has_flash_attn = True
++except ImportError:
++    FlashAttention = None
++    has_flash_attn = False

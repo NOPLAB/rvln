@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+<sdf version="1.6">
+  <world name="default">
+    <scene>
+      <shadows>false</shadows>
+    </scene>
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+    <include>
+      <uri>model://sun</uri>
+    </include>
+    <plugin name="gazebo_ros_state" filename="libgazebo_ros_state.so">
+      <update_rate>20</update_rate>
+    </plugin>
+    <model name="end_wall">
+      <static>true</static>
+      <pose>2.0 0.0 0.35 0 0 0</pose>
+      <link name="body">
+        <visual name="box">
+          <geometry>
+            <box>
+              <size>0.1 1.6 0.7</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.7 0.7 0.7 1</ambient>
+            <diffuse>0.7 0.7 0.7 1</diffuse>
+          </material>
+        </visual>
+        <collision name="box">
+          <geometry>
+            <box>
+              <size>0.1 1.6 0.7</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+    </model>
+    <model name="left_marker">
+      <static>true</static>
+      <pose>1.35 1.35 0.35 0 0 0</pose>
+      <link name="body">
+        <visual name="box">
+          <geometry>
+            <box>
+              <size>0.25 0.25 0.7</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.9 0.05 0.05 1</ambient>
+            <diffuse>0.9 0.05 0.05 1</diffuse>
+          </material>
+        </visual>
+        <collision name="box">
+          <geometry>
+            <box>
+              <size>0.25 0.25 0.7</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+    </model>
+    <model name="right_marker">
+      <static>true</static>
+      <pose>1.35 -1.35 0.35 0 0 0</pose>
+      <link name="body">
+        <visual name="box">
+          <geometry>
+            <box>
+              <size>0.25 0.25 0.7</size>
+            </box>
+          </geometry>
+          <material>
+            <ambient>0.05 0.1 0.9 1</ambient>
+            <diffuse>0.05 0.1 0.9 1</diffuse>
+          </material>
+        </visual>
+        <collision name="box">
+          <geometry>
+            <box>
+              <size>0.25 0.25 0.7</size>
+            </box>
+          </geometry>
+        </collision>
+      </link>
+    </model>
+  </world>
+</sdf>

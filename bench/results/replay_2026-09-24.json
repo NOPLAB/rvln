@@ -1,0 +1,110 @@
+{
+  "schema": 1,
+  "workload": "stationary Gazebo camera, open-loop replay",
+  "scenes": {
+    "corridor": {
+      "sha256": "c7a1d2d3ef41b459866c5fcb74aec9293acb9b9da8e061ec37cfa269ce4946fe",
+      "frame_count": 20
+    },
+    "junction": {
+      "sha256": "5623b32e25aaefc67ee970409e776bb8c160062dbbe8a9c69ff854d1433f7994",
+      "frame_count": 20
+    },
+    "weave": {
+      "sha256": "b232c025339fa1af127105510426dc606163bc29e6630653b36a4f646ef25337",
+      "frame_count": 20
+    }
+  },
+  "models": {
+    "asyncvla": {
+      "model_version": "asyncvla-step750000",
+      "output_shape": [
+        8,
+        1024
+      ],
+      "frames": 60,
+      "load_median_ms": 12340.564389014617,
+      "first_frame_median_ms": 632.6319731306285,
+      "inference_p50_ms": 65.93921850435436,
+      "inference_p95_ms": 96.31191164953475,
+      "steady_p50_ms": 65.9358580596745,
+      "steady_p95_ms": 67.05587608739734,
+      "peak_allocated_gib": 15.1577730178833
+    },
+    "omnivla": {
+      "model_version": "omnivla-orig-step120000",
+      "output_shape": [
+        8,
+        4
+      ],
+      "frames": 60,
+      "load_median_ms": 11250.723499106243,
+      "first_frame_median_ms": 636.5228381473571,
+      "inference_p50_ms": 65.96606608945876,
+      "inference_p95_ms": 100.54575934773153,
+      "steady_p50_ms": 65.95148495398462,
+      "steady_p95_ms": 67.10562850348651,
+      "peak_allocated_gib": 14.962321281433105
+    },
+    "omnivla_edge": {
+      "model_version": "omnivla-edge-v1",
+      "output_shape": [
+        8,
+        4
+      ],
+      "frames": 60,
+      "load_median_ms": 4071.4088899549097,
+      "first_frame_median_ms": 449.2605219129473,
+      "inference_p50_ms": 12.289601378142834,
+      "inference_p95_ms": 35.36030321847528,
+      "steady_p50_ms": 12.27021892555058,
+      "steady_p95_ms": 13.790626358240845,
+      "peak_allocated_gib": 1.3820672035217285
+    },
+    "movla": {
+      "model_version": "movla-stage-a (/mnt/workspace/nop/vla/runs/stage_a_v9b)",
+      "output_shape": [
+        8,
+        4
+      ],
+      "frames": 60,
+      "load_median_ms": 7398.3064910862595,
+      "first_frame_median_ms": 623.0437799822539,
+      "inference_p50_ms": 65.60667557641864,
+      "inference_p95_ms": 97.36527674831297,
+      "steady_p50_ms": 65.51730306819081,
+      "steady_p95_ms": 68.72396245598793,
+      "peak_allocated_gib": 3.13629150390625
+    },
+    "navila": {
+      "model_version": "/mnt/workspace/nop/raspicat_vla/models/navila-llama3-8b-8f",
+      "output_shape": [
+        1,
+        4
+      ],
+      "frames": 60,
+      "load_median_ms": 8752.860468812287,
+      "first_frame_median_ms": 916.926400968805,
+      "inference_p50_ms": 367.92424763552845,
+      "inference_p95_ms": 438.7288290890851,
+      "steady_p50_ms": 367.8717380389571,
+      "steady_p95_ms": 373.3861191663891,
+      "peak_allocated_gib": 17.453674793243408
+    },
+    "navida": {
+      "model_version": "/mnt/workspace/nop/raspicat_vla/models/NaVIDA attention=sdpa",
+      "output_shape": [
+        1,
+        4
+      ],
+      "frames": 60,
+      "load_median_ms": 4674.79727207683,
+      "first_frame_median_ms": 928.3574959263206,
+      "inference_p50_ms": 324.65021195821464,
+      "inference_p95_ms": 361.0757968272066,
+      "steady_p50_ms": 324.5528640691191,
+      "steady_p95_ms": 328.90798542648554,
+      "peak_allocated_gib": 7.31180477142334
+    }
+  }
+}

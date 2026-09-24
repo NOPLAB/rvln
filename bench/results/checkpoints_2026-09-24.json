@@ -1,0 +1,491 @@
+{
+  "schema": 1,
+  "models": {
+    "asyncvla": {
+      "root": "/mnt/workspace/nop/raspicat_vla/models/AsyncVLA_release",
+      "files": [
+        {
+          "path": ".gitattributes",
+          "size_bytes": 1519,
+          "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+        },
+        {
+          "path": "README.md",
+          "size_bytes": 24,
+          "sha256": "d8d7a46d41a1a37fe4f0a5f637bf55c649310185329127d8a2204632e480be17"
+        },
+        {
+          "path": "action_head--750000_checkpoint.pt",
+          "size_bytes": 201513842,
+          "sha256": "38e5a9ba8a5dd7c1daab8d06178bd0b547fbc74358599d1363274d7f5f5b62d2"
+        },
+        {
+          "path": "action_proj--750000_checkpoint.pt",
+          "size_bytes": 209871730,
+          "sha256": "7d9b17d471ab69186eb4f47afc81efec541e7f4eb1cac6e9aa19ca94a0e7687c"
+        },
+        {
+          "path": "added_tokens.json",
+          "size_bytes": 21,
+          "sha256": "ab43123267b190cb7990bc9f2ae4ad32dcb7ed029fb0fccb1b4e062c6f54a2a1"
+        },
+        {
+          "path": "config.json",
+          "size_bytes": 60769,
+          "sha256": "b7ef336905210e10ce6e1774b2b91ce3bdcdee19771698046e5250aa83c27454"
+        },
+        {
+          "path": "configuration_prismatic.py",
+          "size_bytes": 5865,
+          "sha256": "68cc5ae34f1b46af3168d8d479cb81bb776965653453fd904aa8eefb6c8f9f68"
+        },
+        {
+          "path": "generation_config.json",
+          "size_bytes": 136,
+          "sha256": "67fbe17b12e8beb5be98eb911483971cc78589e51a37ac0cce9cd499d06a8bf1"
+        },
+        {
+          "path": "lora_adapter/README.md",
+          "size_bytes": 5108,
+          "sha256": "3f61910f4bc8db908a2f18ec0dd75169c0ce853ae94a3f2d301be305bd2f2be9"
+        },
+        {
+          "path": "lora_adapter/adapter_config.json",
+          "size_bytes": 24351,
+          "sha256": "138478f3ffe846d45d8dbfeb358f88017c6c4212583754a815395a989d8d12e5"
+        },
+        {
+          "path": "lora_adapter/adapter_model.safetensors",
+          "size_bytes": 885901912,
+          "sha256": "68ea553a6bbd35c42080813fa617a2a002595c91f3f84ccbb4174499fed84621"
+        },
+        {
+          "path": "model-00001-of-00004.safetensors",
+          "size_bytes": 4925122448,
+          "sha256": "e6822e1f3850c27a0fa7d39831ded547f376d60e214ed24f9a3b1d87548d5021"
+        },
+        {
+          "path": "model-00002-of-00004.safetensors",
+          "size_bytes": 4947392496,
+          "sha256": "48766f268de32660c81e1fa008b9206eb30948eb0054794bde19b2c02f85fc4a"
+        },
+        {
+          "path": "model-00003-of-00004.safetensors",
+          "size_bytes": 4947417456,
+          "sha256": "62ead6d536bddbf01357105ca800292d1dd615d55284183c600473748f42837c"
+        },
+        {
+          "path": "model-00004-of-00004.safetensors",
+          "size_bytes": 262668432,
+          "sha256": "a877e3fece1feafb80f59f91585ce04379ee39e2bf9a25cb7b4acf237e896e60"
+        },
+        {
+          "path": "model.safetensors.index.json",
+          "size_bytes": 94764,
+          "sha256": "ca8b53fed8133ee2afcd2fc483de8febf7f5bb0f6bcb09f91189772e59e8f659"
+        },
+        {
+          "path": "modeling_prismatic.py",
+          "size_bytes": 92140,
+          "sha256": "38ef3b82e07ae15cc25baf79746f1143f7cb154172922ffd8964a1779865ce75"
+        },
+        {
+          "path": "pose_projector--750000_checkpoint.pt",
+          "size_bytes": 67209632,
+          "sha256": "62cbb45a2d1be03322003f48da124461ea5bed3cbacdff207ce0e52071b3f685"
+        },
+        {
+          "path": "preprocessor_config.json",
+          "size_bytes": 1650,
+          "sha256": "bd024783fb785cbdfe35b710b621c5e8678d4c157a9ba625675e67d40d1757da"
+        },
+        {
+          "path": "processing_prismatic.py",
+          "size_bytes": 12718,
+          "sha256": "06563586bbc73d36501a14a231a3174904ede830d33174d0c625ece8e931ef1e"
+        },
+        {
+          "path": "processor_config.json",
+          "size_bytes": 130,
+          "sha256": "167e026d8121f6cb0bf5c18310b97ba8139152f970822bb3824213bd37dc7a76"
+        },
+        {
+          "path": "shead--750000_checkpoint.pt",
+          "size_bytes": 153475437,
+          "sha256": "968fdf9cf1ff85d595618534ce9f02e38b060c9857dfa6119af204c051beeafe"
+        },
+        {
+          "path": "special_tokens_map.json",
+          "size_bytes": 552,
+          "sha256": "cb90ee5cf5793aa444039af9795b00db59d3fef8942e7eca9cf1990bab370d61"
+        },
+        {
+          "path": "tokenizer.json",
+          "size_bytes": 1842976,
+          "sha256": "8f5e2869e1807b8bb3c7717a294539c37e9de5d728ad60e31ef57e83cc5ea527"
+        },
+        {
+          "path": "tokenizer.model",
+          "size_bytes": 499723,
+          "sha256": "9e556afd44213b6bd1be2b850ebbbd98f5481437a8021afaf58ee7fb1818d347"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "size_bytes": 1192,
+          "sha256": "f5f1d3ed015ebb71cf11686ff00bc8e0c25957bbf3952f95312cecc9b168fbea"
+        }
+      ],
+      "manifest_sha256": "35e1b10d4825fb82ab4281975c9ffe444a1219fdbe81de65d9f9ca8bd4954d7f"
+    },
+    "omnivla": {
+      "root": "/mnt/workspace/nop/hf_cache/hub/models--NHirose--omnivla-original/snapshots/e36a84d4923c041149d441f93f3bdb7092bb5f07",
+      "files": [
+        {
+          "path": ".gitattributes",
+          "size_bytes": 1519,
+          "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+        },
+        {
+          "path": "README.md",
+          "size_bytes": 114,
+          "sha256": "cc2ae86e0160a3dca87cea95ca3516896fd90a06cd10c5943d849d965ff5f4b5"
+        },
+        {
+          "path": "action_head--120000_checkpoint.pt",
+          "size_bytes": 201513842,
+          "sha256": "d22c198064c5c90202833162a5edb719dd0607070c549e31345785a2623281e7"
+        },
+        {
+          "path": "added_tokens.json",
+          "size_bytes": 21,
+          "sha256": "ab43123267b190cb7990bc9f2ae4ad32dcb7ed029fb0fccb1b4e062c6f54a2a1"
+        },
+        {
+          "path": "config.json",
+          "size_bytes": 60802,
+          "sha256": "1546e9d71e6cd37cbfd0f5a5122292b9c81412054baa36195b1404a6f7d7a76a"
+        },
+        {
+          "path": "configuration_prismatic.py",
+          "size_bytes": 5865,
+          "sha256": "68cc5ae34f1b46af3168d8d479cb81bb776965653453fd904aa8eefb6c8f9f68"
+        },
+        {
+          "path": "dist_head--120000_checkpoint.pt",
+          "size_bytes": 201481034,
+          "sha256": "2b8ae8a313fb352690a47a5d32c40eba4717cb02f45fe195100c6ed0addd3b26"
+        },
+        {
+          "path": "generation_config.json",
+          "size_bytes": 136,
+          "sha256": "67fbe17b12e8beb5be98eb911483971cc78589e51a37ac0cce9cd499d06a8bf1"
+        },
+        {
+          "path": "lora_adapter/README.md",
+          "size_bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "lora_adapter/adapter_config.json",
+          "size_bytes": 24384,
+          "sha256": "309ddd8c64d1b0dbc21bbb6add2ca193b1e665fc8627db050b85a58009705525"
+        },
+        {
+          "path": "lora_adapter/adapter_model.safetensors",
+          "size_bytes": 443016792,
+          "sha256": "6df8964dd9a52c6bf4971367dd227d427fb15e025bebcc47b192b995fa2b9563"
+        },
+        {
+          "path": "model-00001-of-00004.safetensors",
+          "size_bytes": 4925122448,
+          "sha256": "3bd0dd7d75924136ecf1a584bdaa8e8b994d4f5d80a7b8869814976f371c05d2"
+        },
+        {
+          "path": "model-00002-of-00004.safetensors",
+          "size_bytes": 4947392496,
+          "sha256": "3c21dcdb5f797631a5e555f749e0ec83a34f4d7227265e7ce3a6c320f8b42994"
+        },
+        {
+          "path": "model-00003-of-00004.safetensors",
+          "size_bytes": 4947417456,
+          "sha256": "5af986297dfbf994d5cf1343071d3fc30c5ba531662c9ac8c1a8364ce26fa1af"
+        },
+        {
+          "path": "model-00004-of-00004.safetensors",
+          "size_bytes": 262668432,
+          "sha256": "a877e3fece1feafb80f59f91585ce04379ee39e2bf9a25cb7b4acf237e896e60"
+        },
+        {
+          "path": "model.safetensors.index.json",
+          "size_bytes": 94764,
+          "sha256": "ca8b53fed8133ee2afcd2fc483de8febf7f5bb0f6bcb09f91189772e59e8f659"
+        },
+        {
+          "path": "modeling_prismatic.py",
+          "size_bytes": 150643,
+          "sha256": "9b9e1fb0297eeec8af7176fd9e3342bac0e7d89486b9659a4bc8d7f238e6eb90"
+        },
+        {
+          "path": "modeling_prismatic_____.py",
+          "size_bytes": 151588,
+          "sha256": "45e1c00a4d89ec77583d73b06b18bcb6cc29d2df505de75b8ab02e165fc1c9c2"
+        },
+        {
+          "path": "preprocessor_config.json",
+          "size_bytes": 1650,
+          "sha256": "bd024783fb785cbdfe35b710b621c5e8678d4c157a9ba625675e67d40d1757da"
+        },
+        {
+          "path": "processing_prismatic.py",
+          "size_bytes": 12718,
+          "sha256": "06563586bbc73d36501a14a231a3174904ede830d33174d0c625ece8e931ef1e"
+        },
+        {
+          "path": "processor_config.json",
+          "size_bytes": 130,
+          "sha256": "167e026d8121f6cb0bf5c18310b97ba8139152f970822bb3824213bd37dc7a76"
+        },
+        {
+          "path": "proprio_projector--120000_checkpoint.pt",
+          "size_bytes": 67209720,
+          "sha256": "1bd796dfeb4becda52baf09c9fbba6121818a57069750e925d5769f9a02feb04"
+        },
+        {
+          "path": "special_tokens_map.json",
+          "size_bytes": 552,
+          "sha256": "cb90ee5cf5793aa444039af9795b00db59d3fef8942e7eca9cf1990bab370d61"
+        },
+        {
+          "path": "tokenizer.json",
+          "size_bytes": 1842976,
+          "sha256": "8f5e2869e1807b8bb3c7717a294539c37e9de5d728ad60e31ef57e83cc5ea527"
+        },
+        {
+          "path": "tokenizer.model",
+          "size_bytes": 499723,
+          "sha256": "9e556afd44213b6bd1be2b850ebbbd98f5481437a8021afaf58ee7fb1818d347"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "size_bytes": 1192,
+          "sha256": "f5f1d3ed015ebb71cf11686ff00bc8e0c25957bbf3952f95312cecc9b168fbea"
+        }
+      ],
+      "manifest_sha256": "bcf306eb518ef7ef9702b3bcf95009080e1148e001abcd48f5cc17673f692d6e"
+    },
+    "omnivla_edge": {
+      "root": "/mnt/workspace/nop/raspicat_vla/models/omnivla-edge",
+      "files": [
+        {
+          "path": ".gitattributes",
+          "size_bytes": 1519,
+          "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+        },
+        {
+          "path": "README.md",
+          "size_bytes": 24,
+          "sha256": "d8d7a46d41a1a37fe4f0a5f637bf55c649310185329127d8a2204632e480be17"
+        },
+        {
+          "path": "omnivla-edge.pth",
+          "size_bytes": 434276465,
+          "sha256": "f93b056f124380899fce3e087a5c2b41ce4d8c07e211daad52b6ebf02e80d04d"
+        }
+      ],
+      "manifest_sha256": "4324c968e7bf39eac2f1bab7d16fe7b9bd813867020507fd4ad169b3f71ec57e"
+    },
+    "navila": {
+      "root": "/mnt/workspace/nop/raspicat_vla/models/navila-llama3-8b-8f",
+      "files": [
+        {
+          "path": ".gitattributes",
+          "size_bytes": 1519,
+          "sha256": "11ad7efa24975ee4b0c3c3a38ed18737f0658a5f75a0a96787b576a78a023361"
+        },
+        {
+          "path": "config.json",
+          "size_bytes": 7365,
+          "sha256": "a4ff86c1c374895ef3ef4cceb4041542a5e7d29ebcec2b8377efc4b6f09ac44f"
+        },
+        {
+          "path": "llm/config.json",
+          "size_bytes": 843,
+          "sha256": "be33b351410a341de1a8b4b4cf8f4604a702ad22d5516225521704e3fa48ee1a"
+        },
+        {
+          "path": "llm/generation_config.json",
+          "size_bytes": 194,
+          "sha256": "37e2904bb4bc0d9a49c8d0fade95c0a7c887a6658880563afe1140274c2fe6eb"
+        },
+        {
+          "path": "llm/model-00001-of-00004.safetensors",
+          "size_bytes": 4976723248,
+          "sha256": "d4df84977665ab9be02f987a4eccd56abb0ac7273f12f6906f50c13bc7110371"
+        },
+        {
+          "path": "llm/model-00002-of-00004.safetensors",
+          "size_bytes": 4999802720,
+          "sha256": "42c210a04fc723675f858b383d546d2d5e0d4aa857d4fb321d3e57da241796f9"
+        },
+        {
+          "path": "llm/model-00003-of-00004.safetensors",
+          "size_bytes": 4915916176,
+          "sha256": "d53f6cab87861720f85f22af13e756cd7cccf569c2f8c096a7ec38d513be43e4"
+        },
+        {
+          "path": "llm/model-00004-of-00004.safetensors",
+          "size_bytes": 1168163384,
+          "sha256": "f35c5720effc40db734ac67b232e0b97389f802251d5d4d2480987f91f6dc937"
+        },
+        {
+          "path": "llm/model.safetensors.index.json",
+          "size_bytes": 23950,
+          "sha256": "ce350cea18b4668fef697710325e81cf7974430444764275558a06dd9460a734"
+        },
+        {
+          "path": "llm/special_tokens_map.json",
+          "size_bytes": 434,
+          "sha256": "214dd83efd2bfad51e3e87df20334fdcdcc6192d0118779efb86ef5a83cac5e4"
+        },
+        {
+          "path": "llm/tokenizer.json",
+          "size_bytes": 9086220,
+          "sha256": "5f73571014de620e0f67384ff0193a5a4aa5bdc332b6e1ae5fce7f99a001116d"
+        },
+        {
+          "path": "llm/tokenizer_config.json",
+          "size_bytes": 51539,
+          "sha256": "8fce1247f7d4b166d1dfd4114892dd9369e13cdabd174959f96abd8897316a4b"
+        },
+        {
+          "path": "mm_projector/config.json",
+          "size_bytes": 294,
+          "sha256": "197f034b36aa17ac67cbf9dfea4015445378569120d87158b92f8ea76ef6fb49"
+        },
+        {
+          "path": "mm_projector/model.safetensors",
+          "size_bytes": 71338512,
+          "sha256": "0921455072f43bfe67637a6d69faa7248b830c15dc67a6e9798b50e2aed6d376"
+        },
+        {
+          "path": "trainer_state.json",
+          "size_bytes": 609361,
+          "sha256": "43fa9430db085c7f6cc92d644bc7fe5eec3405482dd3e61ebc9c962a77016ba3"
+        },
+        {
+          "path": "vision_tower/config.json",
+          "size_bytes": 582,
+          "sha256": "6f335f2b406b661cc0fc5419c209729cd1b179d4193a2037deddf6a77829be59"
+        },
+        {
+          "path": "vision_tower/model.safetensors",
+          "size_bytes": 856506120,
+          "sha256": "1ff7d080a98a3f014b057dca741d7be358b700565493a15dfd82cb98903b0c4b"
+        },
+        {
+          "path": "vision_tower/preprocessor_config.json",
+          "size_bytes": 368,
+          "sha256": "f59da2f87c3cd079bd4f8f3037e81b277c60c498e279a8020331f67a5a3157e8"
+        }
+      ],
+      "manifest_sha256": "3a253bf4738d99d92a9991c559a663669a532cda36b48ff63416e868d5c47b80"
+    },
+    "navida": {
+      "root": "/mnt/workspace/nop/raspicat_vla/models/NaVIDA",
+      "files": [
+        {
+          "path": ".gitattributes",
+          "size_bytes": 1570,
+          "sha256": "34448b82c17d60fec9b65b1f093c115ddbaadc04beb1b0140b6bfed2e012a930"
+        },
+        {
+          "path": "README.md",
+          "size_bytes": 31,
+          "sha256": "4bcf87ecfbbb8e07a01b21415a970c8b53a5283bf6872b657040d3f45c9241f7"
+        },
+        {
+          "path": "all_results.json",
+          "size_bytes": 223,
+          "sha256": "66bb860c634b745862e20d2bf4a992bb87cc36a9a3f269109dd57dbda19b5eca"
+        },
+        {
+          "path": "chat_template.json",
+          "size_bytes": 1049,
+          "sha256": "94174d7176c52a7192f96fc34eb2cf23c7c2059d63cdbfadca1586ba89731fb7"
+        },
+        {
+          "path": "config.json",
+          "size_bytes": 1489,
+          "sha256": "9e259a64de67f56b23a616e241b8cd130923d2a2759f294b6e1a2471465889f9"
+        },
+        {
+          "path": "generation_config.json",
+          "size_bytes": 282,
+          "sha256": "6969639ff9a0cce6eebc19d6c34718612b031f14004c835ab4c25da2985e87cc"
+        },
+        {
+          "path": "merges.txt",
+          "size_bytes": 1671853,
+          "sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5"
+        },
+        {
+          "path": "model-00001-of-00002.safetensors",
+          "size_bytes": 4997750760,
+          "sha256": "cc3b18a3c05af75004ce7f6ace1efeccd0087637ab296fe2ecfef1245720da40"
+        },
+        {
+          "path": "model-00002-of-00002.safetensors",
+          "size_bytes": 3133917248,
+          "sha256": "9d9a339c1dd2252dc6d90daa9fd65cc07e57560761796536e8ed12bce159b014"
+        },
+        {
+          "path": "model.safetensors.index.json",
+          "size_bytes": 65506,
+          "sha256": "4baae1a97d78a29dfc8f319663db6a20cdc85a84da3b3d869045f7ff9c76f501"
+        },
+        {
+          "path": "preprocessor_config.json",
+          "size_bytes": 575,
+          "sha256": "549c158011407dfb750d9ec578047cf76f5bfe365cd0aa069a50137d3f98d9dd"
+        },
+        {
+          "path": "special_tokens_map.json",
+          "size_bytes": 613,
+          "sha256": "76862e765266b85aa9459767e33cbaf13970f327a0e88d1c65846c2ddd3a1ecd"
+        },
+        {
+          "path": "tokenizer.json",
+          "size_bytes": 11421896,
+          "sha256": "9c5ae00e602b8860cbd784ba82a8aa14e8feecec692e7076590d014d7b7fdafa"
+        },
+        {
+          "path": "tokenizer_config.json",
+          "size_bytes": 7300,
+          "sha256": "c182cc5f590489eba7c5435864b0814fcd9256ef72933f8ccc142116974dbb01"
+        },
+        {
+          "path": "vocab.json",
+          "size_bytes": 2776833,
+          "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+        }
+      ],
+      "manifest_sha256": "b427fd200efdaf46155cf143d0933c57c18183bbff69e08733846a1e1015cb8c"
+    },
+    "movla": {
+      "root": "/mnt/workspace/nop/vla/runs/stage_a_v9b",
+      "files": [
+        {
+          "path": "checkpoint.pt",
+          "size_bytes": 169822067,
+          "sha256": "53028667a4e48ec9a46a1fb7a1c625fac7d3d4d8131be0b7603f476899d44c7d"
+        },
+        {
+          "path": "normalizer.json",
+          "size_bytes": 1089,
+          "sha256": "5ff5e72a466fd5eb7f070816310ffb8e9914a7629eaec87dbcbdcb77b7a7f53b"
+        }
+      ],
+      "manifest_sha256": "237a12e0f8bce4de2dfb7dfad3600cd017e3d6a8cc7c1d83b64f648bc9200af5"
+    }
+  }
+}

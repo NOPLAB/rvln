@@ -1,0 +1,14 @@
+diff --git a/prismatic/vla/__init__.py b/prismatic/vla/__init__.py
+index 2e69d15..87ac36a 100644
+--- a/prismatic/vla/__init__.py
++++ b/prismatic/vla/__init__.py
+@@ -1 +1 @@
+-from .materialize import get_vla_dataset_and_collator
++"""AsyncVLA inference modules; load training datasets explicitly when needed."""
+diff --git a/prismatic/training/__init__.py b/prismatic/training/__init__.py
+--- a/prismatic/training/__init__.py
++++ b/prismatic/training/__init__.py
+@@ -1,2 +1 @@
+-from .materialize import get_train_strategy
+-from .metrics import Metrics, VLAMetrics
++"""AsyncVLA training utilities; load training strategies explicitly when needed."""

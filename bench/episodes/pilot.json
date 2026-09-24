@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "episodes": [
+    {"id": "c01", "scene": "corridor", "start_xyyaw": [0, 0, 0], "goal_xy": [2.35, 0], "text": "Go straight down the corridor and stop before the red marker.", "shortest_m": null},
+    {"id": "c02", "scene": "corridor", "start_xyyaw": [0, 0, 0], "goal_xy": [2.35, 0], "text": "Move along the corridor to the red marker, then stop.", "shortest_m": null},
+    {"id": "c03", "scene": "corridor", "start_xyyaw": [0, 0, 0], "goal_xy": [2.35, 0], "text": "Continue forward until you reach the red marker.", "shortest_m": null},
+    {"id": "c04", "scene": "corridor", "start_xyyaw": [0, 0, 0], "goal_xy": [2.35, 0], "text": "Navigate to the red marker at the end of the corridor.", "shortest_m": null},
+    {"id": "j01", "scene": "junction", "start_xyyaw": [0, 0, 0], "goal_xy": [1.35, 1.0], "text": "At the junction turn left and stop near the red marker.", "shortest_m": null},
+    {"id": "j02", "scene": "junction", "start_xyyaw": [0, 0, 0], "goal_xy": [1.35, -1.0], "text": "At the junction turn right and stop near the blue marker.", "shortest_m": null},
+    {"id": "j03", "scene": "junction", "start_xyyaw": [0, 0, 0], "goal_xy": [1.35, 1.0], "text": "Find the red marker on the left side of the junction.", "shortest_m": null},
+    {"id": "j04", "scene": "junction", "start_xyyaw": [0, 0, 0], "goal_xy": [1.35, -1.0], "text": "Find the blue marker on the right side of the junction.", "shortest_m": null},
+    {"id": "w01", "scene": "weave", "start_xyyaw": [0, 0, 0], "goal_xy": [2.8, 0], "text": "Go around the blocks and stop at the red marker.", "shortest_m": null},
+    {"id": "w02", "scene": "weave", "start_xyyaw": [0, 0, 0], "goal_xy": [2.8, 0], "text": "Navigate past both obstacles to the red marker.", "shortest_m": null},
+    {"id": "w03", "scene": "weave", "start_xyyaw": [0, 0, 0], "goal_xy": [2.8, 0], "text": "Avoid the two blocks and finish by the red marker.", "shortest_m": null},
+    {"id": "w04", "scene": "weave", "start_xyyaw": [0, 0, 0], "goal_xy": [2.8, 0], "text": "Travel through the obstacles toward the red marker and stop.", "shortest_m": null}
+  ]
+}

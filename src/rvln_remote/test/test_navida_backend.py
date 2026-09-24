@@ -1,10 +1,13 @@
 """Contract checks for NaVIDA's short action conversion."""
 import math
+from unittest.mock import patch
 
 import numpy as np
 import pytest
 
-from rvln_remote.backends.navida import _sample_history, action_to_embedding
+from rvln_remote.backends.navida import (
+    _sample_history, action_to_embedding, attention_implementation,
+)
 
 
 def test_navida_first_chunk_action_is_metric():
@@ -32,3 +35,8 @@ def test_navida_rejects_untrusted_motion(response):
 def test_navida_history_keeps_ends():
     assert _sample_history(list(range(10)), 8)[0] == 0
     assert _sample_history(list(range(10)), 8)[-1] == 9
+
+
+def test_navida_can_use_sdpa_without_flash_attention():
+    with patch('rvln_remote.backends.navida.importlib.util.find_spec', return_value=None):
+        assert attention_implementation() == 'sdpa'

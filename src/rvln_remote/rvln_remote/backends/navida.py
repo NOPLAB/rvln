@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import importlib.util
 import io
 import math
 import re
@@ -21,6 +22,11 @@ _ACTION = re.compile(
     r'(?:\s+(\d+)\s*degrees?)?$|^stop$',
     re.IGNORECASE,
 )
+
+
+def attention_implementation() -> str:
+    """Use FlashAttention when installed, otherwise PyTorch's SDPA backend."""
+    return 'flash_attention_2' if importlib.util.find_spec('flash_attn') else 'sdpa'
 
 
 def action_to_embedding(response: str) -> np.ndarray:
@@ -69,9 +75,10 @@ class NaVIDABackend(VLABackend):
 
         if not device.startswith('cuda') or not torch.cuda.is_available():
             raise ValueError('NaVIDA upstream inference requires a CUDA device')
+        self._attention_impl = attention_implementation()
         self._model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            checkpoint_dir, attn_implementation='flash_attention_2',
-            torch_dtype=torch.bfloat16, use_cache=True,
+            checkpoint_dir, attn_implementation=self._attention_impl,
+            torch_dtype=torch.bfloat16,
         ).to(device).eval()
         self._processor = AutoProcessor.from_pretrained(checkpoint_dir)
         self._processor.image_processor.max_pixels = 501760
@@ -108,11 +115,11 @@ class NaVIDABackend(VLABackend):
             {'type': 'text', 'text': 'Imagine you are a robot programmed for navigation tasks. '
              'You have been given a video of historical observations'},
         ]
-        content.extend({'type': 'image_url', 'image_url': _data_url(frame)}
+        content.extend({'type': 'image', 'image': _data_url(frame)}
                        for frame in history)
         content.extend([
             {'type': 'text', 'text': 'and an image of the current observation'},
-            {'type': 'image_url', 'image_url': _data_url(self._frames[-1])},
+            {'type': 'image', 'image': _data_url(self._frames[-1])},
             {'type': 'text', 'text': f'. Your assigned task is: \'{lang_instruction}\'. '
              'Analyze this series of images to decide your next move, which could involve '
              'turning left or right by a specific degree or moving forward a certain '
@@ -127,11 +134,11 @@ class NaVIDABackend(VLABackend):
         prompt = self._processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True)
         images, _ = self._process_vision_info(messages)
-        inputs = self._processor(text=[prompt], images=[images], return_tensors='pt',
+        inputs = self._processor(text=[prompt], images=images, return_tensors='pt',
                                  padding=True).to(self._device)
         with self._torch.inference_mode():
             output = self._model.generate(
-                **inputs, generation_config=self._generation_config, use_model_defaults=True)
+                **inputs, generation_config=self._generation_config)
         prefix_len = inputs['input_ids'].shape[1]
         response = self._processor.batch_decode(
             output[:, prefix_len:], skip_special_tokens=True)[0].strip()
@@ -141,6 +148,7 @@ class NaVIDABackend(VLABackend):
 
     def model_info(self) -> ModelInfoDict:
         return ModelInfoDict(
-            model_name='waynechu/NaVIDA', model_version=self._checkpoint_dir,
+            model_name='waynechu/NaVIDA',
+            model_version=f'{self._checkpoint_dir} attention={self._attention_impl}',
             num_tokens=1, embed_dim=4, device=self._device, ready=True,
         )
