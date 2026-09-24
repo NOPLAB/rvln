@@ -23,4 +23,4 @@
 
 ## このリポジトリでの扱い
 
-OmniVLA、AsyncVLA、movla、NaVILA、NaVIDAには推論バックエンドがある。これらの重みは `scripts/download_checkpoints.sh` から取得できる。StreamVLNの実機向け重みとInternVLA-N1 DualVLNは同スクリプトに取得先だけ登録済みで、ROS推論にはまだ接続していない。入力・行動表現と検証上の注意は [VLNモデル調査](vln-model-survey-2026.md) を参照。
+OmniVLA、AsyncVLA、movla、NaVILA、NaVIDAには推論バックエンドがある。これらの重みは `scripts/download_checkpoints.sh` から取得できる。StreamVLNの実機向け重みとInternVLA-N1 DualVLNは同スクリプトに取得先だけ登録済みで、ROS推論にはまだ接続していない。入力・行動表現と検証上の注意は [VLNモデル調査](memo/vln-model-survey-2026.md) を参照。
