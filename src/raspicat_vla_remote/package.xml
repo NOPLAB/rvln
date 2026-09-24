@@ -3,13 +3,14 @@
 <package format="3">
   <name>raspicat_vla_remote</name>
   <version>0.1.0</version>
-  <description>gRPC server for VLA inference (model-agnostic; supports dummy/AsyncVLA/OmniVLA backends).</description>
+  <description>ROS 2 inference node for dummy, AsyncVLA, OmniVLA and movla backends.</description>
   <maintainer email="nop@example.com">nop</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_python</buildtool_depend>
 
-  <exec_depend>raspicat_vla_proto</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>raspicat_vla_msgs</exec_depend>
   <!-- Path 3 (omnivla_edge backend) reuses the ROS-free OmniVLAEdgeEngine from
        the shared core package. Only used when the omnivla_edge backend is selected. -->
   <exec_depend>raspicat_vla_core</exec_depend>

@@ -1,4 +1,4 @@
-"""Smoke test: edge node + DummyServer must publish a Path within a short timeout."""
+"""Smoke test: edge and remote ROS nodes publish a Path."""
 import threading
 import time
 
@@ -10,7 +10,8 @@ from rclpy.qos import DurabilityPolicy, QoSProfile
 from sensor_msgs.msg import Image
 import numpy as np
 
-from raspicat_vla_remote.dummy_server import DummyServer
+from raspicat_vla_remote.backends.dummy import DummyBackend
+from raspicat_vla_remote.server import VLAInferenceNode
 from raspicat_vla_edge.edge_node import VLAEdgeNode
 from raspicat_vla_msgs.msg import GoalSpec as GoalSpecMsg
 from geometry_msgs.msg import PoseStamped
@@ -35,12 +36,11 @@ def _make_dummy_image_msg() -> Image:
 
 
 def test_edge_node_publishes_path(ros_runtime):
-    server = DummyServer(host='localhost', port=0, num_tokens=4, embed_dim=8, inference_ms=1.0)
-    port = server.start()
+    server = VLAInferenceNode(backend=DummyBackend(
+        num_tokens=4, embed_dim=8, inference_ms=1.0, model_version='test'))
     try:
         node = VLAEdgeNode()
         node.set_parameters([
-            rclpy.parameter.Parameter('remote_address', value=f'localhost:{port}'),
             rclpy.parameter.Parameter('obs_publish_rate_hz', value=10.0),
             rclpy.parameter.Parameter('action_rate_hz', value=20.0),
             rclpy.parameter.Parameter('embedding_max_age_sec', value=6.0),
@@ -65,6 +65,7 @@ def test_edge_node_publishes_path(ros_runtime):
 
         executor = MultiThreadedExecutor(num_threads=4)
         executor.add_node(node)
+        executor.add_node(server)
         executor.add_node(pub_node)
         executor.add_node(path_node)
         spin_thread = threading.Thread(target=executor.spin, daemon=True)
@@ -79,7 +80,7 @@ def test_edge_node_publishes_path(ros_runtime):
         goal_pub.publish(goal)
 
         deadline = time.time() + 5.0
-        while time.time() < deadline and not received_paths:
+        while time.time() < deadline and not any(p.poses for p in received_paths):
             img_pub.publish(_make_dummy_image_msg())
             time.sleep(0.05)
 
@@ -90,6 +91,6 @@ def test_edge_node_publishes_path(ros_runtime):
         pub_node.destroy_node()
         path_node.destroy_node()
 
-        assert received_paths, 'no Path was published within 5s'
+        assert any(p.poses for p in received_paths), 'no inferred Path within 5s'
     finally:
-        server.stop(grace_sec=0.5)
+        server.destroy_node()

@@ -15,7 +15,7 @@ setup(
     zip_safe=True,
     maintainer='nop',
     maintainer_email='nop@example.com',
-    description='Generated gRPC stubs and conversion helpers.',
+    description='Mobile EdgeActionService stubs and fp16 helpers.',
     license='MIT',
     tests_require=['pytest'],
     entry_points={'console_scripts': []},

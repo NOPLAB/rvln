@@ -14,15 +14,14 @@ process on this host. Pick the server with ``backend:=``:
                           localhost); edge is path-only. --vla-path is the .pth
                           weights file, resume_step is unused.
 
-For a real split-host deployment run the server on the GPU box (``vla.sh run
-MODEL --mode remote``) and only ``edge_only.launch.py`` on the robot, pointing
-``remote_address`` at it. For Plan 2B Path 2 — the policy ON the robot, no
+For a real split-host deployment run the inference node on the GPU box
+(``vla.sh run MODEL --mode remote``) and ``edge_only.launch.py`` on the robot.
+Use the same ROS domain on both hosts. For Plan 2B Path 2 — the policy ON the robot, no
 server at all — see ``omnivla_edge_local.launch.py``. The containerised modes
 (and their topology) live in docker/compose.yaml.
 
 Launch args:
   backend      - dummy|asyncvla|omnivla|omnivla_edge (default: dummy)
-  grpc_port    - server port (default: 50051)
   vla_path     - checkpoint dir / weights file ('' = the backend's default)
   resume_step  - checkpoint step ('' = the backend's default; unused for
                  dummy/omnivla_edge)
@@ -49,21 +48,17 @@ _BACKEND_DEFAULTS = {
 
 def _setup(context):
     backend = LaunchConfiguration('backend').perform(context)
-    grpc_port = LaunchConfiguration('grpc_port').perform(context)
     device = LaunchConfiguration('device').perform(context)
     default_path, default_step = _BACKEND_DEFAULTS.get(backend, ('', ''))
     vla_path = LaunchConfiguration('vla_path').perform(context) or default_path
     resume_step = LaunchConfiguration('resume_step').perform(context) or default_step
 
-    # remote_address is shared by every backend; the rest of the edge overrides
-    # are per-backend. Plain Python values keep their ROS parameter types.
-    edge_overrides = {'remote_address': f'localhost:{grpc_port}'}
+    edge_overrides = {}
 
     if backend == 'dummy':
         server = ExecuteProcess(
             cmd=[
                 'ros2', 'run', 'raspicat_vla_remote', 'vla_dummy_server',
-                '--port', grpc_port,
                 '--inference-ms', LaunchConfiguration('inference_ms').perform(context),
                 '--num-tokens', '8',
                 '--embed-dim', '1024',
@@ -72,7 +67,7 @@ def _setup(context):
         )
     elif backend == 'asyncvla':
         server = vla_server_process(
-            backend='asyncvla', port=grpc_port,
+            backend='asyncvla',
             extra_args=['--vla-path', vla_path,
                         '--resume-step', resume_step,
                         '--device', device],
@@ -90,7 +85,7 @@ def _setup(context):
         })
     elif backend == 'omnivla':
         server = vla_server_process(
-            backend='omnivla', port=grpc_port,
+            backend='omnivla',
             extra_args=['--vla-path', vla_path,
                         '--resume-step', resume_step,
                         '--device', device],
@@ -100,7 +95,7 @@ def _setup(context):
         # --vla-path is the .pth weights file; --resume-step is unused. The edge
         # runs the same path-only adapter as omnivla (waypoints arrive computed).
         server = vla_server_process(
-            backend='omnivla_edge', port=grpc_port,
+            backend='omnivla_edge',
             extra_args=['--vla-path', vla_path,
                         '--device', device],
         )
@@ -119,7 +114,6 @@ def _setup(context):
 def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('backend', default_value='dummy'),
-        DeclareLaunchArgument('grpc_port', default_value='50051'),
         DeclareLaunchArgument('vla_path', default_value=''),
         DeclareLaunchArgument('resume_step', default_value=''),
         DeclareLaunchArgument('device', default_value='cuda:0'),

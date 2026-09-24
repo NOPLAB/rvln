@@ -17,9 +17,7 @@ from nav_msgs.msg import Path
 
 from raspicat_vla_edge.edge_node import VLAEdgeNode
 from raspicat_vla_edge.embedding_cache import EmbeddingCache
-from raspicat_vla_msgs.msg import GoalSpec as GoalSpecMsg
-from raspicat_vla_proto import raspicat_vla_pb2
-from raspicat_vla_proto.conversions import float32_array_to_fp16_bytes
+from raspicat_vla_msgs.msg import ActionEmbedding, GoalSpec as GoalSpecMsg
 
 
 @pytest.fixture(scope='module')
@@ -41,23 +39,22 @@ def _frame(fill: int) -> np.ndarray:
     return np.full((24, 32, 3), fill, dtype=np.uint8)
 
 
-def _proto_embedding(frame_id: int) -> raspicat_vla_pb2.ActionEmbedding:
+def _embedding(frame_id: int) -> ActionEmbedding:
     values = np.zeros(8 * 4, dtype=np.float32)
-    return raspicat_vla_pb2.ActionEmbedding(
-        frame_id=frame_id,
-        server_time_ns=time.monotonic_ns(),
-        num_tokens=8,
-        embed_dim=4,
-        embedding_fp16=float32_array_to_fp16_bytes(values),
-        inference_ms=1.0,
-        model_version='test',
-    )
+    msg = ActionEmbedding()
+    msg.frame_id = frame_id
+    msg.num_tokens = 8
+    msg.embed_dim = 4
+    msg.embedding = values.tolist()
+    msg.inference_ms = 1.0
+    msg.model_version = 'test'
+    return msg
 
 
 def test_reply_pairs_embedding_with_sent_frame_and_prunes_older(node):
     node._sent_frames = {5: _frame(5), 6: _frame(6), 7: _frame(7)}
 
-    node._on_embedding_received(_proto_embedding(6))
+    node._on_embedding_received(_embedding(6))
 
     cached = node._cache.get_latest_raw()
     assert cached is not None
@@ -70,7 +67,7 @@ def test_reply_pairs_embedding_with_sent_frame_and_prunes_older(node):
 
 def test_reply_without_matching_frame_caches_none(node):
     node._sent_frames = {}
-    node._on_embedding_received(_proto_embedding(3))
+    node._on_embedding_received(_embedding(3))
     cached = node._cache.get_latest_raw()
     assert cached is not None
     assert cached.obs_image_rgb is None
@@ -104,7 +101,7 @@ def test_action_tick_passes_embedding_frame_as_past_image(node):
     node._latest_image = _frame(200)          # newest camera frame
     node._latest_image_stamp_ns = time.monotonic_ns()
     node._sent_frames = {1: _frame(10)}       # frame the cloud consumed
-    node._on_embedding_received(_proto_embedding(1))
+    node._on_embedding_received(_embedding(1))
 
     node._action_tick()
 
@@ -121,7 +118,7 @@ def test_action_tick_falls_back_to_cur_when_frame_uncorrelated(node):
     node._latest_image = _frame(200)
     node._latest_image_stamp_ns = time.monotonic_ns()
     node._sent_frames = {}
-    node._on_embedding_received(_proto_embedding(1))
+    node._on_embedding_received(_embedding(1))
 
     node._action_tick()
 
@@ -142,7 +139,7 @@ def test_action_tick_safe_stops_on_stale_camera_frame(node):
     node._latest_image = _frame(200)
     node._latest_image_stamp_ns = time.monotonic_ns() - int(10e9)  # 10 s old
     node._sent_frames = {1: _frame(10)}
-    node._on_embedding_received(_proto_embedding(1))
+    node._on_embedding_received(_embedding(1))
 
     node._action_tick()
 
@@ -153,16 +150,15 @@ def test_action_tick_safe_stops_on_stale_camera_frame(node):
 def test_send_tick_skips_stale_camera_frame(node):
     """The observation loop must stop feeding a frozen frame to the cloud."""
 
-    class _RecordingClient:
+    class _RecordingPublisher:
         def __init__(self):
             self.sent = []
 
-        def send(self, obs):
+        def publish(self, obs):
             self.sent.append(obs)
-            return True
 
-    client = _RecordingClient()
-    node._client = client
+    publisher = _RecordingPublisher()
+    node._observation_pub = publisher
     node._latest_image = _frame(200)
     node._latest_image_stamp_ns = time.monotonic_ns() - int(10e9)  # 10 s old
     goal = GoalSpecMsg()
@@ -172,4 +168,4 @@ def test_send_tick_skips_stale_camera_frame(node):
 
     node._send_observation_tick()
 
-    assert not client.sent
+    assert not publisher.sent

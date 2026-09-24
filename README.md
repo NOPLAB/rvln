@@ -8,9 +8,9 @@ ROS2 Humble nodes for running Vision-Language-Action (VLA) navigation models on
 the Raspberry Pi Cat (rt-net `raspicat`).
 
 The repository defines a model-agnostic edge / remote split: the lightweight
-edge runs on the robot, a remote workstation hosts the heavy VLA policy, and a
-gRPC stream carries observations one way and action embeddings the other. The
-same interface supports multiple backends — the dummy server (for CI / MVP),
+edge runs on the robot, a remote workstation hosts the heavy VLA policy, and
+ROS 2 topics carry compressed observations and action embeddings. The
+same interface supports multiple backends — the dummy backend (for CI / MVP),
 [AsyncVLA](https://asyncvla.github.io/),
 [OmniVLA](https://omnivla-nav.github.io/), and `movla` (the in-house LFM2.5-VL
 Stage A policy from [`external/movla`](https://github.com/NOPLAB/movla)). For
@@ -37,9 +37,9 @@ This repository is itself a colcon workspace.
 
 ```
 src/raspicat_vla_msgs/      # ROS2 messages, services, actions (model-agnostic)
-src/raspicat_vla_proto/     # gRPC python stubs + ROS2 ⇄ proto conversion helpers
+src/raspicat_vla_proto/     # mobile gRPC stubs and fp16 helpers
 src/raspicat_vla_core/      # ROS-free OmniVLA-edge inference core (shared by edge & remote)
-src/raspicat_vla_remote/    # gRPC server: dummy / AsyncVLA / OmniVLA / movla backends
+src/raspicat_vla_remote/    # ROS 2 inference node and model backends
 src/raspicat_vla_edge/      # Edge ROS2 nodes (lifecycle, adapters, path follower,
                             #   phone/browser action receivers)
 src/raspicat_vla_bringup/   # Launch composition
@@ -61,20 +61,24 @@ The rt-net ROS2 source packages (`raspicat_ros`, `raspicat_description`,
 `raspicat_sim`, `raspicat_slam_navigation`) are managed via vcstool, not
 submodules — see `raspicat.repos`.
 
-## gRPC interfaces
+## Communication interfaces
 
-`proto/raspicat_vla.proto` defines the model-agnostic edge ↔ remote service
-`raspicat_vla.v1.VLAService`:
-
-- `StreamInfer(stream Observation) returns (stream ActionEmbedding)`
-- `GetModelInfo(ModelInfoRequest) returns (ModelInfo)`
+The edge publishes `raspicat_vla_msgs/msg/Observation` on
+`/raspicat_vla/observation`. The remote inference node publishes
+`raspicat_vla_msgs/msg/ActionEmbedding` on
+`/raspicat_vla/remote_embedding`. Use the same `ROS_DOMAIN_ID` on both PCs,
+allow DDS discovery between them, and build matching message definitions.
+Both topics use best-effort QoS with depth one so slow inference receives the
+newest available frame. The `movla` image runs ROS 2 Jazzy on Ubuntu 24.04;
+other runtime images use Humble. Its generated message definitions must match
+the edge package.
 
 `proto/edge_action.proto` is the independent phone → Pi interface for the
 mobile port (`EdgeActionService.StreamActions`; the phone is the client, the
 Pi the server).
 
-`scripts/gen_proto.sh` regenerates the Python stubs for both (into
-`src/raspicat_vla_proto/raspicat_vla_proto/`, gitignored) and the Dart stubs
+`scripts/gen_proto.sh` regenerates the mobile Python stubs (into
+`src/raspicat_vla_proto/raspicat_vla_proto/`) and the Dart stubs
 for `edge_action.proto` (into `app/inference/lib/src/grpc/gen/`, committed).
 
 ## Build
@@ -102,13 +106,20 @@ declared in `docker/compose.yaml` (one compose profile per mode). Run
 list; the full operator guide lives at [`docs/USAGE.md`](docs/USAGE.md). A
 quick orientation:
 
+```bash
+# Inference PC
+ROS_DOMAIN_ID=42 scripts/vla.sh run omnivla --mode remote --gpu
+# Robot PC, on the same reachable LAN
+ROS_DOMAIN_ID=42 scripts/vla.sh run omnivla --mode edge --camera edge
+```
+
 * `scripts/vla.sh build TARGET` — build one of the images
   (`asyncvla`, `omnivla`, `movla`, `real`, `sim`, `test`, plus `*-jetson` for ARM64).
-* `--mode remote {--cpu|--gpu}` — host the cloud-side gRPC server here.
-* `--mode edge --host HOST[:PORT]` — on-robot edge stack pointed at a remote.
+* `--mode remote {--cpu|--gpu}` — host the ROS 2 inference node here.
+* `--mode edge` ? on-robot edge stack; match `ROS_DOMAIN_ID` on both PCs.
 * `--mode cmd_vel` — all-in-one on this host, no robot: remote + edge in two
   containers, follower on a non-motor topic (`/cmd_vel_vla`).
-* `--mode sim --host HOST[:PORT]` — Gazebo + edge.
+* `--mode sim` — Gazebo + edge.
 * `--mode edge-local` — OmniVLA-edge policy standalone on the robot, no cloud
   (needs CUDA + `models/omnivla-edge/omnivla-edge.pth`).
 * `run omnivla_edge_mobile --mode cmd_vel` — Pi side of the mobile port: the

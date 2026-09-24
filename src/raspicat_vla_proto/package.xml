@@ -3,7 +3,7 @@
 <package format="3">
   <name>raspicat_vla_proto</name>
   <version>0.1.0</version>
-  <description>Generated gRPC stubs and ROS2 conversion helpers for VLA navigation.</description>
+  <description>Mobile EdgeActionService gRPC stubs and fp16 conversion helpers.</description>
   <maintainer email="nop@example.com">nop</maintainer>
   <license>MIT</license>
 

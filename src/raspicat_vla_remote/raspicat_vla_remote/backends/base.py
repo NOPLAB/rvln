@@ -20,7 +20,7 @@ class ModelInfoDict:
 
 
 class VLABackend(ABC):
-    """Pure-python interface to a VLA model that the generic VLAServer hosts.
+    """Pure-python interface to a VLA model hosted by the inference node.
 
     Concrete implementations adapt different families (dummy passthrough,
     AsyncVLA, OmniVLA-original) onto a single shape contract:

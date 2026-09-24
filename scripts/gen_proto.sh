@@ -11,15 +11,13 @@ python3 -m grpc_tools.protoc \
     -I "${PROTO_DIR}" \
     --python_out="${OUT_DIR}" \
     --grpc_python_out="${OUT_DIR}" \
-    "${PROTO_DIR}/raspicat_vla.proto" \
     "${PROTO_DIR}/edge_action.proto"
 
 # grpc_tools generates `import <name>_pb2` -- rewrite to relative.
-sed -i 's/^import raspicat_vla_pb2/from . import raspicat_vla_pb2/' "${OUT_DIR}/raspicat_vla_pb2_grpc.py"
 sed -i 's/^import edge_action_pb2/from . import edge_action_pb2/' "${OUT_DIR}/edge_action_pb2_grpc.py"
 
 echo "Generated:"
-ls -1 "${OUT_DIR}"/raspicat_vla_pb2*.py "${OUT_DIR}"/edge_action_pb2*.py
+ls -1 "${OUT_DIR}"/edge_action_pb2*.py
 
 # Dart stubs for the inference app (proto/edge_action.proto only). Optional:
 # needs the Flutter/Dart toolchain + `dart pub global activate protoc_plugin`.

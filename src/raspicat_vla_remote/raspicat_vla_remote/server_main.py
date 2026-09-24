@@ -1,7 +1,7 @@
 """Entry point for the `vla_dummy_server` console script.
 
 Selects a backend (``--backend {dummy,asyncvla,omnivla,omnivla_edge,movla}``)
-and hosts it via the generic :class:`VLAServer`. ``omnivla`` is Plan 2B Path 1
+and hosts it via the ROS 2 :class:`VLAInferenceNode`. ``omnivla`` is Plan 2B Path 1
 (cloud runs OmniVLA-original); ``omnivla_edge`` is Path 3 (a remote GPU box such
 as a Jetson runs the OmniVLA-edge policy and streams waypoints to the edge);
 ``movla`` serves the in-house LFM2.5-VL Stage A policy (external/movla) the same
@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import argparse
 import logging
-import signal
+import rclpy
 
 from .backends.dummy import DummyBackend
-from .server import VLAServer
+from .server import VLAInferenceNode
 
 
 _LOG = logging.getLogger(__name__)
@@ -94,12 +94,10 @@ def _build_backend(args: argparse.Namespace):
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description='VLA gRPC server (dummy/asyncvla/omnivla/omnivla_edge/movla)')
+        description='VLA ROS 2 inference node (dummy/asyncvla/omnivla/omnivla_edge/movla)')
     parser.add_argument('--backend', default='dummy',
                         choices=['dummy', 'asyncvla', 'omnivla', 'omnivla_edge',
                                  'movla'])
-    parser.add_argument('--host', default='0.0.0.0')
-    parser.add_argument('--port', type=int, default=50051)
     parser.add_argument('--log-level', default='INFO')
 
     # Dummy-only knobs.
@@ -120,7 +118,7 @@ def main() -> None:
     # (normalizer.json のキーであること。raspicat は学習データに無い)。
     parser.add_argument('--embodiment', default='turtlebot2')
 
-    args = parser.parse_args()
+    args, ros_args = parser.parse_known_args()
 
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper()),
@@ -128,17 +126,14 @@ def main() -> None:
     )
 
     backend = _build_backend(args)
-    server = VLAServer(backend=backend, host=args.host, port=args.port)
-    port = server.start()
-    _LOG.info('backend=%s listening on %s:%d', args.backend, args.host, port)
-
-    def _sigterm(signum, frame):  # noqa: ARG001
-        _LOG.info('SIGTERM received, stopping...')
-        server.stop(grace_sec=1.0)
-
-    signal.signal(signal.SIGTERM, _sigterm)
-    signal.signal(signal.SIGINT, _sigterm)
-    server.wait_for_termination()
+    rclpy.init(args=ros_args)
+    node = VLAInferenceNode(backend=backend)
+    _LOG.info('backend=%s on ROS domain', args.backend)
+    try:
+        rclpy.spin(node)
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':

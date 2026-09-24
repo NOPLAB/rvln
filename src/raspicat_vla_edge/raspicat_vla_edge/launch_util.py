@@ -138,13 +138,12 @@ def camera_nodes(*, image_topic) -> list:
     ]
 
 
-def vla_server_process(*, backend: str, port, extra_args=()) -> ExecuteProcess:
-    """A raspicat_vla_remote server process for the given backend."""
+def vla_server_process(*, backend: str, extra_args=()) -> ExecuteProcess:
+    """A raspicat_vla_remote ROS 2 inference process for the backend."""
     return ExecuteProcess(
         cmd=[
             'python3', '-m', 'raspicat_vla_remote.server_main',
             '--backend', backend,
-            '--port', port,
             *extra_args,
         ],
         output='screen',

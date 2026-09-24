@@ -1,6 +1,7 @@
 vla_edge_node:
   ros__parameters:
-    remote_address: "localhost:50051"
+    observation_topic: "/raspicat_vla/observation"
+    remote_embedding_topic: "/raspicat_vla/remote_embedding"
     obs_publish_rate_hz: 2.0
     action_rate_hz: 10.0
     image_size: [224, 224]

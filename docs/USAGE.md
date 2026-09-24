@@ -1,5 +1,15 @@
 # USAGE
 
+> **ROS 2 communication update (2026-09-24):** The edge and remote inference
+> processes now exchange `raspicat_vla_msgs/Observation` and
+> `raspicat_vla_msgs/ActionEmbedding` on `/raspicat_vla/observation` and
+> `/raspicat_vla/remote_embedding`. Run `scripts/vla.sh run MODEL --mode remote
+> --gpu` on the inference PC and `scripts/vla.sh run MODEL --mode edge` on the
+> robot with the same `ROS_DOMAIN_ID`. `--host` and port 50051 instructions
+> below describe the retired edge/remote gRPC transport. Mobile still uses
+> `proto/edge_action.proto` and its own gRPC port. See the current command list
+> with `scripts/vla.sh --help`.
+
 ワークステーション、実機 Raspberry Pi Cat、または Gazebo シミュレーションで
 `raspicat-vla` を実際に動かすための手順書。本ドキュメントは `README.md` の
 続きという位置づけで、README がアーキテクチャと colcon ベースのビルドを扱う

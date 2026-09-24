@@ -5,7 +5,7 @@ bring up Gazebo with raspicat in an empty world and our edge node + path
 follower pointed at a remote cloud server.
 
 Launch args:
-  remote_address  gRPC cloud (default localhost:50051)
+  observation and embedding topics use the edge node's configured defaults.
   adapter_kind    stub | asyncvla | omnivla       (default omnivla)
   world           gazebo .world path              (raspicat_gazebo/empty.world default)
   rviz            true|false                       (default false; sim is mostly headless)
@@ -29,7 +29,6 @@ from launch.substitutions import LaunchConfiguration
 
 
 def generate_launch_description():
-    remote_address = LaunchConfiguration('remote_address')
     adapter_kind = LaunchConfiguration('adapter_kind')
     world = LaunchConfiguration('world')
     rviz = LaunchConfiguration('rviz')
@@ -57,7 +56,6 @@ def generate_launch_description():
     edge = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(edge_launch_path),
         launch_arguments={
-            'remote_address': remote_address,
             'adapter_kind': adapter_kind,
             'image_topic': '/camera/color/image_raw',   # raspicat_sim RealSense topic
             'with_follower': 'true',
@@ -96,7 +94,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        DeclareLaunchArgument('remote_address', default_value='localhost:50051'),
         DeclareLaunchArgument('adapter_kind', default_value='omnivla'),
         DeclareLaunchArgument(
             'world',

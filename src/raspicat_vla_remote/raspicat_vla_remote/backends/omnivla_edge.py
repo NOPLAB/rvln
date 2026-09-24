@@ -2,13 +2,13 @@
 
 Path 2 runs the OmniVLA-edge policy entirely on the robot. Path 3 splits that
 same policy across two boxes: a GPU box (typically a Jetson) runs the heavy
-OmniVLA-edge forward pass here and streams the predicted waypoints over gRPC; the
+OmniVLA-edge forward pass here and publishes predicted waypoints through ROS 2; the
 Raspberry Pi runs only the light path-only :class:`OmniVLAEdgeAdapter`
 (``adapter_kind=omnivla``) and turns those waypoints into a ``nav_msgs/Path``.
 
 The forward pass, CLIP and the observation ring buffer live in the shared
 :class:`~raspicat_vla_core.omnivla_edge_engine.OmniVLAEdgeEngine` (imported from
-the ROS-free core package). This backend is the thin gRPC-facing layer:
+the ROS-free core package). This backend is the thin inference layer:
 decode the goal, run the engine, scale the raw chunk to **metres** (so the Pi's
 path-only adapter, which does not rescale, plots the right geometry), and hand it
 back as the ``(NUM_ACTIONS_CHUNK, ACTION_DIM)`` ActionEmbedding payload.

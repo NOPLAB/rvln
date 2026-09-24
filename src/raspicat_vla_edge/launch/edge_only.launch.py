@@ -1,7 +1,7 @@
 r"""Launch the VLA edge lifecycle node (auto-transitions to active).
 
 Optional launch args (override edge_params.yaml):
-  remote_address  - gRPC server address (default: from yaml, typically localhost:50051)
+  observation_topic / remote_embedding_topic are set in edge_params.yaml.
   adapter_kind    - stub|asyncvla|omnivla
   image_topic     - camera image topic (default: /camera/image_raw;
                     raspicat_sim uses /camera/color/image_raw)
@@ -20,7 +20,7 @@ Optional launch args (override edge_params.yaml):
 Use cases:
   ros2 launch raspicat_vla_bringup edge_only.launch.py            # yaml defaults
   ros2 launch raspicat_vla_bringup edge_only.launch.py \\
-      remote_address:=192.168.1.2:50051 adapter_kind:=asyncvla with_follower:=true
+      adapter_kind:=asyncvla with_follower:=true
 """
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
@@ -34,7 +34,6 @@ from raspicat_vla_edge.launch_util import (
 
 
 def generate_launch_description():
-    remote_address = LaunchConfiguration('remote_address')
     adapter_kind = LaunchConfiguration('adapter_kind')
     image_topic = LaunchConfiguration('image_topic')
     with_follower = LaunchConfiguration('with_follower')
@@ -46,7 +45,6 @@ def generate_launch_description():
     # Per-launch parameter overrides; only emit the ones that were set explicitly
     # (default '' means "leave the YAML value alone").
     overrides = {
-        'remote_address': remote_address,
         'adapter_kind': adapter_kind,
         'image_topic': image_topic,
         'asyncvla_weights_path': asyncvla_weights_path,
@@ -64,7 +62,6 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
-        DeclareLaunchArgument('remote_address', default_value='localhost:50051'),
         DeclareLaunchArgument('adapter_kind', default_value='stub'),
         DeclareLaunchArgument('image_topic', default_value='/camera/image_raw'),
         DeclareLaunchArgument('camera_kind', default_value=''),

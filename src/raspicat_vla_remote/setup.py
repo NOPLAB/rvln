@@ -14,11 +14,11 @@ setup(
         ('share/' + package_name, ['package.xml']),
         (os.path.join('share', package_name, 'config'), glob('config/*.yaml')),
     ],
-    install_requires=['setuptools', 'numpy', 'grpcio>=1.50'],
+    install_requires=['setuptools', 'numpy'],
     zip_safe=True,
     maintainer='nop',
     maintainer_email='nop@example.com',
-    description='VLA remote gRPC server (model-agnostic).',
+    description='VLA remote ROS 2 inference node (model-agnostic).',
     license='MIT',
     tests_require=['pytest'],
     entry_points={

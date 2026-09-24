@@ -97,7 +97,7 @@ CUDA 依存は `forward` 内の `tensor.get_device()` 1 箇所のみ。ONNX expo
 
 ## 4. スマホ↔Pi インターフェース（gRPC — 実装済み）
 
-**正定義は `proto/edge_action.proto`**（既存 `raspicat_vla.proto` とは独立の
+**正定義は `proto/edge_action.proto`**（PC 間の ROS 2 通信とは独立の
 サービス）。`EdgeActionService.StreamActions(stream ActionChunk) returns
 (stream ControlAck)` の双方向 stream で、スマホ = client / Pi = server。
 フィールドの意味は proto のコメントが正。v0.2 草案からの差分は

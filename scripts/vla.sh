@@ -12,10 +12,10 @@
 #   run MODEL --mode MODE [OPTS]
 #                           MODEL = asyncvla | omnivla | omnivla_edge | movla
 #                                   | omnivla_edge_mobile (phone infers; Pi receives)
-#                           MODE  = remote {--cpu|--gpu} [--host BIND[:PORT]]
-#                                   edge --host HOST[:PORT]
+#                           MODE  = remote {--cpu|--gpu}
+#                                   edge
 #                                   cmd_vel {--cpu|--gpu}   (remote+edge, no motors)
-#                                   sim  --host HOST[:PORT]
+#                                   sim
 #                                   edge-local              (omnivla_edge only)
 #                           edge/cmd_vel/edge-local also take
 #                                   --camera edge|realsense|/dev/videoN
@@ -24,9 +24,8 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-GRPC_PORT="${GRPC_PORT:-50051}"
 # Phone -> Pi EdgeActionService port (proto/edge_action.proto); distinct from
-# GRPC_PORT so a VLA remote server and the mobile receiver can share a host.
+# Mobile receiver keeps its own gRPC port.
 EDGE_ACTION_PORT="${EDGE_ACTION_PORT:-50061}"
 HF_CACHE_DIR="${HF_CACHE_DIR:-${HOME}/.cache/huggingface}"
 HOST_ARCH="$(uname -m)"
@@ -96,13 +95,10 @@ Commands:
   run MODEL --mode MODE [OPTS]   Run a configuration
     MODEL = asyncvla | omnivla | omnivla_edge | omnivla_edge_mobile | movla
     MODE (selected with --mode MODE):
-      remote {--cpu|--gpu} [--host BIND[:PORT]]
-                                    Host the cloud-side gRPC server here.
-                                    Uses Dockerfile.<MODEL>. BIND defaults to
-                                    0.0.0.0 (all interfaces). Optional :PORT
-                                    overrides $GRPC_PORT.
-      edge --host HOST[:PORT]       Edge stack here, talking to a cloud server
-                                    at HOST:PORT (PORT defaults to $GRPC_PORT).
+      remote {--cpu|--gpu}          Host the remote ROS 2 inference node here.
+                                    Uses Dockerfile.<MODEL>.
+      edge                          Edge stack here. ROS 2 discovers the remote
+                                    node on the same ROS_DOMAIN_ID.
                                     Uses Dockerfile.real.
 
     Camera (edge | cmd_vel | edge-local):
@@ -143,8 +139,8 @@ Commands:
                                     real camera. Add --drive-motors to publish to
                                     the real /cmd_vel topic instead (motors WILL
                                     be driven).
-      sim  --host HOST[:PORT]       Edge + Gazebo simulation, cloud at
-                                    HOST:PORT. Uses Dockerfile.sim. Plan 3 wip.
+      sim                           Edge + Gazebo simulation with ROS 2 remote.
+                                    Uses Dockerfile.sim. Plan 3 wip.
       edge-local                    Plan 2B Path 2 (omnivla_edge ONLY): run the
                                     OmniVLA-edge policy ON the edge, standalone —
                                     no cloud, just edge node + follower
@@ -189,20 +185,16 @@ Commands:
 Examples:
   vla.sh build asyncvla
   vla.sh build --all
-  vla.sh run asyncvla --mode remote --gpu                  # bind 0.0.0.0:50051
-  vla.sh run asyncvla --mode remote --gpu --host :8080     # bind 0.0.0.0:8080
-  vla.sh run asyncvla --mode remote --cpu --host 127.0.0.1 # localhost only
-  vla.sh run omnivla  --mode remote --gpu --host 10.0.0.5:9000  # specific NIC + port
-  vla.sh run asyncvla --mode edge --host 192.168.1.2       # default port
-  vla.sh run asyncvla --mode edge --host 192.168.1.2:8080
-  vla.sh run omnivla  --mode edge --host 192.168.1.2 --camera edge       # v4l2 /dev/video0
-  vla.sh run omnivla  --mode edge --host 192.168.1.2 --camera /dev/cam1  # v4l2 explicit device
-  vla.sh run omnivla  --mode edge --host 192.168.1.2 --camera realsense  # Intel RealSense
+  ROS_DOMAIN_ID=42 vla.sh run asyncvla --mode remote --gpu  # workstation
+  ROS_DOMAIN_ID=42 vla.sh run asyncvla --mode edge          # robot
+  vla.sh run omnivla  --mode edge --camera edge             # v4l2 /dev/video0
+  vla.sh run omnivla  --mode edge --camera /dev/cam1        # v4l2 explicit device
+  vla.sh run omnivla  --mode edge --camera realsense        # Intel RealSense
   vla.sh run omnivla  --mode cmd_vel --gpu                 # remote+edge here, no motors
-  vla.sh run omnivla  --mode sim  --host 192.168.1.2:9000
+  vla.sh run omnivla  --mode sim
   vla.sh run omnivla_edge --mode edge-local               # Path 2, standalone on-edge policy (GPU)
   vla.sh run omnivla_edge --mode remote --gpu             # Path 3, OmniVLA-edge server (Jetson)
-  vla.sh run omnivla_edge --mode edge --host 192.168.1.2  # Path 3, Pi edge -> Jetson server
+  vla.sh run omnivla_edge --mode edge                      # Path 3, Pi edge -> Jetson node
   vla.sh run movla --mode cmd_vel --cpu                   # in-house movla policy, all local
   vla.sh run movla --mode remote --gpu                    # movla server on a GPU box
   vla.sh run omnivla_edge_mobile --mode cmd_vel           # phone infers -> this host follows (no motors)
@@ -224,7 +216,7 @@ Jetson AGX Orin (ARM64):
   Force/disable Jetson mode with RASPICAT_VLA_JETSON=1 / =0.
 
 Environment overrides:
-  GRPC_PORT            gRPC port (default 50051)
+  ROS_DOMAIN_ID        ROS 2 discovery domain; set identically on both PCs
   EDGE_ACTION_PORT     phone->Pi EdgeActionService port (default 50061)
   HF_CACHE_DIR         HuggingFace cache mount (default $HOME/.cache/huggingface)
   RASPICAT_VLA_JETSON  1 = force Jetson images + nvidia runtime; 0 = force x86
@@ -409,15 +401,15 @@ cmd_build() {
 # Export the `remote` service's variables (image, backend knobs, bind address)
 # and add the GPU overlay when requested. Shared by run_remote and run_cmd_vel.
 export_remote_env() {
-    local model=$1 device=$2 bind_host=$3 bind_port=$4
+    local model=$1 device=$2
     local image="${IMAGES[$model]}"
     # On Jetson the backend name (--backend / weights / resume-step) is unchanged;
     # only the container image (ARM build) and the GPU wiring differ.
     is_jetson && image="${IMAGES[${model}-jetson]}"
     export VLA_REMOTE_IMAGE="$image"
+    export VLA_ROS_DISTRO=humble
+    [[ $model == movla ]] && export VLA_ROS_DISTRO=jazzy
     export VLA_BACKEND="$model"
-    export VLA_BIND_HOST="$bind_host"
-    export VLA_GRPC_PORT="$bind_port"
     export VLA_WEIGHTS="${WEIGHTS_DIR[$model]}"
     export VLA_RESUME_STEP="${RESUME_STEP[$model]}"
     if [[ $device == gpu ]]; then
@@ -463,40 +455,38 @@ edge_adapter_for() {
 }
 
 run_remote() {
-    local model=$1 device=$2 bind_host=$3 bind_port=$4
-    export_remote_env "$model" "$device" "$bind_host" "$bind_port"
-    log "${model} remote backend on ${VLA_DEVICE}, bind ${bind_host}:${bind_port}"
+    local model=$1 device=$2
+    export_remote_env "$model" "$device"
+    log "${model} remote ROS 2 node on ${VLA_DEVICE}; domain ${ROS_DOMAIN_ID:-0}"
     compose_up remote
 }
 
 run_edge() {
-    local model=$1 host=$2 port=$3 camera_kind=${4:-} camera_device=${5:-}
+    local model=$1 camera_kind=${2:-} camera_device=${3:-}
     local adapter_kind
     adapter_kind=$(edge_adapter_for "$model")
     export_edge_image "$model"
     compose_add_camera "$camera_kind" "$camera_device"
     local launch=(
         raspicat_vla_edge edge_only.launch.py
-        "remote_address:=${host}:${port}"
         "adapter_kind:=${adapter_kind}"
         with_follower:=true
     )
     _append_camera_launch_args launch "$camera_kind" "$camera_device"
     _append_image_topic_arg launch
     export VLA_EDGE_LAUNCH="${launch[*]}"
-    log "${model} edge (real); cloud=${host}:${port}${camera_kind:+; camera=${camera_kind}${camera_device:+ ${camera_device}}}"
+    log "${model} edge (real); ROS domain ${ROS_DOMAIN_ID:-0}${camera_kind:+; camera=${camera_kind}${camera_device:+ ${camera_device}}}"
     compose_up edge
 }
 
 # cmd_vel mode: one command, two containers (compose profile "cmd_vel"), no
-# real robot. The remote server binds 127.0.0.1 and the edge stack points at
-# it; the follower publishes to a non-motor topic so the full pipeline runs
+# real robot. The remote and edge nodes discover each other via ROS 2;
+# the follower publishes to a non-motor topic so the full pipeline runs
 # and cmd_vel is observable without driving the robot's motors. Both logs
 # stream in the foreground; when either container exits (or Ctrl-C), compose
 # stops the other and the EXIT trap tears the profile down.
 run_cmd_vel() {
     local model=$1 device=$2 camera_kind=${3:-} camera_device=${4:-} cmd_vel_topic=${5:-/cmd_vel_vla}
-    local port="$GRPC_PORT"
     local adapter_kind
     adapter_kind=$(edge_adapter_for "$model")
 
@@ -505,12 +495,11 @@ run_cmd_vel() {
     else
         log "cmd_vel: launching ${model} remote server + edge on this host (motors NOT driven)"
     fi
-    export_remote_env "$model" "$device" "127.0.0.1" "$port"
+    export_remote_env "$model" "$device"
     export_edge_image "$model"
     compose_add_camera "$camera_kind" "$camera_device"
     local launch=(
         raspicat_vla_edge edge_only.launch.py
-        "remote_address:=127.0.0.1:${port}"
         "adapter_kind:=${adapter_kind}"
         "cmd_vel_topic:=${cmd_vel_topic}"
         with_follower:=true
@@ -518,7 +507,7 @@ run_cmd_vel() {
     _append_camera_launch_args launch "$camera_kind" "$camera_device"
     _append_image_topic_arg launch
     export VLA_EDGE_LAUNCH="${launch[*]}"
-    log "cmd_vel: edge -> 127.0.0.1:${port}; follower publishes ${cmd_vel_topic}${camera_kind:+; camera=${camera_kind}${camera_device:+ ${camera_device}}}"
+    log "cmd_vel: ROS domain ${ROS_DOMAIN_ID:-0}; follower publishes ${cmd_vel_topic}${camera_kind:+; camera=${camera_kind}${camera_device:+ ${camera_device}}}"
     compose_up cmd_vel
 }
 
@@ -531,10 +520,6 @@ run_cmd_vel() {
 # other cmd_vel runs.
 run_mobile_cmd_vel() {
     local bind_host=$1 bind_port=$2 cmd_vel_topic=$3
-    if [[ ! -f "$REPO_ROOT/src/raspicat_vla_proto/raspicat_vla_proto/edge_action_pb2.py" ]]; then
-        err "edge_action gRPC stubs missing; run scripts/gen_proto.sh first."
-        return 1
-    fi
     if [[ $cmd_vel_topic == /cmd_vel ]]; then
         log "mobile cmd_vel: EdgeActionService @ ${bind_host}:${bind_port} (MOTORS DRIVEN via /cmd_vel)"
     else
@@ -553,7 +538,7 @@ run_mobile_cmd_vel() {
 }
 
 run_sim() {
-    local model=$1 host=$2 port=$3
+    local model=$1
     local adapter_kind
     adapter_kind=$(edge_adapter_for "$model")
     if ! docker image inspect "${IMAGES[sim]}" >/dev/null 2>&1; then
@@ -564,12 +549,11 @@ run_sim() {
         export VLA_EDGE_OVERLAY=""
         local launch=(
             raspicat_vla_edge edge_only.launch.py
-            "remote_address:=${host}:${port}"
             "adapter_kind:=${adapter_kind}"
             with_follower:=true
         )
         export VLA_EDGE_LAUNCH="${launch[*]}"
-        log "${model} edge (sim-fallback, image=${IMAGES[test]}); cloud=${host}:${port}"
+        log "${model} edge (sim-fallback, image=${IMAGES[test]}); ROS domain ${ROS_DOMAIN_ID:-0}"
         compose_up edge
         return
     fi
@@ -607,11 +591,10 @@ run_sim() {
 
     local launch=(
         raspicat_vla_bringup sim.launch.py
-        "remote_address:=${host}:${port}"
         "adapter_kind:=${adapter_kind}"
     )
     export VLA_SIM_LAUNCH="${launch[*]}"
-    log "${model} sim (image=${IMAGES[sim]}); cloud=${host}:${port}"
+    log "${model} sim (image=${IMAGES[sim]}); ROS domain ${ROS_DOMAIN_ID:-0}"
     compose_up sim
 }
 
@@ -765,16 +748,14 @@ cmd_run() {
             if [[ -z $device ]]; then
                 err "--mode remote requires --cpu or --gpu"; return 1
             fi
-            local pair bind_host bind_port
-            pair=$(split_hostport "${host:-0.0.0.0}" "0.0.0.0" "$GRPC_PORT") || return 1
-            read -r bind_host bind_port <<<"$pair"
-            run_remote "$model" "$device" "$bind_host" "$bind_port"
+            [[ -n $host ]] && warn "--host is ignored for ROS 2 remote mode; use ROS_DOMAIN_ID and DDS discovery"
+            run_remote "$model" "$device"
             ;;
         cmd_vel)
             if [[ -z $device ]]; then
                 err "--mode cmd_vel requires --cpu or --gpu (for the local remote server)"; return 1
             fi
-            [[ -n $host ]] && warn "--host is ignored for --mode cmd_vel (server + edge both on 127.0.0.1)"
+            [[ -n $host ]] && warn "--host is ignored for --mode cmd_vel (ROS 2 discovery)"
             local cmd_vel_topic=/cmd_vel_vla
             if [[ -n $drive_motors ]]; then
                 cmd_vel_topic=/cmd_vel
@@ -783,12 +764,12 @@ cmd_run() {
             run_cmd_vel "$model" "$device" "$camera_kind" "$camera_device" "$cmd_vel_topic"
             ;;
         edge|sim)
-            [[ -n $host ]] || { err "--mode $mode requires --host HOST[:PORT]"; return 1; }
-            local pair edge_host edge_port
-            pair=$(split_hostport "$host" "" "$GRPC_PORT") || return 1
-            read -r edge_host edge_port <<<"$pair"
-            [[ -n $edge_host ]] || { err "--mode $mode --host needs a host part"; return 1; }
-            "run_$mode" "$model" "$edge_host" "$edge_port" "$camera_kind" "$camera_device"
+            [[ -n $host ]] && warn "--host is ignored for ROS 2 edge/sim mode; use ROS_DOMAIN_ID and DDS discovery"
+            if [[ $mode == edge ]]; then
+                run_edge "$model" "$camera_kind" "$camera_device"
+            else
+                run_sim "$model"
+            fi
             ;;
         '')
             err "run: missing --mode (remote|edge|cmd_vel|sim|edge-local)"; usage; return 1 ;;

@@ -1,4 +1,4 @@
-# Dockerfile for AsyncVLA cloud-side gRPC server — Jetson AGX Orin (ARM64).
+# Dockerfile for AsyncVLA remote ROS 2 inference node — Jetson AGX Orin (ARM64).
 #
 # ARM64/aarch64 counterpart of Dockerfile.asyncvla. The x86 CUDA wheels it pins
 # (torch==2.2.0+cu121) do NOT exist for aarch64, so this image bases on NVIDIA's
@@ -17,6 +17,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 SHELL ["/bin/bash", "-c"]
+
+COPY docker/install_remote_ros.sh /tmp/install_remote_ros.sh
+RUN bash /tmp/install_remote_ros.sh humble
 
 # l4t-jetpack r36 is Ubuntu 22.04 with system Python 3.10 (matches the x86 image).
 # libopenblas: the Jetson torch wheels link against libopenblas.so.0, which the
@@ -60,8 +63,6 @@ RUN pip3 install --no-cache-dir \
         'Pillow' \
         'opencv-python-headless' \
         'utm' \
-        'grpcio>=1.50' \
-        'grpcio-tools>=1.50' \
         'protobuf>=4.21' \
         'typing_extensions>=4.5' \
     && pip3 install --no-cache-dir \

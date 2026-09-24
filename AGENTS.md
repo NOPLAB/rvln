@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This is a ROS 2 Humble colcon workspace. `src/raspicat_vla_*` contains the owned ROS messages, inference core, gRPC protocol helpers, remote server, edge nodes, and launch files. `proto/` defines the wire contracts; regenerate stubs with `scripts/gen_proto.sh` after editing them. `app/inference/` and `app/logger/` are separate Flutter apps, while `web/` is a Next.js browser client. `docker/` holds runtime images and Compose profiles; `docs/` holds operating and design notes. Python tests live in each package's `test/`, Dart tests in each app's `test/`, and web tests in `web/test/`. Downloaded weights in `models/` and runtime assets are not committed.
+This is a ROS 2 Humble colcon workspace. `src/raspicat_vla_*` contains the owned ROS messages, inference core, remote ROS 2 node, edge nodes, and launch files. `proto/edge_action.proto` defines only the mobile-to-Pi contract; regenerate its stubs with `scripts/gen_proto.sh` after editing it. Edge and remote use `raspicat_vla_msgs` topics. `app/inference/` and `app/logger/` are separate Flutter apps, while `web/` is a Next.js browser client. `docker/` holds runtime images and Compose profiles; `docs/` holds operating and design notes. Python tests live in each package's `test/`, Dart tests in each app's `test/`, and web tests in `web/test/`. Downloaded weights in `models/` and runtime assets are not committed.
 
 ## Build, Test, and Development Commands
 

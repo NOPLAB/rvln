@@ -15,6 +15,7 @@ find_package(nav_msgs REQUIRED)
 rosidl_generate_interfaces(${PROJECT_NAME}
   msg/GoalSpec.msg
   msg/ActionEmbedding.msg
+  msg/Observation.msg
   srv/SetGoal.srv
   action/NavigateVLA.action
   DEPENDENCIES std_msgs geometry_msgs sensor_msgs nav_msgs

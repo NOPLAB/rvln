@@ -2,9 +2,9 @@
 #
 # One service per container; a vla.sh mode = a compose profile:
 #
-#   --mode remote      -> profile "remote"     = remote            (cloud gRPC server)
+#   --mode remote      -> profile "remote"     = remote            (ROS inference node)
 #   --mode edge        -> profile "edge"       = edge              (robot-side ROS stack)
-#   --mode cmd_vel     -> profile "cmd_vel"    = remote + edge     (both here, loopback,
+#   --mode cmd_vel     -> profile "cmd_vel"    = remote + edge     (both here, ROS 2,
 #                                                follower on a non-motor topic)
 #   omnivla_edge_mobile-> profile "mobile"     = edge              (phone streams action
 #                                                chunks; mobile_cmd_vel.launch.py)
@@ -20,8 +20,7 @@
 #   docker compose -f docker/compose.yaml --profile cmd_vel up
 # brings up a dummy-backend preview stack without vla.sh at all.
 #
-# All services share the host network: the edge<->remote link is gRPC on
-# localhost/LAN, and ROS2 DDS discovery needs raw multicast.
+# All services share the host network so ROS 2 DDS discovers nodes across PCs.
 
 name: raspicat-vla
 
@@ -40,33 +39,36 @@ x-ros-workspace: &ros-workspace
 x-ros-env: &ros-env
   HOME: /tmp  # the mapped host user has no home dir inside the image
   ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
+  ROS_LOCALHOST_ONLY: "0"
   RASPICAT_VLA_REBUILD: ${RASPICAT_VLA_REBUILD:-}
 
 services:
-  # Cloud-side VLA gRPC server (VLAService.StreamInfer). Runs as root in the
-  # model image (raspicat-vla-{asyncvla,omnivla}[-jetson]) — no ROS inside.
-  # The raspicat_vla_proto/remote packages are ROS2 ament_python layouts that
-  # `pip install -e` chokes on, hence the from-source PYTHONPATH.
+  # Remote VLA ROS 2 inference node. Runs as root in the
+  # model image (raspicat-vla-{asyncvla,omnivla}[-jetson]) with ROS 2 installed.
+  # The remote package is used via PYTHONPATH; remote_ros_entrypoint.sh builds
+  # the message package into a container-local overlay.
   remote:
     profiles: [remote, cmd_vel]
     image: ${VLA_REMOTE_IMAGE:-raspicat-vla-omnivla}
     network_mode: host
+    entrypoint: ["bash", "/workspace/docker/remote_ros_entrypoint.sh"]
     working_dir: /workspace
     volumes:
       - ${VLA_REPO_ROOT:-..}:/workspace
       - ${VLA_HF_CACHE:-~/.cache/huggingface}:/root/.cache/huggingface
     environment:
+      ROS_DISTRO: ${VLA_ROS_DISTRO:-humble}
+      ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
+      ROS_LOCALHOST_ONLY: "0"
       # NOTE: this REPLACES the image's ENV PYTHONPATH (compose does not merge),
       # so the model images' vendored sources must be re-listed here. Only the
       # dirs baked into the selected image exist (omnivla: /opt/OmniVLA,
       # asyncvla: /opt/AsyncVLA + /opt/MBRA/train, movla: /opt/movla/src);
       # Python silently skips the absent ones, so one list serves every image.
-      PYTHONPATH: /workspace/src/raspicat_vla_proto:/workspace/src/raspicat_vla_remote:/workspace/src/raspicat_vla_core:/opt/OmniVLA:/opt/AsyncVLA:/opt/MBRA/train:/opt/movla/src
+      PYTHONPATH: /workspace/src/raspicat_vla_remote:/workspace/src/raspicat_vla_core:/opt/OmniVLA:/opt/AsyncVLA:/opt/MBRA/train:/opt/movla/src
     command: >
       python3 -m raspicat_vla_remote.server_main
       --backend ${VLA_BACKEND:-dummy}
-      --host ${VLA_BIND_HOST:-0.0.0.0}
-      --port ${VLA_GRPC_PORT:-50051}
       --vla-path ${VLA_WEIGHTS:-/workspace/models/omnivla-original}
       --resume-step ${VLA_RESUME_STEP:-120000}
       --device ${VLA_DEVICE:-cpu}
@@ -85,10 +87,8 @@ services:
       VLA_WS_OVERLAY: ${VLA_EDGE_OVERLAY:-/opt/real_ws/install/setup.bash}
     command: ros2 launch ${VLA_EDGE_LAUNCH:-raspicat_vla_edge edge_only.launch.py with_follower:=true cmd_vel_topic:=/cmd_vel_vla}
 
-  # Gazebo + edge stack in one container (Plan 3). ROS_LOCALHOST_ONLY confines
-  # DDS discovery to loopback: every ROS node of a sim run lives in this one
-  # container, and LAN-wide FastDDS discovery storms starve gzserver's
-  # /spawn_entity service so the robot never appears.
+  # Gazebo + edge stack in one container (Plan 3). Discovery must reach the
+  # remote inference node on the LAN when the simulation uses a separate PC.
   sim:
     <<: *ros-workspace
     profiles: [sim]
@@ -96,7 +96,7 @@ services:
     environment:
       <<: *ros-env
       VLA_WS_OVERLAY: /opt/sim_ws/install/setup.bash
-      ROS_LOCALHOST_ONLY: "1"
+      ROS_LOCALHOST_ONLY: "0"
     volumes:
       - ${VLA_REPO_ROOT:-..}:/workspace
       - ${VLA_HF_CACHE:-~/.cache/huggingface}:/tmp/.cache/huggingface

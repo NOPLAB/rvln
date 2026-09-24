@@ -25,16 +25,11 @@ from sensor_msgs.msg import CompressedImage, Image
 from raspicat_vla_msgs.msg import (
     ActionEmbedding as ActionEmbeddingMsg,
     GoalSpec as GoalSpecMsg,
-)
-from raspicat_vla_proto import raspicat_vla_pb2
-from raspicat_vla_proto.conversions import (
-    fp16_bytes_to_float32_list,
-    proto_action_embedding_to_msg,
+    Observation as ObservationMsg,
 )
 
 from .preprocess import resize_and_jpeg
 from .embedding_cache import EmbeddingCache, CachedEmbedding
-from .grpc_client import VLAClient
 from .adapters.base import EdgeAdapter, EdgeGoal
 
 
@@ -81,30 +76,6 @@ def _quat_to_yaw(qx: float, qy: float, qz: float, qw: float) -> float:
     return float(np.arctan2(siny_cosp, cosy_cosp))
 
 
-def _ros_goal_to_proto(goal: GoalSpecMsg) -> raspicat_vla_pb2.GoalSpec:
-    if goal.mode == GoalSpecMsg.MODE_POSE:
-        return raspicat_vla_pb2.GoalSpec(
-            mode=raspicat_vla_pb2.GoalSpec.POSE,
-            pose=raspicat_vla_pb2.Pose2D(
-                x=goal.pose.pose.position.x,
-                y=goal.pose.pose.position.y,
-                theta=0.0,  # extracting yaw is done in Plan 2 with tf
-            ),
-            frame_id=goal.pose.header.frame_id or 'odom',
-        )
-    if goal.mode == GoalSpecMsg.MODE_TEXT:
-        return raspicat_vla_pb2.GoalSpec(
-            mode=raspicat_vla_pb2.GoalSpec.TEXT, text=goal.text, frame_id='',
-        )
-    if goal.mode == GoalSpecMsg.MODE_IMAGE:
-        return raspicat_vla_pb2.GoalSpec(
-            mode=raspicat_vla_pb2.GoalSpec.IMAGE,
-            image_jpeg=bytes(goal.image.data),
-            frame_id='',
-        )
-    raise ValueError(f'unknown goal mode {goal.mode}')
-
-
 class VLAEdgeNode(LifecycleNode):
 
     def __init__(self) -> None:
@@ -119,7 +90,7 @@ class VLAEdgeNode(LifecycleNode):
         self._latest_image_lock = threading.Lock()
         self._latest_goal: Optional[GoalSpecMsg] = None
         self._latest_goal_lock = threading.Lock()
-        # frame_id -> RGB frame for observations handed to the gRPC client,
+        # frame_id -> RGB frame for observations published to ROS 2,
         # so the reply's embedding can be paired with the exact frame it was
         # computed from (AsyncVLA's Edge_adapter needs that frame as its
         # ``past_img`` to compensate for cloud latency). Bounded FIFO: most
@@ -148,9 +119,10 @@ class VLAEdgeNode(LifecycleNode):
         self._heavy_group = MutuallyExclusiveCallbackGroup()
         self._io_group = MutuallyExclusiveCallbackGroup()
         self._cache: Optional[EmbeddingCache] = None
-        self._client: Optional[VLAClient] = None
+        self._observation_pub = None
+        self._remote_embedding_sub = None
         self._adapter: Optional[EdgeAdapter] = None
-        # True when the adapter runs the policy on-edge (no cloud / cache / gRPC).
+        # True when the adapter runs the policy on-edge (no remote/cache).
         self._local_mode = False
         self._frame_counter = 0
         self._send_timer = None
@@ -165,7 +137,8 @@ class VLAEdgeNode(LifecycleNode):
     # ----------------------------------------------------------------- params
 
     def _declare_parameters(self) -> None:
-        self.declare_parameter('remote_address', 'localhost:50051')
+        self.declare_parameter('observation_topic', '/raspicat_vla/observation')
+        self.declare_parameter('remote_embedding_topic', '/raspicat_vla/remote_embedding')
         self.declare_parameter('obs_publish_rate_hz', 2.0)
         self.declare_parameter('action_rate_hz', 10.0)
         self.declare_parameter('image_size', [224, 224])
@@ -207,7 +180,6 @@ class VLAEdgeNode(LifecycleNode):
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:  # noqa: ARG002
         self.get_logger().info('on_configure')
-        addr = self.get_parameter('remote_address').get_parameter_value().string_value
         max_age = self.get_parameter('embedding_max_age_sec').value
         hard = self.get_parameter('embedding_hard_timeout_sec').value
         self._cache = EmbeddingCache(max_age_sec=float(max_age), hard_timeout_sec=float(hard))
@@ -222,12 +194,13 @@ class VLAEdgeNode(LifecycleNode):
         }
         self._adapter = _build_adapter(adapter_kind, params=adapter_params)
         self._local_mode = bool(getattr(self._adapter, 'is_local', False))
-        # Local adapters run the whole policy on the edge: no cloud to talk to,
-        # so we never build the gRPC client. Cloud-heavy adapters connect now.
-        self._client = (
-            None if self._local_mode
-            else VLAClient(address=addr, on_embedding=self._on_embedding_received)
-        )
+        if not self._local_mode:
+            qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+            self._observation_pub = self.create_publisher(
+                ObservationMsg, self.get_parameter('observation_topic').value, qos)
+            self._remote_embedding_sub = self.create_subscription(
+                ActionEmbeddingMsg, self.get_parameter('remote_embedding_topic').value,
+                self._on_embedding_received, qos, callback_group=self._io_group)
         self.get_logger().info(
             f'edge adapter_kind={adapter_kind!r} local_mode={self._local_mode}'
         )
@@ -294,11 +267,9 @@ class VLAEdgeNode(LifecycleNode):
             )
             self._camera_thread.start()
         act_rate = float(self.get_parameter('action_rate_hz').value)
-        # In local mode there is no cloud: skip the gRPC client and the
+        # In local mode there is no cloud: skip the ROS observation and the
         # observation-send loop; the action loop drives the local policy directly.
         if not self._local_mode:
-            assert self._client is not None
-            self._client.start()
             obs_rate = float(self.get_parameter('obs_publish_rate_hz').value)
             self._send_timer = self.create_timer(
                 1.0 / obs_rate, self._send_observation_tick,
@@ -332,9 +303,12 @@ class VLAEdgeNode(LifecycleNode):
         if self._camera_cap is not None:
             self._camera_cap.release()
             self._camera_cap = None
-        if self._client is not None:
-            self._client.stop()
-        self._client = None
+        if self._remote_embedding_sub is not None:
+            self.destroy_subscription(self._remote_embedding_sub)
+            self._remote_embedding_sub = None
+        if self._observation_pub is not None:
+            self.destroy_publisher(self._observation_pub)
+            self._observation_pub = None
         self._cache = None
         self._adapter = None
         self._local_mode = False
@@ -356,8 +330,6 @@ class VLAEdgeNode(LifecycleNode):
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:  # noqa: ARG002
         self.get_logger().info('on_shutdown')
-        if self._client is not None:
-            self._client.stop()
         return TransitionCallbackReturn.SUCCESS
 
     # ---------------------------------------------------------- camera (v4l2)
@@ -506,7 +478,7 @@ class VLAEdgeNode(LifecycleNode):
         return img.copy()
 
     def _send_observation_tick(self) -> None:
-        if self._client is None:
+        if self._observation_pub is None:
             return
         img = self._fresh_image()
         with self._latest_goal_lock:
@@ -520,55 +492,47 @@ class VLAEdgeNode(LifecycleNode):
         except Exception as exc:  # noqa: BLE001
             self.get_logger().warn(f'preprocess failed: {exc}')
             return
-        try:
-            proto_goal = _ros_goal_to_proto(goal)
-        except Exception as exc:  # noqa: BLE001
-            self.get_logger().warn(f'goal conversion failed: {exc}')
-            return
-
         self._frame_counter += 1
-        obs = raspicat_vla_pb2.Observation(
-            frame_id=self._frame_counter,
-            capture_time_ns=time.monotonic_ns(),
-            image_jpeg=jpeg,
-            image_width=w,
-            image_height=h,
-            goal=proto_goal,
-        )
-        if self._client.send(obs):
-            with self._sent_frames_lock:
-                self._sent_frames[int(obs.frame_id)] = img
-                while len(self._sent_frames) > self._sent_frames_max:
-                    # dicts iterate in insertion order -> drop the oldest.
-                    del self._sent_frames[next(iter(self._sent_frames))]
+        obs = ObservationMsg()
+        obs.frame_id = self._frame_counter
+        obs.image.header.stamp = self.get_clock().now().to_msg()
+        obs.image.format = 'jpeg'
+        obs.image.data = jpeg
+        obs.goal = goal
+        with self._sent_frames_lock:
+            self._sent_frames[int(obs.frame_id)] = img
+            while len(self._sent_frames) > self._sent_frames_max:
+                del self._sent_frames[next(iter(self._sent_frames))]
+        self._observation_pub.publish(obs)
 
     # -------------------------------------------------- callback: embeddings
 
-    def _on_embedding_received(self, proto_emb: raspicat_vla_pb2.ActionEmbedding) -> None:
+    def _on_embedding_received(self, emb: ActionEmbeddingMsg) -> None:
         if self._cache is None:
             return
-        arr = np.array(fp16_bytes_to_float32_list(proto_emb.embedding_fp16), dtype=np.float32)
+        if emb.num_tokens * emb.embed_dim != len(emb.embedding):
+            self.get_logger().warn(f'invalid embedding shape for frame {emb.frame_id}')
+            return
+        arr = np.asarray(emb.embedding, dtype=np.float32)
         with self._sent_frames_lock:
-            obs_img = self._sent_frames.pop(int(proto_emb.frame_id), None)
+            obs_img = self._sent_frames.pop(int(emb.frame_id), None)
             # The server answers in send order, so frames older than this
             # reply will never be answered — drop them.
-            for fid in [f for f in self._sent_frames if f < int(proto_emb.frame_id)]:
+            for fid in [f for f in self._sent_frames if f < int(emb.frame_id)]:
                 del self._sent_frames[fid]
         cached = CachedEmbedding(
-            frame_id=proto_emb.frame_id,
+            frame_id=emb.frame_id,
             recv_time_ns=time.monotonic_ns(),
             embedding=arr,
-            num_tokens=proto_emb.num_tokens,
-            embed_dim=proto_emb.embed_dim,
-            inference_ms=float(proto_emb.inference_ms),
-            model_version=proto_emb.model_version,
+            num_tokens=emb.num_tokens,
+            embed_dim=emb.embed_dim,
+            inference_ms=float(emb.inference_ms),
+            model_version=emb.model_version,
             obs_image_rgb=obs_img,
         )
         self._cache.put(cached)
         if self._embedding_pub is not None:
-            ros_msg = proto_action_embedding_to_msg(proto_emb)
-            ros_msg.header.stamp = self.get_clock().now().to_msg()
-            self._embedding_pub.publish(ros_msg)
+            self._embedding_pub.publish(emb)
 
     # ---------------------------------------------------------- tick: action
 
@@ -736,13 +700,5 @@ def main() -> None:
     try:
         executor.spin()
     finally:
-        # If we exited spin() while the node was still active (no cleanup
-        # transition issued), the gRPC client thread is still alive. Stop it
-        # explicitly so the bidi stream is closed gracefully — otherwise the
-        # daemon thread is killed at interpreter exit and the server logs an
-        # aborted RPC. Mirrors what on_shutdown does and reaches into _client
-        # the same way (no public accessor exists).
-        if node._client is not None:
-            node._client.stop()
         node.destroy_node()
         rclpy.shutdown()

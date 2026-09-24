@@ -1,11 +1,6 @@
-"""Tests for ROS2 <-> proto conversion helpers."""
+"""Tests for mobile fp16 conversion helpers."""
 import numpy as np
-import pytest
-
-from raspicat_vla_msgs.msg import ActionEmbedding as ActionEmbeddingMsg
-from raspicat_vla_proto import raspicat_vla_pb2
 from raspicat_vla_proto.conversions import (
-    proto_action_embedding_to_msg,
     fp16_bytes_to_float32_list,
     float32_array_to_fp16_bytes,
 )
@@ -21,25 +16,3 @@ def test_fp16_bytes_round_trip():
     # fp16 has ~10 bits of mantissa → relative precision ~5e-4. Tolerance must
     # scale with magnitude (rtol), not just be absolute. atol covers near-zero.
     np.testing.assert_allclose(back, arr, rtol=2e-3, atol=1e-3)
-
-
-def test_proto_action_embedding_to_msg_basic():
-    arr = np.linspace(-1, 1, 8 * 16, dtype=np.float32)
-    proto = raspicat_vla_pb2.ActionEmbedding(
-        frame_id=42,
-        server_time_ns=123,
-        num_tokens=8,
-        embed_dim=16,
-        embedding_fp16=float32_array_to_fp16_bytes(arr),
-        inference_ms=12.5,
-        model_version='dummy',
-    )
-    msg = proto_action_embedding_to_msg(proto)
-    assert isinstance(msg, ActionEmbeddingMsg)
-    assert msg.frame_id == 42
-    assert msg.num_tokens == 8
-    assert msg.embed_dim == 16
-    assert len(msg.embedding) == 8 * 16
-    np.testing.assert_allclose(np.array(msg.embedding), arr, atol=1e-2)
-    assert msg.inference_ms == pytest.approx(12.5)
-    assert msg.model_version == 'dummy'
