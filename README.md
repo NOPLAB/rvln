@@ -1,8 +1,8 @@
 # rvla
 
-[![ci-lint](https://github.com/NOPLAB/raspicat-vla/actions/workflows/ci-lint.yml/badge.svg?branch=main)](https://github.com/NOPLAB/raspicat-vla/actions/workflows/ci-lint.yml)
-[![ci-flutter](https://github.com/NOPLAB/raspicat-vla/actions/workflows/ci-flutter.yml/badge.svg?branch=main)](https://github.com/NOPLAB/raspicat-vla/actions/workflows/ci-flutter.yml)
-[![ci-web](https://github.com/NOPLAB/raspicat-vla/actions/workflows/ci-web.yml/badge.svg?branch=main)](https://github.com/NOPLAB/raspicat-vla/actions/workflows/ci-web.yml)
+[![ci-lint](https://github.com/NOPLAB/rvla/actions/workflows/ci-lint.yml/badge.svg?branch=main)](https://github.com/NOPLAB/rvla/actions/workflows/ci-lint.yml)
+[![ci-flutter](https://github.com/NOPLAB/rvla/actions/workflows/ci-flutter.yml/badge.svg?branch=main)](https://github.com/NOPLAB/rvla/actions/workflows/ci-flutter.yml)
+[![ci-web](https://github.com/NOPLAB/rvla/actions/workflows/ci-web.yml/badge.svg?branch=main)](https://github.com/NOPLAB/rvla/actions/workflows/ci-web.yml)
 
 ROS 2 Humble VLA navigation for Raspberry Pi Cat. Nodes connect through ROS 2
 topics and can run either natively on the host or in Docker.

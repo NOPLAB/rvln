@@ -320,7 +320,7 @@ class VLAEdgeNode(LifecycleNode):
         launch-side retry loop keeps re-running configure until the device is
         available.
         """
-        opened = self._camera.open(
+        opened = self._camera.open_device(
             device,
             width=int(self.get_parameter('camera_width').value),
             height=int(self.get_parameter('camera_height').value),

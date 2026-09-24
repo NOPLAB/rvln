@@ -20,7 +20,7 @@ class V4L2CameraCapture:
         self._thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
 
-    def open(self, device: str, *, width: int, height: int, fps: float) -> bool:
+    def open_device(self, device: str, *, width: int, height: int, fps: float) -> bool:
         cap = cv2.VideoCapture(device, cv2.CAP_V4L2)
         if not cap.isOpened():
             cap.release()
