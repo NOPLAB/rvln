@@ -6,6 +6,7 @@ real Edge Adapter PyTorch model (model-specific, e.g. AsyncVLA / OmniVLA).
 """
 from __future__ import annotations
 
+import math
 import time
 from typing import Optional
 
@@ -14,7 +15,7 @@ import numpy as np
 import rclpy
 from cv_bridge import CvBridge
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
-from nav_msgs.msg import Path
+from nav_msgs.msg import Odometry, Path
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.lifecycle import LifecycleNode, TransitionCallbackReturn, State
@@ -77,6 +78,27 @@ def _quat_to_yaw(qx: float, qy: float, qz: float, qw: float) -> float:
     return float(np.arctan2(siny_cosp, cosy_cosp))
 
 
+def _pose_goal_in_base_link(goal: GoalSpecMsg, odom: Odometry) -> GoalSpecMsg:
+    """Convert a fixed odom goal into a robot-relative inference goal."""
+    robot = odom.pose.pose
+    target = goal.pose.pose
+    yaw = _quat_to_yaw(robot.orientation.x, robot.orientation.y,
+                       robot.orientation.z, robot.orientation.w)
+    dx = target.position.x - robot.position.x
+    dy = target.position.y - robot.position.y
+    relative = GoalSpecMsg()
+    relative.mode = goal.mode
+    relative.pose.header.frame_id = 'base_link'
+    relative.pose.pose.position.x = math.cos(yaw) * dx + math.sin(yaw) * dy
+    relative.pose.pose.position.y = -math.sin(yaw) * dx + math.cos(yaw) * dy
+    goal_yaw = _quat_to_yaw(target.orientation.x, target.orientation.y,
+                            target.orientation.z, target.orientation.w)
+    relative_yaw = goal_yaw - yaw
+    relative.pose.pose.orientation.z = math.sin(relative_yaw / 2.0)
+    relative.pose.pose.orientation.w = math.cos(relative_yaw / 2.0)
+    return relative
+
+
 class VLAEdgeNode(LifecycleNode):
 
     def __init__(self) -> None:
@@ -120,6 +142,9 @@ class VLAEdgeNode(LifecycleNode):
         self._path_pub = None
         self._embedding_pub = None
         self._status_pub = None
+        self._odom_sub = None
+        self._latest_odom: Optional[Odometry] = None
+        self._odom_received_ns = 0
 
     # ----------------------------------------------------------------- params
 
@@ -148,6 +173,8 @@ class VLAEdgeNode(LifecycleNode):
         self.declare_parameter('camera_height', 0)
         self.declare_parameter('camera_fps', 0.0)
         self.declare_parameter('goal_topic', '/rvln/goal')
+        self.declare_parameter('odom_topic', '/odom')
+        self.declare_parameter('odom_max_age_sec', 1.0)
         self.declare_parameter('path_topic', '/rvln/predicted_path')
         self.declare_parameter('status_topic', '/rvln/status')
         self.declare_parameter('embedding_debug_topic', '/rvln/embedding')
@@ -238,6 +265,10 @@ class VLAEdgeNode(LifecycleNode):
             GoalSpecMsg, goal_topic, self._on_goal, goal_qos,
             callback_group=self._io_group,
         )
+        self._odom_sub = self.create_subscription(
+            Odometry, self.get_parameter('odom_topic').value, self._on_odom, 10,
+            callback_group=self._io_group,
+        )
         self._path_pub = self.create_publisher(Path, path_topic, 10)
         self._status_pub = self.create_publisher(DiagnosticArray, status_topic, 10)
         if self.get_parameter('publish_embedding_debug').value:
@@ -300,6 +331,11 @@ class VLAEdgeNode(LifecycleNode):
         if self._goal_sub is not None:
             self.destroy_subscription(self._goal_sub)
             self._goal_sub = None
+        if self._odom_sub is not None:
+            self.destroy_subscription(self._odom_sub)
+            self._odom_sub = None
+        self._latest_odom = None
+        self._odom_received_ns = 0
         for pub_attr in ('_path_pub', '_status_pub', '_embedding_pub'):
             pub = getattr(self, pub_attr)
             if pub is not None:
@@ -390,6 +426,16 @@ class VLAEdgeNode(LifecycleNode):
             if edge_goal is not None:
                 self._adapter.set_goal(edge_goal)
 
+    def _on_odom(self, msg: Odometry) -> None:
+        self._latest_odom = msg
+        self._odom_received_ns = time.monotonic_ns()
+
+    def _fresh_odom(self) -> Optional[Odometry]:
+        max_age_ns = int(float(self.get_parameter('odom_max_age_sec').value) * 1e9)
+        if time.monotonic_ns() - self._odom_received_ns > max_age_ns:
+            return None
+        return self._latest_odom
+
     # ------------------------------------------------------------ tick: send
 
     def _fresh_image(self) -> Optional[np.ndarray]:
@@ -416,6 +462,24 @@ class VLAEdgeNode(LifecycleNode):
         goal, generation = self._observations.snapshot_goal()
         if img is None or goal is None:
             return
+        if goal.mode == GoalSpecMsg.MODE_POSE:
+            frame = goal.pose.header.frame_id or 'base_link'
+            if frame == 'odom':
+                odom = self._fresh_odom()
+                if odom is None:
+                    self.get_logger().warn(
+                        'pose goal is in odom but odometry is unavailable or stale; '
+                        'skipping observation',
+                        throttle_duration_sec=2.0,
+                    )
+                    return
+                goal = _pose_goal_in_base_link(goal, odom)
+            elif frame != 'base_link':
+                self.get_logger().warn(
+                    f'unsupported pose goal frame {frame!r}; skipping observation',
+                    throttle_duration_sec=2.0,
+                )
+                return
         size = self.get_parameter('image_size').value
         quality = int(self.get_parameter('jpeg_quality').value)
         try:
@@ -482,6 +546,12 @@ class VLAEdgeNode(LifecycleNode):
         path = Path()
         path.header.frame_id = 'base_link'
         path.header.stamp = self.get_clock().now().to_msg()
+
+        goal, _ = self._observations.snapshot_goal()
+        if (goal is not None and goal.mode == GoalSpecMsg.MODE_POSE
+                and goal.pose.header.frame_id == 'odom' and self._fresh_odom() is None):
+            self._path_pub.publish(path)
+            return
 
         if status in (EmbeddingCache.STATUS_WAITING, EmbeddingCache.STATUS_STALE):
             # Empty path → follower emits zero Twist (safe-stop).

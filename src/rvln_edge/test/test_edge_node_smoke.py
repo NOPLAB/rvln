@@ -4,7 +4,7 @@ import time
 
 import pytest
 import rclpy
-from nav_msgs.msg import Path
+from nav_msgs.msg import Odometry, Path
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.qos import DurabilityPolicy, QoSProfile
 from sensor_msgs.msg import Image
@@ -57,6 +57,7 @@ def test_edge_node_publishes_path(ros_runtime):
         goal_qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         goal_pub = pub_node.create_publisher(GoalSpecMsg, '/rvln/goal', goal_qos)
         img_pub = pub_node.create_publisher(Image, '/camera/image_raw', 1)
+        odom_pub = pub_node.create_publisher(Odometry, '/odom', 10)
 
         received_paths = []
         path_node = rclpy.create_node('test_sub')
@@ -77,10 +78,16 @@ def test_edge_node_publishes_path(ros_runtime):
         goal.pose = PoseStamped()
         goal.pose.header.frame_id = 'odom'
         goal.pose.pose.position.x = 1.0
+        goal.pose.pose.orientation.w = 1.0
         goal_pub.publish(goal)
+
+        odom = Odometry()
+        odom.header.frame_id = 'odom'
+        odom.pose.pose.orientation.w = 1.0
 
         deadline = time.time() + 5.0
         while time.time() < deadline and not any(p.poses for p in received_paths):
+            odom_pub.publish(odom)
             img_pub.publish(_make_dummy_image_msg())
             time.sleep(0.05)
 
