@@ -14,7 +14,7 @@ syntax = "proto3";
 package rvln.edge;
 
 service EdgeActionService {
-  // スマホ -> Pi: action chunk を stream 送信、Pi -> スマホ: 制御 ACK を stream 返却。
+  // Phone streams action chunks to Pi; Pi streams control acknowledgements back.
   rpc StreamActions(stream ActionChunk) returns (stream ControlAck);
 }
 

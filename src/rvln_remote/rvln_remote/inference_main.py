@@ -56,9 +56,9 @@ def _build_backend(args: argparse.Namespace):
             device=args.device,
         )
     if args.backend == 'movla':
-        # movla (external/movla): LFM2.5-VL ベースの Stage A ポリシーをこの
-        # ボックスで走らせてウェイポイントを edge に流す。--vla-path は
-        # checkpoint.pt + normalizer.json を含むディレクトリ; --resume-step は未使用。
+        # Run the LFM2.5-VL-based Stage A policy on this remote box and stream
+        # waypoints to the edge. --vla-path contains checkpoint.pt and
+        # normalizer.json; --resume-step is unused.
         try:
             from .backends.movla import MovlaBackend
         except ImportError as exc:
@@ -122,8 +122,8 @@ def main() -> None:
     parser.add_argument('--device', default='cuda:0')
     # OmniVLA-edge (Path 3) only. --vla-path doubles as the .pth weights file.
     parser.add_argument('--clip-type', default='ViT-B/32')
-    # movla only: 正規化統計とプロンプト/数値条件に使うエンボディメント id
-    # (normalizer.json のキーであること。raspicat は学習データに無い)。
+    # movla only: embodiment ID for normalization and prompt conditioning.
+    # It must be a normalizer.json key; raspicat is absent from training data.
     parser.add_argument('--embodiment', default='turtlebot2')
 
     args, ros_args = parser.parse_known_args()

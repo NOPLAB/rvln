@@ -1,23 +1,10 @@
-"""edge_action_grpc_node — スマホ (Flutter app) からの action chunk を受ける gRPC サーバ。
+"""Bridge Flutter gRPC action chunks to nav_msgs/Path on the Pi.
 
-``proto/edge_action.proto`` の ``EdgeActionService.StreamActions`` の Pi 側実装
-(mobile_port_spec.md §4 Phase 4)。app/ の ``GrpcEdgeClient`` が stream 送信する
-``ActionChunk`` (fp16) を受信し、既存の ``trajectory_to_path`` で
-``nav_msgs/Path`` に変換して ``/rvln/predicted_path`` へ流す。追従と
-安全停止は既存の ``path_follower_node`` がそのまま担う (空 Path = safe-stop)。
-
-``edge_action_ws_node.py`` (Web 版ブリッジ) の gRPC 双子。トランスポートと
-メッセージ形式 (protobuf vs JSON+base64) 以外は同じ設計を保つ:
-
-- **ウォッチドッグ**: ``chunk_max_age_sec`` 以内に新しい chunk が来なければ
-  空 Path を 1 回発行して follower を safe-stop させる。
-- **受信スレッドから直接 publish しない**: gRPC servicer スレッドは最新 chunk
-  をロック付きスロットへ置くだけで、publish は ROS タイマが行う
-  (grpc_client.py の coalesce+pace の受け側に相当)。
-
-LifecycleNode にはしない: 通信サーバーはプロセスと同じ期間動き、停止はウォッチドッグと
-follower が担う。``grpc`` はサーバ起動時に遅延 import する (単体テストは
-decode / ウォッチドッグを grpc 依存なしで直接叩ける)。
+Implements EdgeActionService.StreamActions from proto/edge_action.proto. The
+path follower handles tracking and safe-stop (an empty Path). This matches the
+WebSocket bridge apart from transport and message format. A watchdog publishes
+one empty Path after the chunk timeout. The receive thread only updates a
+locked slot; a ROS timer publishes at a separate rate. Import grpc at startup.
 """
 from __future__ import annotations
 
@@ -39,11 +26,10 @@ def decode_action_chunk(
     waypoint_spacing: float,
     frame_id: str = 'base_link',
 ) -> Tuple[Path, int, str]:
-    """proto ``ActionChunk`` -> (Path, 送信側 frame 連番, goal_id)。
+    """Convert a proto action chunk to a Path, sender frame, and goal ID.
 
-    ``scaled_to_m`` が真なら x,y は既にメートル (spacing=1.0)、偽なら
-    waypoint-spacing 単位なので ``waypoint_spacing`` を掛ける。
-    malformed は ValueError (呼び出し側が ack にエラーを載せる)。
+    Convert waypoint units to meters unless scaled_to_m is true. Malformed input
+    raises ValueError for the caller to include in its acknowledgement.
     """
     num_tokens = int(chunk.num_tokens)
     embed_dim = int(chunk.embed_dim)
@@ -56,7 +42,7 @@ def decode_action_chunk(
 
 
 class EdgeActionGrpcNode(Node):
-    """gRPC server -> nav_msgs/Path bridge (ウォッチドッグ付き)。"""
+    """gRPC server to nav_msgs/Path bridge with a watchdog."""
 
     def __init__(self) -> None:
         super().__init__('edge_action_grpc')
@@ -65,7 +51,7 @@ class EdgeActionGrpcNode(Node):
         self.declare_parameter('path_topic', '/rvln/predicted_path')
         self.declare_parameter('frame_id', 'base_link')
         self.declare_parameter('chunk_max_age_sec', 1.0)
-        # モデル出力 (spacing 単位) -> メートル。omnivla-edge の 0.1 m/unit。
+        # Convert model output units to meters (0.1 m/unit for OmniVLA-edge).
         self.declare_parameter('waypoint_spacing', 0.1)
         self.declare_parameter('publish_rate_hz', 20.0)
 
@@ -84,14 +70,14 @@ class EdgeActionGrpcNode(Node):
         self._timer = self.create_timer(1.0 / rate, self._on_timer)
         self._grpc_server = None
 
-    # --------------------------------------------------- 受信 (grpcスレッド)
+    # Receive on the gRPC thread.
 
     def handle_chunk(
         self,
         chunk: edge_action_pb2.ActionChunk,
         now: Optional[float] = None,
     ) -> edge_action_pb2.ControlAck:
-        """1 chunk を処理し ControlAck を返す。"""
+        """Handle one chunk and return its ControlAck."""
         now = time.monotonic() if now is None else now
         try:
             path, frame_seq, goal_id = decode_action_chunk(
@@ -106,32 +92,32 @@ class EdgeActionGrpcNode(Node):
         previous = self._bridge.receive(path, goal_id, now)
         if previous is not None:
             self.get_logger().info(f'goal changed: {previous!r} -> {goal_id!r}')
-        # from_model=false (アプリに ONNX 未配置、ダミー軌道) もそのまま追従する。
-        # cmd_vel preview (非モータートピック) での配管確認が主用途のため。実モーター
-        # 運用 (--drive-motors) では ack の status で送信側に見えるようにしておく。
+        # Follow dummy trajectories for non-motor cmd_vel preview tests.
+        # Preview normally publishes to a non-motor topic.
+        # Expose dummy output in the ack status during motor operation.
         status = 'ok' if chunk.from_model else 'ok-dummy'
         return edge_action_pb2.ControlAck(
             frame_id=frame_seq, following=True, status=status)
 
-    # ------------------------------------------------- publish (ROSタイマ)
+    # Publish on the ROS timer.
 
     def _on_timer(self) -> None:
         self._tick(time.monotonic())
 
     def _tick(self, now: float) -> None:
-        """最新 chunk の publish とウォッチドッグ。テストから直接叩ける。"""
+        """Publish the latest chunk and run the watchdog; callable in tests."""
         path, timed_out = self._bridge.tick(now)
         if path is not None:
             path.header.stamp = self.get_clock().now().to_msg()
             self._pub.publish(path)
         if timed_out:
             self.get_logger().warning(
-                f'no chunk for > {self._max_age_sec:.1f}s -> 空 Path で safe-stop')
+                f'no chunk for > {self._max_age_sec:.1f}s -> empty Path for safe-stop')
 
     # ------------------------------------------------------------- gRPC server
 
     def start_server(self) -> None:
-        """gRPC サーバを起動する (grpc が自前のスレッドプールで受ける)。"""
+        """Start the gRPC server using its own thread pool."""
         import grpc
 
         from rvln_proto import edge_action_pb2_grpc

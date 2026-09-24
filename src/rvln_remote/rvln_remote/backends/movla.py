@@ -1,32 +1,19 @@
-"""movla remote backend — LFM2.5-VL ベースの自律移動 VLA (external/movla).
+"""Remote movla backend based on LFM2.5-VL and a flow matching expert.
 
-movla (https://github.com/NOPLAB/movla) の Stage A ポリシー
-(凍結 LFM2.5-VL-1.6B バックボーン + flow matching action expert) をこの GPU/CPU
-ボックスで走らせ、予測ウェイポイントチャンクを gRPC で edge に流す。checkpoint は
-``{checkpoint_dir}/checkpoint.pt`` (expert + state_encoder + expert_cfg) と
-``normalizer.json`` (scripts/download_checkpoints.sh movla で取得)。
+Runs the Stage A policy from external/movla and sends waypoint chunks to the
+edge over gRPC. The checkpoint directory contains checkpoint.pt and
+normalizer.json (fetched by scripts/download_checkpoints.sh movla).
 
-ワイヤ契約は OmniVLA-edge Path 3 と同じ「ウェイポイント直送」: モデル出力
-``(horizon, 3)`` の (x, y, yaw) [m, rad] を ``(horizon, 4)`` の
-(x, y, cos(yaw), sin(yaw)) float32 に詰め替えて ActionEmbedding として返すので、
-edge 側は path-only の ``adapter_kind=omnivla`` がそのまま使える (x/y はメートル)。
+As in OmniVLA-edge Path 3, convert model output (x, y, yaw) to float32
+(x, y, cos(yaw), sin(yaw)) for the path-only OmniVLA adapter. x/y stay in meters.
 
-学習時条件との対応 (movla の GnmDatasetBase.__getitem__ が定義):
-
-- 画像: 過去サムネイル ``context_frames`` 枚 + 現在フレーム。ここでは受信
-  フレームのリングバッファで近似する (学習時は ~0.3m 間隔のストライド)。
-- history / velocity: リモートにはオドメトリが来ないため停止状態パディング
-  (history は [0,0,1,0] 行、v=0) に固定する。学習データの走行開始点と同分布。
-- prev_tail: フレーム間の座標変換が取れないため常に無効 (学習時も確率
-  prev_drop_p で落としており in-distribution)。
-- instruction: goal の言語指示をそのまま使う。Stage A はテンプレート指示
-  ("go straight ahead" / "turn left ahead" / "turn right ahead") のみで
-  学習されている点に注意。goal 画像・pose 目標は未対応 (無視して警告)。
-- embodiment: raspicat は学習データに無いので、normalizer 統計を持つ機体
-  (既定 turtlebot2 — 小型差動二輪で最も近い) の spec と統計を使う。
-
-movla のソース (movla_v1 / movla_libs) は Dockerfile.movla が
-/opt/movla/src に vendor し、compose.yaml が PYTHONPATH に載せる。
+Training inputs: context frames approximate a 0.3 m stride with a ring buffer.
+With no remote odometry, history is padded with stationary rows and zero
+velocity. Previous-tail conditioning is disabled without frame transforms.
+Stage A was trained only on straight/left/right instruction templates; image
+and pose goals are unsupported. Raspicat is absent from the training data, so
+the default turtlebot2 embodiment supplies normalization statistics and spec.
+Dockerfile.movla vendors the movla sources under /opt/movla/src.
 """
 from __future__ import annotations
 
@@ -46,7 +33,7 @@ _DEFAULT_INSTRUCTION = 'go straight ahead'
 
 
 def _status_line(cum_yaw_deg: float = 0.0, v_mps: float = 0.0) -> str:
-    """学習時の status 行 (GnmDatasetBase.__getitem__) と同一書式を再現する。"""
+    """Build the status row in the training GnmDatasetBase format."""
     if cum_yaw_deg > 20.0:
         turning = 'turning left'
     elif cum_yaw_deg < -20.0:
@@ -57,10 +44,9 @@ def _status_line(cum_yaw_deg: float = 0.0, v_mps: float = 0.0) -> str:
 
 
 def _chunk_to_embedding(waypoints_xyyaw: np.ndarray) -> np.ndarray:
-    """(H, 3) の (x, y, yaw) → (H, 4) の (x, y, cos, sin) float32。
+    """Convert (H, 3) x/y/yaw waypoints to (H, 4) x/y/cos/sin float32.
 
-    x/y はモデル出力のままメートル。edge の path-only アダプタ
-    (`trajectory_to_path`, spacing=1) がそのまま Path に描ける形。
+    Keep x/y in meters for the path-only edge adapter.
     """
     wp = np.asarray(waypoints_xyyaw, dtype=np.float32)
     if wp.ndim != 2 or wp.shape[-1] != 3:
@@ -74,7 +60,7 @@ def _chunk_to_embedding(waypoints_xyyaw: np.ndarray) -> np.ndarray:
 
 
 class MovlaBackend(VLABackend):
-    """movla Stage A ポリシーをリモートで走らせてウェイポイントチャンクを返す。"""
+    """Run the movla Stage A policy and return waypoint chunks."""
 
     def __init__(
         self,
@@ -86,8 +72,8 @@ class MovlaBackend(VLABackend):
         context_frames: int = 3,
         context_size: int = 192,
     ) -> None:
-        # torch / transformers / movla はここで初めて import する
-        # (推論ノードの --help やユニットテストを重い依存なしで通すため)。
+        # Delay heavyweight imports until backend construction.
+        # Keep --help and unit tests usable without model dependencies.
         import collections
         from pathlib import Path
 
@@ -111,7 +97,7 @@ class MovlaBackend(VLABackend):
             raise ValueError(f'embodiment {embodiment!r} not in movla _SPECS')
 
         expert_cfg = ActionExpertConfig(**ckpt['expert_cfg'])
-        # bf16 は CUDA 前提の既定。CPU では fp32 の方が速く数値も安全。
+        # Use fp32 on CPU; bf16 is the CUDA default.
         dtype = torch.bfloat16 if device.startswith('cuda') else torch.float32
         if device.startswith('cuda'):
             torch.set_float32_matmul_precision('high')
@@ -130,7 +116,7 @@ class MovlaBackend(VLABackend):
         self._device = str(device)
         self._checkpoint_dir = str(ckpt_dir)
         self._context_size = int(context_size)
-        # 過去フレームのサムネイル (古い順)。学習時の context_frames 枚に対応。
+        # Past thumbnails in oldest-first order, up to context_frames.
         self._past = collections.deque(maxlen=int(context_frames))
         self._warned_goal = False
 
@@ -149,7 +135,7 @@ class MovlaBackend(VLABackend):
         self,
         *,
         current_image: PIL.Image.Image,
-        past_image: Optional[PIL.Image.Image] = None,  # noqa: ARG002 (履歴は内部リングバッファ)
+        past_image: Optional[PIL.Image.Image] = None,  # noqa: ARG002
         lang_instruction: str,
         goal_image: Optional[PIL.Image.Image],
         goal_pose_xy_theta: Optional[Tuple[float, float, float]],
@@ -168,9 +154,9 @@ class MovlaBackend(VLABackend):
 
         batch = self._build_batch(images, instruction)
         with torch.no_grad():
-            chunk = self._policy.predict_chunk(batch)  # (1, H, 3) 生値 m/rad
+            chunk = self._policy.predict_chunk(batch)  # Shape (1, H, 3), meters/radians.
 
-        # 次回の文脈用に現在フレームをサムネイル化して積む。
+        # Thumbnail the current frame for the next inference context.
         thumb = current.copy()
         thumb.thumbnail((self._context_size, self._context_size))
         self._past.append(thumb)
@@ -193,10 +179,9 @@ class MovlaBackend(VLABackend):
     # ---------------------------------------------------------------- helpers
 
     def _context_images(self, current: PIL.Image.Image) -> list:
-        """学習時の画像構成 (過去サムネイル×N + 現在フレーム) を再現する。
+        """Build the training image sequence from past thumbnails and current.
 
-        履歴が足りない間は最古のフレーム (無ければ現在フレーム) で左パディング —
-        学習時の ``max(0, cur - j*stride)`` と同じ振る舞い。
+        Pad missing history with the oldest available image, as in training.
         """
         thumbs = list(self._past)
         if not thumbs:
@@ -215,7 +200,7 @@ class MovlaBackend(VLABackend):
         cfg = self._expert_cfg
         h = int(cfg.horizon)
         history = torch.zeros(1, int(cfg.history_len), 4)
-        history[:, :, 2] = 1.0  # 停止パディング: (Δx, Δy, cosΔyaw, sinΔyaw)
+        history[:, :, 2] = 1.0  # Stationary padding: (dx, dy, cos(dyaw), sin(dyaw)).
         return NavBatch(
             vlm_inputs=[VLMInputs(
                 images=images,
@@ -234,7 +219,7 @@ class MovlaBackend(VLABackend):
         ).to(self._device)
 
 
-# Stage A の学習に使われた指示テンプレート (これ以外の自由文は分布外)。
+# Only these instruction templates were used in Stage A training.
 INSTRUCTION_TEMPLATES = (
     'go straight ahead',
     'turn left ahead',

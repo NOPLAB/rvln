@@ -1,8 +1,7 @@
-"""edge_action_grpc_node のユニットテスト。
+"""Unit tests for edge_action_grpc_node.
 
-grpc サーバ起動には依存しない: proto decode (`decode_action_chunk`) と、
-`handle_chunk` / `_tick` を合成時刻で直接叩いてウォッチドッグを検証する
-(test_edge_action_ws.py / test_path_follower_hold.py と同じ流儀)。
+Exercise proto decoding and the watchdog with synthetic time, without
+starting a gRPC server (as in the WebSocket and follower tests).
 """
 from types import SimpleNamespace
 
@@ -51,7 +50,7 @@ def test_decode_scales_by_waypoint_spacing():
     assert goal_id == 'text:door'
     assert path.header.frame_id == 'base_link'
     assert len(path.poses) == 8
-    # 2 行目 = (4, 5, 6, 7): x,y は spacing 単位 -> ×0.1、cos/sin はそのまま。
+    # Second row: scale x/y by 0.1; leave cos/sin unchanged.
     p1 = path.poses[1].pose
     assert p1.position.x == pytest.approx(0.4, abs=1e-3)
     assert p1.position.y == pytest.approx(0.5, abs=1e-3)
@@ -68,7 +67,7 @@ def test_decode_scaled_to_m_uses_unity_spacing():
 @pytest.mark.parametrize('make_bad', [
     lambda: edge_action_pb2.ActionChunk(num_tokens=0, embed_dim=4),
     lambda: edge_action_pb2.ActionChunk(num_tokens=8, embed_dim=2),
-    # byte 長と num_tokens*embed_dim の不一致。
+    # Byte length does not match num_tokens * embed_dim.
     lambda: edge_action_pb2.ActionChunk(
         num_tokens=8, embed_dim=4, values_fp16=b'\x00\x00'),
 ])
@@ -94,19 +93,19 @@ def test_chunk_is_published_once_then_watchdog_stops(ros_runtime):
         assert ack.following is True
         assert ack.frame_id == 7
 
-        # 最新 chunk は次の tick で 1 回だけ publish される。
+        # Publish the latest chunk once on the next tick.
         node._tick(0.05)
         assert len(published) == 1
         assert len(published[0].poses) == 8
         node._tick(0.10)
-        assert len(published) == 1  # pending は消費済み・まだ新鮮
+        assert len(published) == 1  # Pending chunk consumed, but still fresh.
 
-        # chunk_max_age_sec (既定 1.0s) 超過 -> 空 Path を 1 回だけ発行。
+        # After the default 1.0 s timeout, publish one empty Path.
         node._tick(2.0)
         assert len(published) == 2
         assert len(published[1].poses) == 0
         node._tick(3.0)
-        assert len(published) == 2  # 停止済み、連打しない
+        assert len(published) == 2  # Stopped; do not repeatedly publish.
     finally:
         node.destroy_node()
 
@@ -132,12 +131,12 @@ def test_malformed_chunk_acks_error_and_never_publishes(ros_runtime):
         bad = edge_action_pb2.ActionChunk(frame_id=3, num_tokens=8, embed_dim=2)
         ack = node.handle_chunk(bad, now=0.0)
         assert ack.status.startswith('error:')
-        assert ack.following is False  # まだ何も追従していない
+        assert ack.following is False  # Nothing has been followed yet.
         assert ack.frame_id == 3
 
         node._tick(0.2)
         node._tick(5.0)
-        assert published == []  # chunk が来ていないのでウォッチドッグも発火しない
+        assert published == []  # No chunk has arrived, so the watchdog stays idle.
     finally:
         node.destroy_node()
 

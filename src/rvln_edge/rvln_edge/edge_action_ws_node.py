@@ -1,24 +1,10 @@
-"""edge_action_ws_node — Web/スマホからの action chunk を受ける WebSocket ブリッジ。
+"""Bridge Web/mobile WebSocket action chunks to nav_msgs/Path.
 
-web/ (rvln-web) の ``WsEdgeClient`` が送る JSON action chunk
-(docs/design/web_port_spec.md の WS プロトコル。``proto/edge_action.proto`` の
-``ActionChunk``/``ControlAck`` と意味的に同一で、values は fp16+base64) を受信し、
-既存の ``trajectory_to_path`` で ``nav_msgs/Path`` に変換して
-``/rvln/predicted_path`` へ流す。追従と安全停止は既存の
-``path_follower_node`` がそのまま担う (空 Path = safe-stop)。
-
-不変条件 (CLAUDE.md / mobile_port_spec §4 の踏襲):
-
-- **ウォッチドッグ**: ``chunk_max_age_sec`` 以内に新しい chunk が来なければ
-  空 Path を 1 回発行して follower を safe-stop させる。
-- **受信スレッドから直接 publish しない**: websockets (asyncio) スレッドは
-  最新 chunk をロック付きスロットへ置くだけで、publish は ROS タイマが行う。
-  受信レートと publish レートを分離し、速すぎる送信側が ROS 側を詰まらせない
-  (grpc_client.py の coalesce+pace の受け側に相当)。
-
-LifecycleNode にはしない: 通信サーバーはプロセスと同じ期間動き、停止はウォッチドッグと
-follower が担う。``websockets`` はサーバ起動時に遅延 import する (単体テストは
-decode / ウォッチドッグを ws 依存なしで直接叩ける)。
+The JSON protocol mirrors ActionChunk and ControlAck; values use fp16+base64.
+The path follower handles tracking and safe-stop (an empty Path). A watchdog
+publishes one empty Path after the chunk timeout. The WebSocket thread only
+updates a locked slot; a ROS timer publishes at a separate rate. The server
+lives with the process, and websockets is imported only when it starts.
 """
 from __future__ import annotations
 
@@ -41,11 +27,10 @@ def decode_chunk_msg(
     waypoint_spacing: float,
     frame_id: str = 'base_link',
 ) -> Tuple[Path, int, str]:
-    """``action_chunk`` JSON dict -> (Path, 送信側 frame 連番, goal_id)。
+    """Convert a JSON action chunk to a Path, sender frame, and goal ID.
 
-    ``scaled_to_m`` が真なら x,y は既にメートル (spacing=1.0)、偽なら
-    waypoint-spacing 単位なので ``waypoint_spacing`` を掛ける。
-    malformed は ValueError (呼び出し側が ack にエラーを載せる)。
+    Convert waypoint units to meters unless scaled_to_m is true. Malformed input
+    raises ValueError for the caller to include in its acknowledgement.
     """
     if msg.get('type') != 'action_chunk':
         raise ValueError(f"unexpected type: {msg.get('type')!r}")
@@ -53,7 +38,7 @@ def decode_chunk_msg(
         num_tokens = int(msg['num_tokens'])
         embed_dim = int(msg['embed_dim'])
         raw = base64.b64decode(msg['values_fp16_b64'], validate=True)
-    except (KeyError, TypeError, ValueError) as e:  # binascii.Error は ValueError
+    except (KeyError, TypeError, ValueError) as e:  # binascii.Error is a ValueError.
         raise ValueError(f'malformed action_chunk: {e}') from e
     path = decode_path(
         raw, num_tokens=num_tokens, embed_dim=embed_dim,
@@ -64,7 +49,7 @@ def decode_chunk_msg(
 
 
 class EdgeActionWsNode(Node):
-    """WebSocket server -> nav_msgs/Path bridge (ウォッチドッグ付き)。"""
+    """WebSocket server to nav_msgs/Path bridge with a watchdog."""
 
     def __init__(self) -> None:
         super().__init__('edge_action_ws')
@@ -73,7 +58,7 @@ class EdgeActionWsNode(Node):
         self.declare_parameter('path_topic', '/rvln/predicted_path')
         self.declare_parameter('frame_id', 'base_link')
         self.declare_parameter('chunk_max_age_sec', 1.0)
-        # モデル出力 (spacing 単位) -> メートル。omnivla-edge の 0.1 m/unit。
+        # Convert model output units to meters (0.1 m/unit for OmniVLA-edge).
         self.declare_parameter('waypoint_spacing', 0.1)
         self.declare_parameter('publish_rate_hz', 20.0)
 
@@ -92,10 +77,10 @@ class EdgeActionWsNode(Node):
         self._timer = self.create_timer(1.0 / rate, self._on_timer)
         self._ws_thread: Optional[threading.Thread] = None
 
-    # ------------------------------------------------------------ 受信 (wsスレッド)
+    # Receive on the WebSocket thread.
 
     def handle_message(self, text: str, now: Optional[float] = None) -> dict:
-        """1 メッセージを処理し ControlAck 相当の dict を返す。"""
+        """Handle one message and return a ControlAck-shaped dictionary."""
         now = time.monotonic() if now is None else now
         try:
             msg = json.loads(text)
@@ -115,25 +100,25 @@ class EdgeActionWsNode(Node):
         return {'type': 'ack', 'frame_id': frame_seq, 'following': True,
                 'status': 'ok'}
 
-    # ------------------------------------------------------- publish (ROSタイマ)
+    # Publish on the ROS timer.
 
     def _on_timer(self) -> None:
         self._tick(time.monotonic())
 
     def _tick(self, now: float) -> None:
-        """最新 chunk の publish とウォッチドッグ。テストから直接叩ける。"""
+        """Publish the latest chunk and run the watchdog; callable in tests."""
         path, timed_out = self._bridge.tick(now)
         if path is not None:
             path.header.stamp = self.get_clock().now().to_msg()
             self._pub.publish(path)
         if timed_out:
             self.get_logger().warning(
-                f'no chunk for > {self._max_age_sec:.1f}s -> 空 Path で safe-stop')
+                f'no chunk for > {self._max_age_sec:.1f}s -> empty Path for safe-stop')
 
     # ------------------------------------------------------------- WS server
 
     def start_server(self) -> None:
-        """websockets サーバを daemon スレッドで起動する。"""
+        """Start the WebSocket server in a daemon thread."""
         self._ws_thread = threading.Thread(
             target=self._serve_forever, name='edge_action_ws', daemon=True)
         self._ws_thread.start()
@@ -142,18 +127,18 @@ class EdgeActionWsNode(Node):
         import asyncio
 
         try:
-            # websockets >= 13 (新 asyncio 実装) / 9-12 (legacy) 両対応。
+            # Support the asyncio API (13+) and the legacy API (9-12).
             try:
                 from websockets.asyncio.server import serve  # type: ignore
             except ImportError:
                 from websockets.server import serve  # type: ignore
         except ImportError:
             self.get_logger().error(
-                'python3-websockets がありません。WS サーバは起動しません '
+                'python3-websockets is missing; WS server cannot start '
                 '(pip install websockets)')
             return
 
-        # v9 は handler(ws, path)、v14+ は handler(ws) で呼ぶ — 既定引数で両対応。
+        # The optional path parameter supports v9 and v14+ handler APIs.
         async def handler(websocket, path=None):  # noqa: ANN001
             peer = getattr(websocket, 'remote_address', '?')
             self.get_logger().info(f'client connected: {peer}')
@@ -161,7 +146,7 @@ class EdgeActionWsNode(Node):
                 async for text in websocket:
                     ack = self.handle_message(text)
                     await websocket.send(json.dumps(ack))
-            except Exception as e:  # ConnectionClosed 含む — 切断は正常系
+            except Exception as e:  # ConnectionClosed is expected on disconnect.
                 self.get_logger().debug(f'client {peer} closed: {e}')
             finally:
                 self.get_logger().info(f'client disconnected: {peer}')
@@ -170,7 +155,7 @@ class EdgeActionWsNode(Node):
             async with serve(handler, self._host, self._port):
                 self.get_logger().info(
                     f'EdgeActionService(WS) listening on ws://{self._host}:{self._port}')
-                await asyncio.Future()  # 終了はプロセスごと (daemon thread)
+                await asyncio.Future()  # The daemon thread exits with the process.
 
         try:
             asyncio.run(serve_main())

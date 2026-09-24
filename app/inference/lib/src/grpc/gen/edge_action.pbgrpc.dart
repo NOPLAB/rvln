@@ -32,7 +32,7 @@ class EdgeActionServiceClient extends $grpc.Client {
 
   EdgeActionServiceClient(super.channel, {super.options, super.interceptors});
 
-  /// スマホ -> Pi: action chunk を stream 送信、Pi -> スマホ: 制御 ACK を stream 返却。
+  /// Phone streams action chunks to Pi; Pi streams control acknowledgements back.
   $grpc.ResponseStream<$0.ControlAck> streamActions(
     $async.Stream<$0.ActionChunk> request, {
     $grpc.CallOptions? options,

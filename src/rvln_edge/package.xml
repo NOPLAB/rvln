@@ -28,7 +28,7 @@
   <exec_depend>rvln_proto</exec_depend>
   <!-- adapters/omnivla_edge_local.py wraps the shared OmniVLAEdgeEngine. -->
   <exec_depend>rvln_core</exec_depend>
-  <!-- edge_action_ws_node.py (Web/スマホ -> Pi の action chunk WS ブリッジ)。 -->
+  <!-- edge_action_ws_node.py bridges Web/mobile action chunks to the Pi. -->
   <exec_depend>python3-websockets</exec_depend>
 
   <test_depend>ament_flake8</test_depend>

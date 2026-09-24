@@ -17,7 +17,7 @@ import pytest
 def test_status_line_matches_training_format():
     from rvln_remote.backends.movla import _status_line
 
-    # 学習時の GnmDatasetBase.__getitem__ の書式と一字一句同じであること。
+    # Match the status row produced by GnmDatasetBase.__getitem__ during training.
     assert _status_line() == \
         'Status: going straight (recent cumulative +0deg), v=0.00m/s'
     assert _status_line(35.0, 0.42) == \
@@ -42,7 +42,7 @@ def test_chunk_to_embedding_packs_x_y_cos_sin():
     np.testing.assert_allclose(out[:, :2], wp[:, :2])
     np.testing.assert_allclose(out[:, 2], np.cos(wp[:, 2]), atol=1e-6)
     np.testing.assert_allclose(out[:, 3], np.sin(wp[:, 2]), atol=1e-6)
-    # (cos, sin) は単位ベクトル — path-only アダプタの四元数がそのまま正規化済みになる。
+    # Unit-length (cos, sin) yields a normalized path-only adapter quaternion.
     np.testing.assert_allclose(out[:, 2] ** 2 + out[:, 3] ** 2, 1.0, atol=1e-6)
 
 
@@ -86,8 +86,8 @@ def test_movla_backend_returns_metric_waypoint_chunk():
     assert info.embed_dim == 4
     assert arr.dtype.name == 'float32'
     assert metrics['inference_ms'] > 0
-    # (cos, sin) 列は単位円上。
+    # The (cos, sin) columns lie on the unit circle.
     np.testing.assert_allclose(arr[:, 2] ** 2 + arr[:, 3] ** 2, 1.0, atol=1e-4)
-    # x/y はメートル: turtlebot2 の正規化統計 (~1m/step) から桁外れでないこと。
+    # x/y are meters and should be plausible for turtlebot2 (~1 m per step).
     assert np.all(np.abs(arr[:, :2]) < 20.0)
     print(f'chunk shape={arr.shape} inf_ms={metrics["inference_ms"]:.1f}')

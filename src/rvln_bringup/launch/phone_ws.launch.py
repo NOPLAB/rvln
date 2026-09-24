@@ -1,17 +1,16 @@
-"""Web/スマホ推論の Pi 側受け口 (Phase 4 の WebSocket 版) を起動する。
+"""Launch the Pi WebSocket endpoint for Web/mobile inference.
 
-web/ (rvln-web) や app/ が推論した action chunk を WebSocket で受け、
-``edge_action_ws_server`` が nav_msgs/Path 化 -> 既存 path_follower_node が
-pure-pursuit で追従する。VLA edge ノード (カメラ・gRPC) は起動しない —
-観測とモデルはすべて送信側にある。
+The server converts incoming action chunks to nav_msgs/Path for the existing
+pure-pursuit follower. The sender owns observation and inference, so this
+launch file does not start the VLA edge camera or gRPC node.
 
-安全のため follower の出力は既定で非モーター topic ``/cmd_vel_vla``。
-実機で走らせるときは ``cmd_vel_topic:=/cmd_vel`` を明示する。
+For safety, the follower defaults to the non-motor /cmd_vel_vla topic.
+Set cmd_vel_topic:=/cmd_vel explicitly to drive hardware.
 
 Launch args:
-  port              - WS ポート (default: 8765)
-  cmd_vel_topic     - follower の Twist 出力 (default: /cmd_vel_vla)
-  chunk_max_age_sec - この間隔で chunk が来なければ safe-stop (default: 1.0)
+  port              - WebSocket port (default: 8765)
+  cmd_vel_topic     - follower Twist output (default: /cmd_vel_vla)
+  chunk_max_age_sec - safe-stop after this gap without a chunk (default: 1.0)
 """
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument

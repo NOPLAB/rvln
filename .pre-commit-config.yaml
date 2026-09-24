@@ -50,6 +50,12 @@ repos:
   # 修正が入るとコミットが止まるので再ステージしてやり直す。
   - repo: local
     hooks:
+      - id: no-japanese-src
+        name: reject Japanese text under src/
+        language: system
+        entry: python tools/japanese_source_check.py
+        files: ^src/
+        types: [text]
       - id: biome-check
         name: biome check (web/)
         language: system

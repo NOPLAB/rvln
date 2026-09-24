@@ -15,12 +15,18 @@ on:
     paths:
       - 'src/**'
       - '.flake8'
+      - 'tools/japanese_source_check.py'
+      - 'tools/test_japanese_source_check.py'
+      - '.pre-commit-config.yaml'
       - '.pydocstyle'
       - '.github/workflows/ci-lint.yml'
   pull_request:
     paths:
       - 'src/**'
       - '.flake8'
+      - 'tools/japanese_source_check.py'
+      - 'tools/test_japanese_source_check.py'
+      - '.pre-commit-config.yaml'
       - '.pydocstyle'
       - '.github/workflows/ci-lint.yml'
   workflow_dispatch:
@@ -29,6 +35,15 @@ permissions:
   contents: read
 
 jobs:
+  no_japanese_src:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check src text
+        run: python3 tools/japanese_source_check.py src
+      - name: Test source check
+        run: python3 -m unittest discover -s tools -p 'test_japanese_source_check.py'
+
   ament_lint:
     # ROS2 humble の apt パッケージは Ubuntu 22.04 のみ。ubuntu-latest (24.04) は不可。
     runs-on: ubuntu-22.04
