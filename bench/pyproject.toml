@@ -13,7 +13,7 @@ isaac_r2r = "isaac_r2r.cli:register"
 isaac_rvln = "isaac_rvln.cli:register"
 
 [project.optional-dependencies]
-usd = ["usd-core==25.5", "numpy>=1.26,<2"]
+usd = ["usd-core==25.11", "numpy>=1.26,<2"]
 isaac = [
   "isaacsim[all,extscache]==5.0.0",
   "numpy>=1.26,<2",
