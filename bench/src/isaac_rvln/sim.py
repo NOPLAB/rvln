@@ -9,6 +9,7 @@ import json
 import math
 import os
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -19,26 +20,30 @@ _ROS_DLL_DIRECTORY = None
 
 
 def _load_ros_python() -> None:
-    """Use a sourced ROS Python environment or Isaac's bundled Windows Humble."""
+    """Use a sourced ROS environment or Isaac's bundled ROS 2 Python modules."""
     try:
         import rclpy  # noqa: F401
         return
     except ModuleNotFoundError:
         pass
-    if sys.platform != 'win32':
-        raise RuntimeError('rclpy is unavailable; source a Python 3.12 ROS environment')
     distro = os.environ.setdefault('ROS_DISTRO', 'humble')
     os.environ.setdefault('RMW_IMPLEMENTATION', 'rmw_fastrtps_cpp')
-    bundle = (Path(os.environ['ISAAC_PATH']) / 'exts' / 'isaacsim.ros2.bridge' /
-              distro)
+    isaac_path = Path(os.environ['ISAAC_PATH'])
+    bundle = isaac_path / 'exts' / 'isaacsim.ros2.core' / distro
+    if not bundle.is_dir():
+        bundle = isaac_path / 'exts' / 'isaacsim.ros2.bridge' / distro
     python = bundle / 'rclpy'
     libraries = bundle / 'lib'
     if not python.is_dir() or not libraries.is_dir():
         raise RuntimeError(f'Isaac bundled ROS {distro} is unavailable')
     sys.path.insert(0, str(python))
-    os.environ['PATH'] += os.pathsep + str(libraries)
-    global _ROS_DLL_DIRECTORY
-    _ROS_DLL_DIRECTORY = os.add_dll_directory(str(libraries))
+    if sys.platform == 'win32':
+        os.environ['PATH'] += os.pathsep + str(libraries)
+        global _ROS_DLL_DIRECTORY
+        _ROS_DLL_DIRECTORY = os.add_dll_directory(str(libraries))
+    elif str(libraries) not in os.environ.get('LD_LIBRARY_PATH', '').split(':'):
+        raise RuntimeError(f'set LD_LIBRARY_PATH={libraries}:$LD_LIBRARY_PATH '
+                           'before starting Isaac to load bundled ROS libraries')
     import rclpy  # noqa: F401
 
 
@@ -60,14 +65,17 @@ class IsaacRVLNSimulator(ContinuousSimulator):
 
 def _run(args) -> None:
     from isaacsim import SimulationApp
+    robot_assets = None
     app = SimulationApp({'headless': args.headless, 'multi_gpu': False,
                          'create_new_stage': False, 'enable_crashreporter': False,
                          'width': 320, 'height': 240,
                          'samples_per_pixel_per_frame': 1})
     try:
         import numpy as np
-        import omni.kit.commands
+        import isaacsim.core.experimental.utils.app as app_utils
+        import omni.replicator.core as rep
         import omni.usd
+        from isaacsim.asset.importer.urdf import URDFImporter, URDFImporterConfig
         from isaacsim.core.utils.extensions import enable_extension
 
         enable_extension('isaacsim.asset.importer.urdf')
@@ -79,7 +87,7 @@ def _run(args) -> None:
         from isaacsim.core.prims import SingleArticulation
         from isaacsim.core.utils.stage import add_reference_to_stage
         from isaacsim.core.utils.types import ArticulationAction
-        from isaacsim.sensors.experimental.rtx import CameraSensor, RtxCamera
+        from isaacsim.sensors.experimental.rtx import CameraSensor
         from nav_msgs.msg import Odometry
         from rclpy.node import Node
         from rclpy.qos import QoSProfile, ReliabilityPolicy
@@ -90,10 +98,22 @@ def _run(args) -> None:
         from tf2_msgs.msg import TFMessage
         from pxr import UsdGeom, UsdPhysics
 
+        robot_assets = tempfile.TemporaryDirectory(prefix='rvln-isaac-urdf-')
+        import_config = URDFImporterConfig(
+            urdf_path=str(args.robot_urdf.resolve()), usd_path=robot_assets.name,
+            merge_fixed_joints=True, fix_base=False, collision_from_visuals=False)
+        robot_usd = URDFImporter(import_config).import_urdf()
+        if not Path(robot_usd).is_file():
+            raise RuntimeError('Raspicat URDF import failed')
+
         world = World(stage_units_in_meters=1.0, physics_dt=1 / 60,
                       rendering_dt=1 / 30)
         add_reference_to_stage(str(args.world.resolve()), '/World/Environment')
+        add_reference_to_stage(str(robot_usd), '/World/Raspicat')
         stage = omni.usd.get_context().get_stage()
+        robot_prim = stage.GetPrimAtPath('/World/Raspicat')
+        robot_prim.GetVariantSet('Physics').SetVariantSelection('physx')
+        stage.Load()
         if UsdGeom.GetStageUpAxis(stage) != UsdGeom.Tokens.z:
             raise RuntimeError('Isaac world must be Z-up')
         if not math.isclose(UsdGeom.GetStageMetersPerUnit(stage), 1.0):
@@ -103,34 +123,34 @@ def _run(args) -> None:
                        '/World/Environment')):
             raise RuntimeError('world USD has no collision geometry')
 
-        ok, config = omni.kit.commands.execute('URDFCreateImportConfig')
-        if not ok:
-            raise RuntimeError('URDFCreateImportConfig failed')
-        config.merge_fixed_joints = True
-        config.fix_base = False
-        config.import_inertia_tensor = True
-        config.collision_from_visuals = False
-        ok, prim_path = omni.kit.commands.execute(
-            'URDFParseAndImportFile', urdf_path=str(args.robot_urdf.resolve()),
-            import_config=config)
-        if not ok or not prim_path:
-            raise RuntimeError('Raspicat URDF import failed')
+        articulation_roots = [prim for prim in stage.Traverse()
+                              if prim.GetPath().pathString.startswith('/World/Raspicat/')
+                              and prim.HasAPI(UsdPhysics.ArticulationRootAPI)]
+        if len(articulation_roots) != 1:
+            raise RuntimeError(f'expected one Raspicat articulation root, got '
+                               f'{len(articulation_roots)}')
         for name in (args.left_joint, args.right_joint):
-            joint = stage.GetPrimAtPath(f'{prim_path}/joints/{name}')
-            if not joint.IsValid() or not joint.HasAPI(UsdPhysics.DriveAPI, 'angular'):
+            joints = [prim for prim in stage.Traverse()
+                      if prim.GetPath().pathString.startswith('/World/Raspicat/')
+                      and prim.GetName() == name]
+            if len(joints) != 1 or not joints[0].HasAPI(UsdPhysics.DriveAPI, 'angular'):
                 raise RuntimeError(f'wheel drive missing from imported URDF: {name}')
-            drive = UsdPhysics.DriveAPI.Get(joint, 'angular')
+            drive = UsdPhysics.DriveAPI.Get(joints[0], 'angular')
             drive.GetStiffnessAttr().Set(0.0)
             drive.GetDampingAttr().Set(10000.0)
             drive.GetMaxForceAttr().Set(1000.0)
-        robot = world.scene.add(SingleArticulation(prim_path=prim_path, name='raspicat'))
+        robot = world.scene.add(SingleArticulation(
+            prim_path=articulation_roots[0].GetPath().pathString, name='raspicat'))
+        world.reset()
         camera = None
         camera_prim = None
         if not args.physics_only:
-            camera_prim = RtxCamera('/World/RVLN_Camera', tick_rate=0)
-            camera = CameraSensor(camera_prim, resolution=(480, 640),
+            UsdGeom.Camera.Define(stage, '/World/RVLN_Camera')
+            camera = CameraSensor('/World/RVLN_Camera', resolution=(480, 640),
                                   annotators=['rgb', 'distance_to_image_plane'])
-        world.reset()
+            camera_prim = camera.authoring_object
+            app_utils.play(commit=True)
+            rep.orchestrator.step(rt_subframes=2, pause_timeline=False)
         left = robot.get_dof_index(args.left_joint)
         right = robot.get_dof_index(args.right_joint)
         if left == right or min(left, right) < 0:
@@ -291,3 +311,5 @@ def _run(args) -> None:
         raise
     finally:
         app.close()
+        if robot_assets is not None:
+            robot_assets.cleanup()

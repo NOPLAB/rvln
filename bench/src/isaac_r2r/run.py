@@ -68,16 +68,17 @@ class IsaacR2RSimulator(EpisodeSimulator):
             import omni.usd
             from isaacsim.core.api import World
             from isaacsim.core.utils.stage import add_reference_to_stage
-            from isaacsim.sensors.experimental.rtx import CameraSensor, RtxCamera
+            from isaacsim.sensors.experimental.rtx import CameraSensor
             from pxr import Usd, UsdGeom, UsdPhysics
 
             self.scene = scene
             self.world = World(stage_units_in_meters=1.0)
             add_reference_to_stage(str(scene['usd']), '/World/Environment')
-            self.camera_prim = RtxCamera('/World/RVLN_Camera', tick_rate=0)
-            self.camera = CameraSensor(self.camera_prim, resolution=(224, 224),
-                                       annotators=['rgb'])
             self.world.reset()
+            UsdGeom.Camera.Define(self.world.stage, '/World/RVLN_Camera')
+            self.camera = CameraSensor('/World/RVLN_Camera', resolution=(224, 224),
+                                       annotators=['rgb'])
+            self.camera_prim = self.camera.authoring_object
             stage = omni.usd.get_context().get_stage()
             if UsdGeom.GetStageUpAxis(stage) != UsdGeom.Tokens.z:
                 raise ValueError('USD scene must use Z-up coordinates')
@@ -104,6 +105,8 @@ class IsaacR2RSimulator(EpisodeSimulator):
 
     def observe(self) -> Observation:
         import numpy as np
+        import isaacsim.core.experimental.utils.app as app_utils
+        import omni.replicator.core as rep
         from PIL import Image
 
         c, s = math.cos(self.yaw / 2), math.sin(self.yaw / 2)
@@ -111,8 +114,10 @@ class IsaacR2RSimulator(EpisodeSimulator):
         self.camera_prim.set_world_poses(
             positions=np.asarray([self.position + [0.0, 0.0, 1.25]]),
             orientations=np.asarray([orientation]))
+        app_utils.play(commit=True)
+        rep.orchestrator.step(rt_subframes=2, pause_timeline=False)
         for _ in range(30):
-            self.world.step(render=True)
+            self.app.update()
             data, _ = self.camera.get_data('rgb')
             rgba = (data.numpy() if data is not None and hasattr(data, 'numpy')
                     else np.asarray(data))

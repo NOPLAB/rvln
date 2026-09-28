@@ -30,7 +30,11 @@ NumPy versions, so sync the desired extra again before running its commands.
 `rclpy`, `geometry_msgs`, `nav_msgs`, `sensor_msgs`, and `std_srvs` importable in
 the Isaac Python environment. Isaac Sim 6.1 uses Python 3.12; custom ROS 2
 interfaces must be built for that Python version. Do not source a Python 3.10
-ROS installation into the Isaac process. See [NVIDIA's ROS installation guide](https://docs.isaacsim.omniverse.nvidia.com/6.1.0/installation/install_ros.html).
+ROS installation into the Isaac process. The RVLN bridge can use Isaac Sim 6.1's
+bundled Humble modules. On Linux, add
+`.venv/lib/python3.12/site-packages/isaacsim/exts/isaacsim.ros2.core/humble/lib`
+to `LD_LIBRARY_PATH` before starting Python so the bundled `rclpy` extension
+can load its ROS libraries. See [NVIDIA's ROS installation guide](https://docs.isaacsim.omniverse.nvidia.com/6.1.0/installation/install_ros.html).
 
 ## R2R-CE transfer track
 
@@ -78,6 +82,19 @@ History is reset per episode. The goal is never sent to the policy. Isaac uses
 The existing RVLN embedding backend exposes `/infer`, so it needs a policy
 adapter that produces these discrete `/act` actions for this track.
 
+For a reproducible integration check with the generated corridor USD, run
+`uv run --extra isaac python scripts/smoke_r2r.py` from `bench/`. The script
+starts a local scripted policy, checks each JPEG observation, saves the first
+frame under `runs/validation/`, and exits nonzero unless the episode completes.
+Pass `--headless` only on hosts where Kit's headless renderer advances.
+
+On the tested Slurm RTX 5070 Ti node, the renderer did not advance in Kit's
+`--headless` mode, even with Vulkan available. An Ubuntu 22.04 container with
+Xvfb produced RGB and depth frames. For that setup, launch Xvfb inside the
+container, set `DISPLAY`, and omit `--headless` from the `rvln-bench` command.
+Keep Xvfb running until the command exits. This is a measured requirement of
+the tested environment, not a general requirement of Isaac Sim.
+
 Scores carry `isaac_r2r_transfer`: they use the R2R-CE source geodesic and 3 m
 stop threshold but a different renderer, camera, motion and collision model.
 They are not official Habitat VLN-CE scores and cannot be combined with local
@@ -121,18 +138,27 @@ The Isaac adapter is locked to Isaac Sim 6.1.0.0 and Python 3.12. On the Slurm
 hosts, `uv sync --extra isaac --frozen --python 3.12` installed 172 packages,
 including Isaac Sim 6.1.0.0, in a temporary node-local environment while the
 project and assets remained on shared storage. CPU tests passed (20 cases,
-two skipped because optional ROS/Gazebo packages are absent). On the RTX 5070 Ti
-node, the 6.1 application reached `app ready` and created an RTX camera, but
-the synthetic R2R episode has not yielded an RGB frame or a completed score.
-The node runs Ubuntu 26.04; [Isaac Sim 6.1 lists Ubuntu 22.04/24.04 and a
-tested 595.58.03 driver](https://docs.isaacsim.omniverse.nvidia.com/6.1.0/installation/requirements.html).
-The test node has driver 610.57.04, so the OS is outside that tested matrix.
-A minimal cube scene also produced no RGB data after 20 rendered updates on
-that node. The Ubuntu 24.04 RTX PRO 6000 node gave the same result for both
-`World.step(render=True)` and Kit `app.update()`; its 580.159.03 driver predates
-the tested 595 series. These tests isolate the missing frames from the corridor
-USD, but do not establish whether the cause is a driver, Kit configuration, or
-the experimental camera API. A visual score remains unverified.
+one skipped locally because Gazebo ROS messages are absent). The RTX 5070 Ti
+node runs Ubuntu 26.04 and driver 610.57.04; [Isaac Sim 6.1 lists Ubuntu
+22.04/24.04 and a tested 595.58.03 driver](https://docs.isaacsim.omniverse.nvidia.com/6.1.0/installation/requirements.html).
+
+On 2026-09-28, an Ubuntu 22.04 container on that node produced 224 x 224 RGB
+from an ordinary USD Camera prim through Isaac Sim's `CameraSensor`. The
+`RtxCamera`-created prim returned empty RGB payloads in the same probe. With
+the USD camera and a Replicator capture step, one scripted synthetic corridor
+episode completed with 11 JPEG policy observations, 10 forward actions, a stop,
+success `true`, navigation error 0.15 m, and SPL 0.82. Its result is at
+`runs/validation/synthetic_result.json` on the shared Slurm workspace.
+This checks image delivery, action transport, and scoring, but uses a scripted
+policy and a synthetic scene. It is not a published R2R-CE evaluation.
+
+The Isaac RVLN bridge also ran for 21 physics steps and published 21 camera
+frames in five seconds. A separate ROS 2 subscriber received 16 RGB, 15 depth,
+and 33 each of odometry, clock, and TF messages during an eight-second run;
+RGB messages were 480 x 640 x 3 bytes and depth messages 480 x 640 x 4 bytes.
+Real R2R-CE scoring still requires the published split, licensed Matterport3D
+scans converted to collidable USD, measured coordinate transforms, and an
+R2R-compatible policy. Those assets were not present in the tested workspace.
 
 The following results are historical Isaac Sim 5.0 checks and do not validate
 the 6.1 visual benchmark. The local Windows environment installed 5.0.0 through `uv`. The
