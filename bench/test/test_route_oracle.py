@@ -6,10 +6,10 @@ import math
 import unittest
 from pathlib import Path
 
-from route_oracle import shortest_path, verify_world
+from bench.route_oracle import shortest_path, verify_world
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 
 
 class RouteOracleTests(unittest.TestCase):

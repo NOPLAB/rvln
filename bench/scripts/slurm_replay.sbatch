@@ -30,10 +30,10 @@ case $backend in
     movla) vendor='' ;;
     navida) vendor=${RVLN_BENCH_NAVIDA_VENDOR:-/home/nop/.cache/rvln_bench_navida} ;;
 esac
-export PYTHONPATH="${vendor:+$vendor:}$workspace/src/rvln_remote:$workspace/src/rvln_core:${model_source:+$model_source:}$workspace/external/MBRA/train:$workspace/external/movla/src:${PYTHONPATH:-}"
+export PYTHONPATH="$workspace/bench/src:${vendor:+$vendor:}$workspace/src/rvln_remote:$workspace/src/rvln_core:${model_source:+$model_source:}$workspace/external/MBRA/train:$workspace/external/movla/src:${PYTHONPATH:-}"
 export HF_HOME=${HF_HOME:-/mnt/workspace/nop/hf_cache}
 export TOKENIZERS_PARALLELISM=false
 
 echo "job_id=${SLURM_JOB_ID:-none} host=$(hostname) gpu=${CUDA_VISIBLE_DEVICES:-none}"
 nvidia-smi --query-gpu=name,memory.total,uuid --format=csv,noheader
-"$python_bin" "$workspace/bench/replay.py" "$@"
+"$python_bin" -m bench.replay "$@"

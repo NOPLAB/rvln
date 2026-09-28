@@ -25,5 +25,5 @@ for backend in asyncvla omnivla omnivla_edge movla navila navida; do
     if [[ $backend == asyncvla ]]; then
         args+=(--resume-step 750000)
     fi
-    sbatch "$workspace/bench/slurm_replay.sbatch" "${args[@]}"
+    sbatch "$workspace/bench/scripts/slurm_replay.sbatch" "${args[@]}"
 done

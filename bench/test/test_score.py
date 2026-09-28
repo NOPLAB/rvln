@@ -1,7 +1,7 @@
 """Checks for the benchmark's success and path-efficiency definitions."""
 import unittest
 
-from score import score_episode, summarize
+from bench.score import score_episode, summarize
 
 
 def episode(reason='model_stop', end=1.0, collisions=0, shortest=1.0):

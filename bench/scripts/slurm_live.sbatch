@@ -28,8 +28,8 @@ case $backend in
     movla) vendor='' ;;
     navida) vendor=${RVLN_BENCH_NAVIDA_VENDOR:-/home/nop/.cache/rvln_bench_navida} ;;
 esac
-export PYTHONPATH="${vendor:+$vendor:}$workspace/src/rvln_remote:$workspace/src/rvln_core:${model_source:+$model_source:}$workspace/external/MBRA/train:$workspace/external/movla/src:${PYTHONPATH:-}"
+export PYTHONPATH="$workspace/bench/src:${vendor:+$vendor:}$workspace/src/rvln_remote:$workspace/src/rvln_core:${model_source:+$model_source:}$workspace/external/MBRA/train:$workspace/external/movla/src:${PYTHONPATH:-}"
 export HF_HOME=${HF_HOME:-/mnt/workspace/nop/hf_cache}
 export TOKENIZERS_PARALLELISM=false
 exec "${RVLN_BENCH_PYTHON:-/mnt/workspace/nop/vla/.venv/bin/python}" \
-    "$workspace/bench/live_server.py" "$@"
+    -m bench.live_server "$@"

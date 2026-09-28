@@ -240,7 +240,7 @@ def start_contacts(scene: str, output: Path):
     log_file = output.with_suffix('.contacts.log')
     with log_file.open('w', encoding='utf-8') as log:
         process = subprocess.Popen(
-            [sys.executable, '/workspace/bench/contact_logger.py',
+            [sys.executable, '-m', 'bench.legacy_gazebo.contact_logger',
              '--obstacles', ','.join(obstacles),
              '--out', str(contact_file), '--ready', str(ready_file)],
             stdout=log, stderr=subprocess.STDOUT)

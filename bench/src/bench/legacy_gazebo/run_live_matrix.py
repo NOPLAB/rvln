@@ -12,7 +12,7 @@ import time
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[4]
 REMOTE = '/mnt/workspace/nop/raspicat_vla'
 SERVER = 'http://100.76.158.87:8765'
 CONTAINER = 'rvln-sim-check'
@@ -76,6 +76,7 @@ def start_sim(model: str, scene: str) -> None:
         'source /opt/ros/humble/setup.bash; '
         'source /opt/sim_ws/install/setup.bash; '
         'source /workspace/install/setup.bash; '
+        'export PYTHONPATH=/workspace/bench/src:${PYTHONPATH:-}; '
         'export DISPLAY=:99 RVLN_BENCH_CONTACTS=1; '
         f'ros2 launch rvln_bringup sim.launch.py adapter_kind:={adapter} '
         f'gui:=false rviz:=false world:=/workspace/bench/worlds/{scene}.world '
@@ -93,7 +94,8 @@ def run_episode(model: str, episode: str) -> dict:
         'source /opt/ros/humble/setup.bash; '
         'source /opt/sim_ws/install/setup.bash; '
         'source /workspace/install/setup.bash; '
-        f'python3 /workspace/bench/live_episode.py --url {SERVER} '
+        'export PYTHONPATH=/workspace/bench/src:${PYTHONPATH:-}; '
+        f'python3 -m bench.legacy_gazebo.live_episode --url {SERVER} '
         f'--model {model} --episode {episode} --out {output} '
         f'--video {video} --duration 35'
     )
@@ -127,7 +129,7 @@ def main() -> None:
     (ROOT / 'bench' / 'runs' / RUN_NAME).mkdir(parents=True, exist_ok=True)
     for model in args.models:
         checkpoint, step = CHECKPOINTS[model]
-        statement = (f'cd {REMOTE}; sbatch --parsable bench/slurm_live.sbatch '
+        statement = (f'cd {REMOTE}; sbatch --parsable bench/scripts/slurm_live.sbatch '
                      f'--backend {model} --checkpoint {checkpoint} '
                      f'--resume-step {step} --bind 100.76.158.87 --port 8765')
         job = remote(statement).stdout.strip().splitlines()[-1].strip()

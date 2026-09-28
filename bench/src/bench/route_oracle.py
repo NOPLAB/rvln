@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 from functools import lru_cache
 from pathlib import Path
 
-from scenes import SCENES
+from bench.scenes import SCENES
 
 
 ROBOT_RADIUS_M = 0.34

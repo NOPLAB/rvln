@@ -13,7 +13,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import numpy as np
 from PIL import Image
 
-from replay import build_backend
+from bench.replay import build_backend
 
 
 def main() -> None:

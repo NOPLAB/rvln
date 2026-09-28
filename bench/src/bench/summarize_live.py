@@ -7,7 +7,7 @@ import math
 import statistics
 from pathlib import Path
 
-from score import score_episode, summarize
+from bench.score import score_episode, summarize
 
 
 ORDER = ('asyncvla', 'omnivla', 'omnivla_edge', 'movla', 'navila', 'navida')

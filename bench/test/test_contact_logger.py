@@ -5,10 +5,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import rclpy
-from gazebo_msgs.msg import ContactState, ContactsState
-
-from contact_logger import ContactLogger
+try:
+    import rclpy
+    from gazebo_msgs.msg import ContactState, ContactsState
+    from bench.legacy_gazebo.contact_logger import ContactLogger
+except ImportError:
+    rclpy = None
 
 
 def sample(other: str) -> ContactsState:
@@ -20,6 +22,7 @@ def sample(other: str) -> ContactsState:
     return message
 
 
+@unittest.skipIf(rclpy is None, 'legacy Gazebo ROS messages are unavailable')
 class ContactLoggerTests(unittest.TestCase):
     def test_ground_and_self_contacts_are_excluded_and_obstacle_is_deduplicated(self):
         rclpy.init()

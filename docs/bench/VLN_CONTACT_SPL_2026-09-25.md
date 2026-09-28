@@ -30,7 +30,7 @@ Gazebo pose samples, and the corresponding complete 2 Hz camera/trajectory MP4.
 
 ## Inference integrity checks
 
-`bench/validate_live.py` checks checkpoint version presence, all inference
+`bench/src/bench/validate_live.py` checks checkpoint version presence, all inference
 shapes and frame IDs, finite outputs, instruction transmission, action-text
 decoding for NaVILA and NaVIDA, remote waypoints against local ROS Paths,
 local motor commands, and resulting Gazebo motion. AsyncVLA is checked for

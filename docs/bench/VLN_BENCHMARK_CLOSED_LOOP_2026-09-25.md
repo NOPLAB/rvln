@@ -77,11 +77,11 @@ physical robot performance.
 
 ## Reproduce and inspect
 
-`bench/run_live_matrix.py` controls the workstation's Docker Gazebo/Edge
-container and one remote Slurm backend at a time. `bench/live_episode.py`
+`bench/src/bench/legacy_gazebo/run_live_matrix.py` controls the workstation's Docker Gazebo/Edge
+container and one remote Slurm backend at a time. `bench/src/bench/legacy_gazebo/live_episode.py`
 records the camera, Gazebo model pose, command, remote round trips, and stop
-reason. `bench/summarize_live.py` scores only traces whose pose source is
-`gazebo_model_states` and checks every individual video. `bench/make_live_video.py`
+reason. `bench/src/bench/summarize_live.py` scores only traces whose pose source is
+`gazebo_model_states` and checks every individual video. `bench/src/bench/make_live_video.py`
 creates the joined MP4 and verifies every input clip's frame count. The earlier
 fixed-image inference replay and checkpoint details are in
 [the replay report](VLN_BENCHMARK_REPLAY_2026-09-24.md).

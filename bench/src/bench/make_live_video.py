@@ -72,7 +72,7 @@ def main() -> None:
             for row, video in rows:
                 success, distance = result(row)
                 label = 'ARRIVED' if success else 'NOT ARRIVED'
-                from score import score_episode
+                from bench.score import score_episode
                 scored = score_episode(row)
                 spl = scored['spl']
                 metric = (f'Contacts: {scored["collisions"]}    SPL (0.30m): {spl:.3f}'
