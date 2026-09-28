@@ -17,7 +17,7 @@ usd = ["usd-core==25.5", "numpy>=1.26,<2"]
 isaac = [
   "isaacsim[all,extscache]==5.0.0",
   "numpy>=1.26,<2",
-  "pillow>=10,<12",
+  "pillow>=12,<13",
 ]
 
 [tool.uv]
