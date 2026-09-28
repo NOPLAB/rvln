@@ -64,15 +64,25 @@ known positions and headings before scoring. Validate an episode without
 starting Isaac, then run it:
 
 ```bash
-uv run --extra isaac rvln-bench r2r --split /data/val_unseen.json.gz \
+uv run --extra isaac rvln-bench inventory-r2r \
+  --split /data/R2R_VLNCE_v1-3/val_unseen/val_unseen.json.gz \
+  --scans-root /data/mp3d --scenes /data/scene_registry.json \
+  --out runs/isaac_r2r/inventory.json
+uv run --extra isaac rvln-bench r2r \
+  --split /data/R2R_VLNCE_v1-3/val_unseen/val_unseen.json.gz \
   --scenes /data/scene_registry.json --episode 1 --check
-uv run --extra isaac rvln-bench r2r --split /data/val_unseen.json.gz \
+uv run --extra isaac rvln-bench r2r \
+  --split /data/R2R_VLNCE_v1-3/val_unseen/val_unseen.json.gz \
   --scenes /data/scene_registry.json --episode 1 \
   --policy-url http://127.0.0.1:8765 --max-steps 500 \
   --out runs/isaac_r2r/episode-1.json --headless
 uv run --extra isaac rvln-bench summarize-r2r \
   runs/isaac_r2r/episode-*.json --out runs/isaac_r2r/summary.json
 ```
+
+`inventory-r2r` counts episodes per scene and reports which source GLBs and
+registered USDs exist. It checks file presence; use `r2r --check` to validate
+each registered transform before launching a scene.
 
 The policy receives `POST /reset` with `episode_id` and must echo the ID.
 `POST /act` receives `episode_id`, `frame_id`, `instruction`, and `jpeg_base64`,
@@ -156,9 +166,13 @@ The Isaac RVLN bridge also ran for 21 physics steps and published 21 camera
 frames in five seconds. A separate ROS 2 subscriber received 16 RGB, 15 depth,
 and 33 each of odometry, clock, and TF messages during an eight-second run;
 RGB messages were 480 x 640 x 3 bytes and depth messages 480 x 640 x 4 bytes.
-Real R2R-CE scoring still requires the published split, licensed Matterport3D
+The official v1-3 `val_unseen` split was downloaded separately and passed the
+adapter's parser: 1,839 episodes across 11 MP3D scans, with split SHA-256
+`d173d8028537f30ab652dc5d24ead737e2b6010b6a4599f974351685710d18e8`.
+The inventory found none of those scans or registered USDs in the tested data
+directory. Real R2R-CE scoring still requires the matching licensed Matterport3D
 scans converted to collidable USD, measured coordinate transforms, and an
-R2R-compatible policy. Those assets were not present in the tested workspace.
+R2R-compatible policy.
 
 The following results are historical Isaac Sim 5.0 checks and do not validate
 the 6.1 visual benchmark. The local Windows environment installed 5.0.0 through `uv`. The

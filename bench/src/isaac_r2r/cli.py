@@ -68,6 +68,15 @@ def summarize_results(args) -> dict:
     return result
 
 
+def inventory_scenes(args) -> dict:
+    from isaac_r2r.inventory import inventory
+
+    result = inventory(args.split, args.scans_root, args.scenes)
+    if args.out is not None:
+        write_json(args.out, result)
+    return result
+
+
 def register(commands: argparse._SubParsersAction) -> None:
     r2r = commands.add_parser('r2r', help='run an R2R-CE transfer episode')
     r2r.add_argument('--split', type=Path, required=True)
@@ -84,3 +93,11 @@ def register(commands: argparse._SubParsersAction) -> None:
     summary.add_argument('results', type=Path, nargs='+')
     summary.add_argument('--out', type=Path, required=True)
     summary.set_defaults(handler=summarize_results)
+
+    audit = commands.add_parser(
+        'inventory-r2r', help='inventory split scenes and local scan assets')
+    audit.add_argument('--split', type=Path, required=True)
+    audit.add_argument('--scans-root', type=Path, required=True)
+    audit.add_argument('--scenes', type=Path, help='optional USD scene registry')
+    audit.add_argument('--out', type=Path)
+    audit.set_defaults(handler=inventory_scenes)

@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from isaac_r2r.protocol import load_episodes, score
+from isaac_r2r.inventory import inventory
 from isaac_r2r.summary import summarize
 
 
@@ -35,6 +36,25 @@ class ProtocolTest(unittest.TestCase):
             path.write_text(json.dumps({'episodes': [self.episode, self.episode]}))
             with self.assertRaisesRegex(ValueError, 'duplicate'):
                 load_episodes(path)
+
+    def test_inventory_counts_real_split_scenes_and_missing_scans(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            split = root / 'val_unseen.json.gz'
+            other = {**self.episode, 'episode_id': '8',
+                     'scene_id': 'mp3d/def/def.glb'}
+            with gzip.open(split, 'wt', encoding='utf-8') as stream:
+                json.dump({'episodes': [self.episode, other, {
+                    **self.episode, 'episode_id': '9'}]}, stream)
+            scan = root / 'scans/abc/abc.glb'
+            scan.parent.mkdir(parents=True)
+            scan.write_bytes(b'glb')
+            result = inventory(split, root / 'scans')
+        self.assertEqual(result['episodes'], 3)
+        self.assertEqual(result['scan_count'], 1)
+        self.assertEqual([(row['scene_id'], row['episodes'], row['scan_exists'])
+                          for row in result['scenes']],
+                         [('abc', 2, True), ('def', 1, False)])
 
     def test_aggregate_rejects_split_mix(self):
         with tempfile.TemporaryDirectory() as directory:
