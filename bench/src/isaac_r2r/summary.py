@@ -10,6 +10,8 @@ def summarize(paths: list[Path]) -> dict:
     if not paths:
         raise ValueError('no episode results')
     rows = [json.loads(path.read_text(encoding='utf-8')) for path in paths]
+    if any(row.get('status') != 'completed' for row in rows):
+        raise ValueError('episode result is incomplete')
     ids = [str(row['episode_id']) for row in rows]
     if len(ids) != len(set(ids)):
         raise ValueError('duplicate episode result')

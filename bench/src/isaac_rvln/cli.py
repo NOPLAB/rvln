@@ -5,7 +5,7 @@ import argparse
 from pathlib import Path
 
 
-def run(args) -> dict:
+def run(args) -> None:
     from isaac_rvln.sim import IsaacRVLNSimulator, wheel_velocities
 
     for path in (args.world, args.robot_urdf):
@@ -15,7 +15,6 @@ def run(args) -> dict:
     if args.max_seconds < 0:
         raise ValueError('max-seconds must be nonnegative')
     IsaacRVLNSimulator().run(args)
-    return {'status': 'finished'}
 
 
 def convert(args) -> dict:
@@ -39,6 +38,8 @@ def register(commands: argparse._SubParsersAction) -> None:
     rvln.add_argument('--left-joint', default='left_wheel_joint')
     rvln.add_argument('--right-joint', default='right_wheel_joint')
     rvln.add_argument('--headless', action='store_true')
+    rvln.add_argument('--physics-only', action='store_true',
+                      help='run wheel and ROS checks without camera frames')
     rvln.add_argument('--max-seconds', type=float, default=0)
     rvln.set_defaults(handler=run)
 

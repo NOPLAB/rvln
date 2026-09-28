@@ -50,7 +50,7 @@ def prepare_robot(description_root: Path, output: Path) -> dict:
         mesh_path = (description_root / filename[len(uri):]).resolve()
         if not mesh_path.is_file():
             raise ValueError(f'missing Raspicat mesh: {mesh_path}')
-        mesh.set('filename', mesh_path.as_uri())
+        mesh.set('filename', mesh_path.as_posix())
 
     base = links['base_link']
     base_collision = _child(base, 'collision')

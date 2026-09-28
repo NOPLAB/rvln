@@ -28,12 +28,16 @@ def run(args) -> dict:
         'split_sha256': sha256(args.split),
         'usd': str(scene['usd']),
         'usd_sha256': sha256(scene['usd']),
+        'metric_namespace': 'isaac_r2r_transfer',
     }
     if args.check:
         result['status'] = 'assets_validated'
         return result
-    simulator = IsaacR2RSimulator(scene, headless=args.headless)
+    result['status'] = 'started'
+    write_json(args.out, result)
+    simulator = None
     try:
+        simulator = IsaacR2RSimulator(scene, headless=args.headless)
         request = EpisodeRequest(
             episode_id=str(episode['episode_id']),
             instruction=episode['instruction']['instruction_text'],
@@ -45,9 +49,16 @@ def run(args) -> dict:
         result.update(score(episode, trace['positions'], trace['stopped']))
         result.update(trace)
         result['blocked_steps'] = simulator.blocked_steps
+        result['status'] = 'completed'
+        write_json(args.out, result)
+    except Exception as error:
+        result['status'] = 'error'
+        result['error'] = f'{type(error).__name__}: {error}'
+        write_json(args.out, result)
+        raise
     finally:
-        simulator.close()
-    write_json(args.out, result)
+        if simulator is not None:
+            simulator.close()
     return result
 
 

@@ -22,6 +22,10 @@ class RobotTest(unittest.TestCase):
                          'caster_link', 'caster_wheel_link', 'camera_link'):
                 self.assertIsNotNone(links[name].find('collision'))
                 self.assertIsNotNone(links[name].find('inertial'))
+            for mesh in root.iter('mesh'):
+                filename = mesh.attrib['filename']
+                self.assertFalse(filename.startswith('file:'))
+                self.assertTrue(Path(filename).is_file(), filename)
             camera = next(j for j in root.findall('joint')
                           if j.attrib['name'] == 'camera_joint')
             self.assertEqual(camera.find('parent').attrib['link'], 'camera_mount_link')

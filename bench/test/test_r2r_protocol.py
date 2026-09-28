@@ -43,12 +43,20 @@ class ProtocolTest(unittest.TestCase):
                 path = Path(directory) / f'{index}.json'
                 path.write_text(json.dumps({
                     'episode_id': str(index), 'metric_namespace': 'isaac_r2r_transfer',
+                    'status': 'completed',
                     'split_sha256': split, 'scene_id': 'abc', 'success': False,
                     'spl': 0.0, 'navigation_error_m': 5.0, 'blocked_steps': 0,
                 }))
                 paths.append(path)
             with self.assertRaisesRegex(ValueError, 'mixed R2R-CE split'):
                 summarize(paths)
+
+    def test_aggregate_rejects_incomplete_episode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'episode.json'
+            path.write_text(json.dumps({'episode_id': '7', 'status': 'started'}))
+            with self.assertRaisesRegex(ValueError, 'incomplete'):
+                summarize([path])
 
 
 if __name__ == '__main__':

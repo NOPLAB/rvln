@@ -59,7 +59,11 @@ class IsaacR2RSimulator(EpisodeSimulator):
 
     def __init__(self, scene: dict, *, headless: bool):
         from isaacsim import SimulationApp
-        self.app = SimulationApp({'headless': headless})
+        self.app = SimulationApp({'headless': headless, 'multi_gpu': False,
+                                  'create_new_stage': False,
+                                  'enable_crashreporter': False,
+                                  'width': 320, 'height': 240,
+                                  'samples_per_pixel_per_frame': 1})
         try:
             import omni.usd
             from isaacsim.core.api import World
@@ -106,10 +110,15 @@ class IsaacR2RSimulator(EpisodeSimulator):
         orientation = np.array([math.cos(self.yaw / 2), 0, 0, math.sin(self.yaw / 2)])
         self.camera.set_world_pose(position=self.position + [0.0, 0.0, 1.25],
                                    orientation=orientation, camera_axes='world')
-        self.world.step(render=True)
-        rgb = np.asarray(self.camera.get_rgba())[:, :, :3]
-        if rgb.shape != (224, 224, 3):
-            raise RuntimeError(f'unexpected RGB shape {rgb.shape}')
+        for _ in range(30):
+            self.world.step(render=True)
+            rgba = np.asarray(self.camera.get_rgba())
+            if rgba.shape == (224, 224, 4):
+                break
+        else:
+            raise RuntimeError(f'Isaac camera produced no RGBA frame after 30 steps: '
+                               f'{rgba.shape}')
+        rgb = rgba[:, :, :3]
         buffer = io.BytesIO()
         Image.fromarray(rgb.astype('uint8')).save(buffer, format='JPEG', quality=90)
         return Observation(buffer.getvalue())

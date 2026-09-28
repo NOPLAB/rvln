@@ -5,10 +5,41 @@ module is kept separate from ROS launch because Isaac uses Python 3.11.
 """
 from __future__ import annotations
 
+import json
 import math
+import os
+import sys
 import time
+from pathlib import Path
 
 from bench.episode import ContinuousSimulator
+
+
+_ROS_DLL_DIRECTORY = None
+
+
+def _load_ros_python() -> None:
+    """Use a sourced ROS Python environment or Isaac's bundled Windows Humble."""
+    try:
+        import rclpy  # noqa: F401
+        return
+    except ModuleNotFoundError:
+        pass
+    if sys.platform != 'win32':
+        raise RuntimeError('rclpy is unavailable; source a Python 3.11 ROS environment')
+    distro = os.environ.setdefault('ROS_DISTRO', 'humble')
+    os.environ.setdefault('RMW_IMPLEMENTATION', 'rmw_fastrtps_cpp')
+    bundle = (Path(os.environ['ISAAC_PATH']) / 'exts' / 'isaacsim.ros2.bridge' /
+              distro)
+    python = bundle / 'rclpy'
+    libraries = bundle / 'lib'
+    if not python.is_dir() or not libraries.is_dir():
+        raise RuntimeError(f'Isaac bundled ROS {distro} is unavailable')
+    sys.path.insert(0, str(python))
+    os.environ['PATH'] += os.pathsep + str(libraries)
+    global _ROS_DLL_DIRECTORY
+    _ROS_DLL_DIRECTORY = os.add_dll_directory(str(libraries))
+    import rclpy  # noqa: F401
 
 
 def wheel_velocities(linear: float, angular: float, radius: float,
@@ -29,15 +60,18 @@ class IsaacRVLNSimulator(ContinuousSimulator):
 
 def _run(args) -> None:
     from isaacsim import SimulationApp
-    app = SimulationApp({'headless': args.headless})
+    app = SimulationApp({'headless': args.headless, 'multi_gpu': False,
+                         'create_new_stage': False, 'enable_crashreporter': False,
+                         'width': 320, 'height': 240,
+                         'samples_per_pixel_per_frame': 1})
     try:
         import numpy as np
         import omni.kit.commands
         import omni.usd
         from isaacsim.core.utils.extensions import enable_extension
 
-        enable_extension('isaacsim.ros2.bridge')
         enable_extension('isaacsim.asset.importer.urdf')
+        _load_ros_python()
 
         import rclpy
         from geometry_msgs.msg import PoseStamped, TransformStamped, Twist
@@ -72,7 +106,7 @@ def _run(args) -> None:
         ok, config = omni.kit.commands.execute('URDFCreateImportConfig')
         if not ok:
             raise RuntimeError('URDFCreateImportConfig failed')
-        config.merge_fixed_joints = False
+        config.merge_fixed_joints = True
         config.fix_base = False
         config.import_inertia_tensor = True
         config.collision_from_visuals = False
@@ -81,12 +115,23 @@ def _run(args) -> None:
             import_config=config)
         if not ok or not prim_path:
             raise RuntimeError('Raspicat URDF import failed')
+        for name in (args.left_joint, args.right_joint):
+            joint = stage.GetPrimAtPath(f'{prim_path}/joints/{name}')
+            if not joint.IsValid() or not joint.HasAPI(UsdPhysics.DriveAPI, 'angular'):
+                raise RuntimeError(f'wheel drive missing from imported URDF: {name}')
+            drive = UsdPhysics.DriveAPI.Get(joint, 'angular')
+            drive.GetStiffnessAttr().Set(0.0)
+            drive.GetDampingAttr().Set(10000.0)
+            drive.GetMaxForceAttr().Set(1000.0)
         robot = world.scene.add(SingleArticulation(prim_path=prim_path, name='raspicat'))
-        camera = world.scene.add(Camera(prim_path='/World/RVLN_Camera',
-                                       resolution=(640, 480), frequency=10))
+        camera = None
+        if not args.physics_only:
+            camera = world.scene.add(Camera(prim_path='/World/RVLN_Camera',
+                                           resolution=(640, 480), frequency=10))
         world.reset()
-        camera.initialize()
-        camera.add_distance_to_image_plane_to_frame()
+        if camera is not None:
+            camera.initialize()
+            camera.add_distance_to_image_plane_to_frame()
         left = robot.get_dof_index(args.left_joint)
         right = robot.get_dof_index(args.right_joint)
         if left == right or min(left, right) < 0:
@@ -103,10 +148,13 @@ def _run(args) -> None:
                 self.create_subscription(Twist, '/cmd_vel', self.on_command, 10)
                 self.create_service(SetBool, '/motor_power', self.on_motor)
                 qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
-                self.image_pub = self.create_publisher(
-                    Image, '/camera/color/image_raw', qos)
-                self.depth_pub = self.create_publisher(
-                    Image, '/camera/depth/image_raw', qos)
+                self.image_pub = None
+                self.depth_pub = None
+                if camera is not None:
+                    self.image_pub = self.create_publisher(
+                        Image, '/camera/color/image_raw', qos)
+                    self.depth_pub = self.create_publisher(
+                        Image, '/camera/depth/image_raw', qos)
                 self.clock_pub = self.create_publisher(Clock, '/clock', 10)
                 self.odom_pub = self.create_publisher(Odometry, '/odom', 10)
                 self.pose_pub = self.create_publisher(
@@ -127,6 +175,9 @@ def _run(args) -> None:
         bridge = Bridge()
         begin = time.monotonic()
         last_camera = 0.0
+        steps = 0
+        camera_frames = 0
+        empty_camera_frames = 0
         while app.is_running() and (args.max_seconds == 0 or
                                     time.monotonic() - begin < args.max_seconds):
             rclpy.spin_once(bridge, timeout_sec=0)
@@ -144,11 +195,13 @@ def _run(args) -> None:
                 2 * (previous_orientation[0] * previous_orientation[3] +
                      previous_orientation[1] * previous_orientation[2]),
                 1 - 2 * (previous_orientation[2] ** 2 + previous_orientation[3] ** 2))
-            camera.set_world_pose(
-                position=previous_position + np.array([
-                    0.1 * math.cos(previous_yaw), 0.1 * math.sin(previous_yaw), 0.1433]),
-                orientation=previous_orientation, camera_axes='world')
-            world.step(render=True)
+            if camera is not None:
+                camera.set_world_pose(
+                    position=previous_position + np.array([
+                        0.1 * math.cos(previous_yaw), 0.1 * math.sin(previous_yaw), 0.1433]),
+                    orientation=previous_orientation, camera_axes='world')
+            world.step(render=camera is not None)
+            steps += 1
             position, orientation = robot.get_world_pose()
             yaw = math.atan2(2 * (orientation[0] * orientation[3] +
                                   orientation[1] * orientation[2]),
@@ -185,8 +238,14 @@ def _run(args) -> None:
             transform.transform.rotation = odom.pose.pose.orientation
             bridge.tf_pub.publish(TFMessage(transforms=[transform]))
             now = time.monotonic()
-            if now - last_camera >= 0.1:
+            if camera is not None and now - last_camera >= 0.1:
                 rgba = np.asarray(camera.get_rgba())
+                if rgba.size == 0:
+                    empty_camera_frames += 1
+                    if empty_camera_frames >= 30:
+                        raise RuntimeError('Isaac camera produced no RGBA frame '
+                                           'after 30 capture attempts')
+                    continue
                 if rgba.shape != (480, 640, 4):
                     raise RuntimeError(f'unexpected camera frame: {rgba.shape}')
                 image = Image()
@@ -208,7 +267,18 @@ def _run(args) -> None:
                 depth_image.data = np.asarray(depth, dtype='<f4').tobytes()
                 bridge.depth_pub.publish(depth_image)
                 last_camera = now
+                camera_frames += 1
         bridge.destroy_node()
         rclpy.shutdown()
+        status = 'finished' if steps and (args.physics_only or camera_frames) else 'incomplete'
+        print(json.dumps({'status': status, 'physics_steps': steps,
+                          'camera_frames': camera_frames,
+                          'physics_only': args.physics_only}), flush=True)
+        if status != 'finished':
+            raise RuntimeError('Isaac exited before producing camera frames')
+    except Exception as error:
+        print(json.dumps({'status': 'error', 'error':
+                          f'{type(error).__name__}: {error}'}), flush=True)
+        raise
     finally:
         app.close()

@@ -29,7 +29,8 @@ before running its commands.
 `OMNI_KIT_ACCEPT_EULA=YES` before launching Isaac. The ROS 2 bridge also needs
 `rclpy`, `geometry_msgs`, `nav_msgs`, `sensor_msgs`, and `std_srvs` importable in
 the Isaac Python environment. Isaac Sim 5.0 bundles Python 3.11-compatible ROS 2
-Humble libraries and the bridge enables them; do not source a Python 3.10 ROS
+Humble libraries; the RVLN adapter loads them directly on Windows when `rclpy`
+is otherwise unavailable. Do not source a Python 3.10 ROS
 installation into the Isaac process. See [NVIDIA's ROS installation guide](https://docs.isaacsim.omniverse.nvidia.com/5.0.0/installation/install_ros.html).
 
 ## R2R-CE transfer track
@@ -111,14 +112,35 @@ logger, ROS TF, live episode runner, and matrix orchestration have
 not been migrated. Keep the legacy Gazebo path for those measurements until an
 Isaac run demonstrates equivalent topics and scoring.
 
+`--physics-only` runs the articulation and ROS publishers without camera
+rendering for a limited smoke test; add `--max-seconds 3` to end it. It does not
+validate the visual benchmark.
+
 ## Validation status
 
 The local Windows environment installed Isaac Sim 5.0.0 through `uv`. The
 standalone USD converter produced and reopened collidable USD for all three
-pilot worlds. CPU tests cover shared execution, split scoring, pilot SDF
-parsing, robot preparation, and wheel kinematics (19 tests, one skipped because
-Gazebo ROS messages are unavailable). Isaac startup crashed inside
-`rtx.scenedb.plugin.dll` before loading benchmark code, so rendering,
-simulation, ROS bridge behavior, and policy evaluation remain unverified.
+pilot worlds; each has four collision prims. Robot preparation produced a
+19-link, 18-joint URDF with collision and inertia on the physical links. CPU
+tests cover shared execution, split scoring, pilot SDF parsing, robot
+preparation, and wheel kinematics (20 tests, one skipped because Gazebo ROS
+messages are unavailable). Isaac imported the URDF without missing meshes.
+With velocity drives configured, a direct physics probe moved the robot 0.26 m
+in the corridor over 180 steps. The `--physics-only` RVLN command completed
+324 physics steps while spinning its internal ROS node. Cross-process ROS topic
+and service discovery did not work in this Windows environment, even between
+two standalone ROS processes; external ROS integration is therefore unverified.
+
+Full Isaac startup still logs a native RTX access violation shortly after
+`app ready`. The process continues when crash reporting is disabled, but both
+R2R and RVLN cameras returned empty frames after 30 render/capture attempts.
+The synthetic R2R episode therefore recorded `status: error` before calling a
+local policy, and no visual benchmark or official R2R-CE score has completed.
+The cause of the renderer failure has not been established. This machine has
+an RTX 4060 Ti, below [Isaac Sim 5.0's minimum RTX 4080 GPU](https://docs.isaacsim.omniverse.nvidia.com/5.0.0/installation/requirements.html).
+Results are written with `status: started`, `error`, or `completed` before
+Isaac shutdown, and aggregation accepts only completed episodes. Kit shutdown
+can return process exit code 0 even after a Python error, so inspect the result
+status (or RVLN's printed status) rather than relying on the exit code here.
 The R2R-CE transfer track also needs separately licensed scene and episode
-assets. No official R2R-CE score has been produced.
+assets.
