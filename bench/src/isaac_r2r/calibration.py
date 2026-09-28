@@ -53,13 +53,15 @@ def fit_rigid_transform(pairs: list[dict], max_error_m: float) -> dict:
 
 
 def calibrate_scene(pairs_path: Path, scene: str, usd: Path, output: Path,
-                    max_error_m: float) -> dict:
+                    max_error_m: float, dome_intensity: float = 0.0) -> dict:
     """Write a one-scene registry only after its source USD and fit validate."""
     usd = usd.expanduser().resolve()
     if not usd.is_file() or usd.suffix.lower() not in ('.usd', '.usda', '.usdc'):
         raise ValueError(f'missing scene USD: {usd}')
     if not scene or any(char in scene for char in '/\\') or scene in ('.', '..'):
         raise ValueError('scene must be a single MP3D scan ID')
+    if not math.isfinite(dome_intensity) or dome_intensity < 0:
+        raise ValueError('dome intensity must be finite and nonnegative')
     registry = {'schema': 1, 'scenes': {}}
     if output.exists():
         registry = json.loads(output.read_text(encoding='utf-8'))
@@ -71,7 +73,8 @@ def calibrate_scene(pairs_path: Path, scene: str, usd: Path, output: Path,
     if not isinstance(pairs, list):
         raise ValueError('landmarks must be an array of coordinate pairs')
     fit = fit_rigid_transform(pairs, max_error_m)
-    record = {'usd': str(usd), **fit, 'landmarks_sha256': sha256(pairs_path)}
+    record = {'usd': str(usd), **fit, 'landmarks_sha256': sha256(pairs_path),
+              'dome_light_intensity': dome_intensity}
     registry['scenes'][scene] = record
     write_json(output, registry)
     return registry

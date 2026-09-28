@@ -38,9 +38,34 @@ def add_static_collisions(stage) -> dict:
     metres = UsdGeom.GetStageMetersPerUnit(stage)
     if not math.isclose(metres, 1.0, rel_tol=0, abs_tol=1e-6):
         raise ValueError(f'converted scan must use metres, got {metres}')
+    # Instance proxies cannot be edited and otherwise remain noncollidable.
+    # Expand imported glTF instances so every visible mesh receives collision.
+    instances_deinstanced = 0
+    while True:
+        instances = [prim for prim in stage.Traverse() if prim.IsInstance()]
+        if not instances:
+            break
+        for prim in instances:
+            prim.SetInstanceable(False)
+        instances_deinstanced += len(instances)
+        if instances_deinstanced > 100_000:
+            raise ValueError('converted scan has too many nested instances')
     meshes = [prim for prim in stage.Traverse() if prim.IsA(UsdGeom.Mesh)]
     if not meshes:
         raise ValueError('converted scan has no mesh prims')
+    vertices = 0
+    triangles = 0
+    for prim in meshes:
+        mesh = UsdGeom.Mesh(prim)
+        points = mesh.GetPointsAttr().Get() or []
+        face_counts = mesh.GetFaceVertexCountsAttr().Get() or []
+        indices = mesh.GetFaceVertexIndicesAttr().Get() or []
+        if (not points or not face_counts or len(indices) != sum(face_counts)
+                or any(count < 3 for count in face_counts)
+                or any(index < 0 or index >= len(points) for index in indices)):
+            raise ValueError(f'imported mesh has missing or invalid geometry: {prim.GetPath()}')
+        vertices += len(points)
+        triangles += sum(count - 2 for count in face_counts)
     if up_axis == UsdGeom.Tokens.y:
         roots = {mesh.GetPath().GetPrefixes()[0] for mesh in meshes}
         for path in roots:
@@ -60,7 +85,9 @@ def add_static_collisions(stage) -> dict:
         UsdPhysics.CollisionAPI.Apply(prim)
         collision = UsdPhysics.MeshCollisionAPI.Apply(prim)
         collision.CreateApproximationAttr().Set('none')
-    return {'meshes': len(meshes), 'source_up_axis': str(up_axis)}
+    return {'meshes': len(meshes), 'vertices': vertices, 'triangles': triangles,
+            'instances_deinstanced': instances_deinstanced,
+            'source_up_axis': str(up_axis)}
 
 
 def convert_scan(source: Path, output: Path) -> dict:

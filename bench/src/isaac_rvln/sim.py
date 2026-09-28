@@ -14,6 +14,7 @@ import time
 from pathlib import Path
 
 from bench.episode import ContinuousSimulator
+from isaac_rvln.contacts import ObstacleContactLog
 
 
 _ROS_DLL_DIRECTORY = None
@@ -66,6 +67,9 @@ class IsaacRVLNSimulator(ContinuousSimulator):
 def _run(args) -> None:
     from isaacsim import SimulationApp
     robot_assets = None
+    contact_log = None
+    contact_subscription = None
+    contacts_saved = False
     app = SimulationApp({'headless': args.headless, 'multi_gpu': False,
                          'create_new_stage': False, 'enable_crashreporter': False,
                          'width': 320, 'height': 240,
@@ -96,12 +100,16 @@ def _run(args) -> None:
         from sensor_msgs.msg import Image
         from std_srvs.srv import SetBool
         from tf2_msgs.msg import TFMessage
-        from pxr import UsdGeom, UsdPhysics
+        from pxr import Usd, UsdGeom, UsdPhysics
 
         robot_assets = tempfile.TemporaryDirectory(prefix='rvln-isaac-urdf-')
         import_config = URDFImporterConfig(
             urdf_path=str(args.robot_urdf.resolve()), usd_path=robot_assets.name,
-            merge_fixed_joints=True, fix_base=False, collision_from_visuals=False)
+            merge_fixed_joints=True, fix_base=False, collision_from_visuals=False,
+            joint_target_type={'(left|right)_wheel_joint': 'velocity'},
+            joint_drive_type={'(left|right)_wheel_joint': 'force'},
+            override_joint_stiffness={'(left|right)_wheel_joint': 0.0},
+            override_joint_damping={'(left|right)_wheel_joint': 1000.0})
         robot_usd = URDFImporter(import_config).import_urdf()
         if not Path(robot_usd).is_file():
             raise RuntimeError('Raspicat URDF import failed')
@@ -141,6 +149,37 @@ def _run(args) -> None:
             drive.GetMaxForceAttr().Set(1000.0)
         robot = world.scene.add(SingleArticulation(
             prim_path=articulation_roots[0].GetPath().pathString, name='raspicat'))
+        if args.contact_out is not None:
+            from omni.physx import get_physx_simulation_interface
+            from pxr import PhysicsSchemaTools, PhysxSchema
+
+            environment = stage.GetPrimAtPath('/World/Environment')
+            obstacles = {child.GetName() for child in environment.GetChildren()
+                         if child.GetName() != 'Ground'
+                         and any(prim.HasAPI(UsdPhysics.CollisionAPI)
+                                 for prim in Usd.PrimRange(child))}
+            contact_log = ObstacleContactLog(obstacles)
+            bodies = [prim for prim in stage.Traverse()
+                      if prim.GetPath().pathString.startswith('/World/Raspicat/')
+                      and prim.HasAPI(UsdPhysics.RigidBodyAPI)]
+            if not bodies:
+                raise RuntimeError('imported robot has no rigid bodies for contact reports')
+            for prim in bodies:
+                PhysxSchema.PhysxContactReportAPI.Apply(prim)
+
+            def on_contacts(headers, _data):
+                for header in headers:
+                    if header.num_contact_data < 1:
+                        continue
+                    paths = [str(PhysicsSchemaTools.intToSdfPath(value)) for value in (
+                        header.actor0, header.actor1,
+                        header.collider0, header.collider1)]
+                    contact_log.record(*paths, world.current_time,
+                                       header.num_contact_data)
+
+            contact_subscription = (
+                get_physx_simulation_interface().subscribe_contact_report_events(
+                    on_contacts))
         world.reset()
         camera = None
         camera_prim = None
@@ -164,6 +203,8 @@ def _run(args) -> None:
                 self.command = (0.0, 0.0)
                 self.last_command = 0.0
                 self.motor_on = False
+                self.command_count = 0
+                self.motor_requests = 0
                 self.create_subscription(Twist, '/cmd_vel', self.on_command, 10)
                 self.create_service(SetBool, '/motor_power', self.on_motor)
                 qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
@@ -181,11 +222,13 @@ def _run(args) -> None:
                 self.tf_pub = self.create_publisher(TFMessage, '/tf', 10)
 
             def on_command(self, message):
+                self.command_count += 1
                 self.command = (max(-0.4, min(0.4, float(message.linear.x))),
                                 max(-1.0, min(1.0, float(message.angular.z))))
                 self.last_command = time.monotonic()
 
             def on_motor(self, request, response):
+                self.motor_requests += 1
                 self.motor_on = bool(request.data)
                 response.success = True
                 response.message = 'motor enabled' if self.motor_on else 'motor disabled'
@@ -197,11 +240,15 @@ def _run(args) -> None:
         steps = 0
         camera_frames = 0
         empty_camera_frames = 0
+        driven_steps = 0
+        peak_joint_velocity = [0.0, 0.0]
         while app.is_running() and (args.max_seconds == 0 or
                                     time.monotonic() - begin < args.max_seconds):
             rclpy.spin_once(bridge, timeout_sec=0)
             if bridge.motor_on and time.monotonic() - bridge.last_command <= 0.5:
                 command = bridge.command
+                if command != (0.0, 0.0):
+                    driven_steps += 1
             else:
                 command = (0.0, 0.0)
             velocity = wheel_velocities(*command, args.wheel_radius,
@@ -224,7 +271,13 @@ def _run(args) -> None:
                         0.1 * math.sin(previous_yaw), 0.1433])]),
                     orientations=np.asarray([camera_orientation]))
             world.step(render=camera is not None)
+            if command != (0.0, 0.0):
+                joint_velocity = robot.get_joint_velocities()[[left, right]]
+                peak_joint_velocity = [max(old, abs(float(new))) for old, new
+                                       in zip(peak_joint_velocity, joint_velocity)]
             steps += 1
+            if contact_log is not None:
+                contact_log.tick()
             position, orientation = robot.get_world_pose()
             yaw = math.atan2(2 * (orientation[0] * orientation[3] +
                                   orientation[1] * orientation[2]),
@@ -302,10 +355,22 @@ def _run(args) -> None:
                 camera_frames += 1
         bridge.destroy_node()
         rclpy.shutdown()
+        if contact_log is not None:
+            contact_payload = contact_log.save(args.contact_out)
+            contacts_saved = True
         status = 'finished' if steps and (args.physics_only or camera_frames) else 'incomplete'
         print(json.dumps({'status': status, 'physics_steps': steps,
                           'camera_frames': camera_frames,
-                          'physics_only': args.physics_only}), flush=True)
+                          'physics_only': args.physics_only,
+                          'command_count': bridge.command_count,
+                          'motor_requests': bridge.motor_requests,
+                          'driven_steps': driven_steps,
+                          'final_position': [float(v) for v in position],
+                          'wheel_velocities': [float(v) for v in
+                                               robot.get_joint_velocities()[[left, right]]],
+                          'peak_wheel_velocities': peak_joint_velocity,
+                          'collisions': contact_payload['collisions']
+                          if contact_log is not None else None}), flush=True)
         if status != 'finished':
             raise RuntimeError('Isaac exited before producing camera frames')
     except Exception as error:
@@ -313,6 +378,9 @@ def _run(args) -> None:
                           f'{type(error).__name__}: {error}'}), flush=True)
         raise
     finally:
+        if contact_log is not None and not contacts_saved:
+            contact_log.save(args.contact_out)
+        contact_subscription = None
         app.close()
         if robot_assets is not None:
             robot_assets.cleanup()

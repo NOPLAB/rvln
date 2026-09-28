@@ -82,7 +82,7 @@ def validate(row: dict) -> dict:
     moved = any(math.dist((p['x'], p['y']), (trace[0]['x'], trace[0]['y'])) > 0.01
                 or abs(p['yaw'] - trace[0]['yaw']) > 0.01 for p in trace)
     if not commanded or not moved:
-        raise ValueError(f'{model}/{row["id"]}: Edge command or Gazebo motion missing')
+        raise ValueError(f'{model}/{row["id"]}: Edge command or simulator motion missing')
     return {'model': model, 'id': row['id'], 'inferences': len(runs),
             'nonempty_paths': row['nonempty_paths'], 'commanded': commanded,
             'moved': moved, 'model_version': row['model_version']}

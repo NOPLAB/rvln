@@ -31,10 +31,11 @@ class CalibrationTest(unittest.TestCase):
             pairs.write_text(json.dumps({'landmarks': pairs_for(ROTATION)}))
             registry = root / 'scenes.json'
 
-            result = calibrate_scene(pairs, 'abc', usd, registry, 0.05)
+            result = calibrate_scene(pairs, 'abc', usd, registry, 0.05, 800.0)
             loaded = load_scene_record(registry, 'abc')
 
             self.assertEqual(result['scenes']['abc']['landmarks'], 4)
+            self.assertEqual(loaded['dome_light_intensity'], 800.0)
             self.assertLess(result['scenes']['abc']['max_error_m'], 1e-10)
             for source, expected in zip(POINTS, pairs_for(ROTATION)):
                 np.testing.assert_allclose(
@@ -53,6 +54,17 @@ class CalibrationTest(unittest.TestCase):
             fit_rigid_transform([
                 {'habitat': [value, 0, 0], 'isaac': [value, 0, 0]}
                 for value in (0, 1, 2)], 0.05)
+
+    def test_nonfinite_light_intensity_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            usd = root / 'scan.usd'
+            usd.write_bytes(b'usd fixture')
+            pairs = root / 'landmarks.json'
+            pairs.write_text(json.dumps({'landmarks': pairs_for(ROTATION)}))
+            with self.assertRaisesRegex(ValueError, 'intensity'):
+                calibrate_scene(pairs, 'abc', usd, root / 'scenes.json',
+                                0.05, float('nan'))
 
 
 if __name__ == '__main__':

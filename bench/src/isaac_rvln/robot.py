@@ -54,13 +54,15 @@ def prepare_robot(description_root: Path, output: Path) -> dict:
 
     base = links['base_link']
     base_collision = _child(base, 'collision')
-    _child(_child(base_collision, 'geometry'), 'box', size='0.48 0.28 0.15')
+    # Keep the chassis above the contact plane so the driven wheels carry it.
+    _child(_child(base_collision, 'geometry'), 'box', size='0.48 0.28 0.08')
     _inertial(base, 5.778318, (0.0485945486, 0.07472816111, 0.08479504851))
     for side in ('left', 'right'):
         wheel = links[f'{side}_wheel_link']
         collision = _child(wheel, 'collision')
-        _child(_child(collision, 'geometry'), 'cylinder',
-               radius=WHEEL_RADIUS_M, length=0.0254)
+        # Isaac 6.1's imported cylinder colliders barely touch the ground for
+        # this URDF; a radius-matched rolling proxy restores wheel traction.
+        _child(_child(collision, 'geometry'), 'sphere', radius=WHEEL_RADIUS_M)
         _inertial(wheel, 0.255393, (0.000382815198, 0.00038254522,
                                    0.00074855867))
     caster = links['caster_link']

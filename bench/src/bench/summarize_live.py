@@ -1,4 +1,4 @@
-"""Summarize ground-truth Gazebo route traces with linked episode videos."""
+"""Summarize ground-truth route traces with linked episode videos."""
 from __future__ import annotations
 
 import argparse
@@ -11,6 +11,8 @@ from bench.score import score_episode, summarize
 
 
 ORDER = ('asyncvla', 'omnivla', 'omnivla_edge', 'movla', 'navila', 'navida')
+POSE_SOURCES = {'gazebo_model_states': 'gazebo',
+                'isaac_ground_truth': 'isaac_sim'}
 
 
 def percentile(values: list[float], rank: float) -> float | None:
@@ -26,11 +28,20 @@ def percentile(values: list[float], rank: float) -> float | None:
 def run(runs: Path) -> dict:
     episodes = []
     oracle = None
+    pose_source = None
+    latencies = {}
     for model in ORDER:
         for path in sorted(runs.glob(f'{model}-*.json')):
-            raw = json.loads(path.read_text())
-            if raw.get('pose_source') != 'gazebo_model_states':
+            if path.name.endswith('.contacts.json'):
                 continue
+            raw = json.loads(path.read_text())
+            source = raw.get('pose_source')
+            if source not in POSE_SOURCES:
+                raise ValueError(f'unknown ground-truth pose source in {path.name}: {source}')
+            if pose_source is None:
+                pose_source = source
+            elif source != pose_source:
+                raise ValueError('mixed simulator pose sources need separate reports')
             video = runs / raw.get('video', '')
             if not video.is_file() or video.stat().st_size < 1000 or raw['video_frames'] < 1:
                 raise ValueError(f'missing or empty video for {path.name}')
@@ -60,7 +71,11 @@ def run(runs: Path) -> dict:
                 for p in raw['trace'])
             scored['round_trip_p95_ms'] = percentile(
                 [i['round_trip_ms'] for i in raw['inferences']], 0.95)
+            latencies.setdefault(model, []).extend(
+                i['round_trip_ms'] for i in raw['inferences'])
             episodes.append(scored)
+    if not episodes:
+        raise ValueError(f'no live episodes in {runs}')
     result = summarize(episodes)
     for group in result['groups']:
         rows = [r for r in episodes if r['model'] == group['model']]
@@ -69,14 +84,14 @@ def run(runs: Path) -> dict:
         group['median_travel_m'] = statistics.median(r['travel_m'] for r in rows)
         group['median_elapsed_sec'] = statistics.median(r['elapsed_sec'] for r in rows)
         group['round_trip_p95_ms'] = percentile(
-            [i['round_trip_ms'] for p in runs.glob(f'{group["model"]}-*.json')
-             for i in json.loads(p.read_text()).get('inferences', [])], 0.95)
+            latencies.get(group['model'], []), 0.95)
         group['goal_tolerance_stops'] = sum(
             r['stop_reason'] == 'goal_tolerance' for r in rows)
         group['timeouts'] = sum(r['stop_reason'] == 'timeout' for r in rows)
         group['track'] = 'template_commands' if group['model'] == 'movla' else 'general_text'
     result['protocol'] = {
-        'pose_source': 'gazebo_model_states',
+        'pose_source': pose_source,
+        'simulator': POSE_SOURCES[pose_source],
         'goal_tolerance_m': 0.30,
         'max_duration_sec': 35,
         'video_fps': 2,

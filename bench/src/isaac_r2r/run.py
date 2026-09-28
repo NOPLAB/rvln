@@ -4,6 +4,7 @@ from __future__ import annotations
 import io
 import json
 import math
+import time
 from pathlib import Path
 
 from bench.episode import EpisodeRequest, EpisodeSimulator, Observation
@@ -31,7 +32,11 @@ def load_scene_record(path: Path, scene: str) -> dict:
         raise ValueError('scene transform must preserve metric distance')
     if not np.isclose(np.linalg.det(rotation), 1.0, atol=1e-4):
         raise ValueError('scene transform must be a proper rotation')
-    return {'usd': usd, 'matrix': transform, 'inverse': np.linalg.inv(transform)}
+    dome_intensity = float(record.get('dome_light_intensity', 0.0))
+    if not math.isfinite(dome_intensity) or dome_intensity < 0:
+        raise ValueError('dome_light_intensity must be finite and nonnegative')
+    return {'usd': usd, 'matrix': transform, 'inverse': np.linalg.inv(transform),
+            'dome_light_intensity': dome_intensity}
 
 
 def transform_point(matrix, position):
@@ -57,6 +62,10 @@ def initial_yaw(episode: dict, rotation) -> float:
 class IsaacR2RSimulator(EpisodeSimulator):
     """Isaac renderer with discrete kinematic motion and collision raycasts."""
 
+    render_size = 512
+    observation_size = 256
+    agent_radius_m = 0.1
+
     def __init__(self, scene: dict, *, headless: bool):
         from isaacsim import SimulationApp
         self.app = SimulationApp({'headless': headless, 'multi_gpu': False,
@@ -69,16 +78,29 @@ class IsaacR2RSimulator(EpisodeSimulator):
             from isaacsim.core.api import World
             from isaacsim.core.utils.stage import add_reference_to_stage
             from isaacsim.sensors.experimental.rtx import CameraSensor
-            from pxr import Usd, UsdGeom, UsdPhysics
+            import isaacsim.core.experimental.utils.app as app_utils
+            import omni.replicator.core as rep
+            import carb.settings
+            from pxr import Usd, UsdGeom, UsdLux, UsdPhysics
 
             self.scene = scene
             self.world = World(stage_units_in_meters=1.0)
             add_reference_to_stage(str(scene['usd']), '/World/Environment')
+            if scene.get('dome_light_intensity', 0.0) > 0:
+                dome = UsdLux.DomeLight.Define(self.world.stage, '/World/RVLN_DomeLight')
+                dome.CreateIntensityAttr(scene['dome_light_intensity'])
             self.world.reset()
-            UsdGeom.Camera.Define(self.world.stage, '/World/RVLN_Camera')
-            self.camera = CameraSensor('/World/RVLN_Camera', resolution=(224, 224),
-                                       annotators=['rgb'])
+            camera = UsdGeom.Camera.Define(self.world.stage, '/World/RVLN_Camera')
+            camera.GetHorizontalApertureAttr().Set(20.0)
+            camera.GetVerticalApertureAttr().Set(20.0)
+            camera.GetFocalLengthAttr().Set(10.0)
+            carb.settings.get_settings().set('/rtx/post/dlss/execMode', 2)
+            size = self.render_size
+            self.camera = CameraSensor('/World/RVLN_Camera', resolution=(size, size),
+                                       annotators=['rgb', 'distance_to_image_plane'])
             self.camera_prim = self.camera.authoring_object
+            app_utils.play(commit=True)
+            rep.orchestrator.step(rt_subframes=2, pause_timeline=False)
             stage = omni.usd.get_context().get_stage()
             if UsdGeom.GetStageUpAxis(stage) != UsdGeom.Tokens.z:
                 raise ValueError('USD scene must use Z-up coordinates')
@@ -105,8 +127,8 @@ class IsaacR2RSimulator(EpisodeSimulator):
 
     def observe(self) -> Observation:
         import numpy as np
-        import isaacsim.core.experimental.utils.app as app_utils
         import omni.replicator.core as rep
+        import omni.usd
         from PIL import Image
 
         c, s = math.cos(self.yaw / 2), math.sin(self.yaw / 2)
@@ -114,22 +136,43 @@ class IsaacR2RSimulator(EpisodeSimulator):
         self.camera_prim.set_world_poses(
             positions=np.asarray([self.position + [0.0, 0.0, 1.25]]),
             orientations=np.asarray([orientation]))
-        app_utils.play(commit=True)
-        rep.orchestrator.step(rt_subframes=2, pause_timeline=False)
-        for _ in range(30):
-            self.app.update()
+        # A navigation action can teleport the camera between captures. Discard
+        # temporal RTX buffers before reading RGB and depth for the new pose.
+        omni.usd.get_context().reset_renderer_accumulation()
+        rep.orchestrator.step(rt_subframes=4, pause_timeline=False,
+                              wait_for_render=True)
+        deadline = time.monotonic() + 5.0
+        attempts = 0
+        size = self.render_size
+        while attempts < 240 and time.monotonic() < deadline:
+            self.world.step(render=True)
+            attempts += 1
             data, _ = self.camera.get_data('rgb')
             rgba = (data.numpy() if data is not None and hasattr(data, 'numpy')
                     else np.asarray(data))
-            if rgba.shape in ((224, 224, 3), (224, 224, 4)):
+            rgb_valid = rgba.shape in ((size, size, 3), (size, size, 4))
+            if rgb_valid:
+                rgb = np.array(rgba[:, :, :3], dtype='uint8', copy=True)
+            depth_data, _ = self.camera.get_data('distance_to_image_plane')
+            depth = (depth_data.numpy() if depth_data is not None and
+                     hasattr(depth_data, 'numpy') else np.asarray(depth_data))
+            if depth.shape == (size, size, 1):
+                depth = depth[:, :, 0]
+            if rgb_valid and depth.shape == (size, size) and \
+                    np.any(np.isfinite(depth) & (depth > 0)):
                 break
         else:
-            raise RuntimeError(f'Isaac camera produced no RGB frame after 30 steps: '
-                               f'{rgba.shape}')
-        rgb = rgba[:, :, :3]
+            raise RuntimeError('Isaac camera produced no RGB/depth frame after '
+                               f'{attempts} steps: rgb={rgba.shape}, depth={depth.shape}')
         buffer = io.BytesIO()
-        Image.fromarray(rgb.astype('uint8')).save(buffer, format='JPEG', quality=90)
-        return Observation(buffer.getvalue())
+        Image.fromarray(rgb).resize((self.observation_size,) * 2,
+                                    Image.Resampling.BILINEAR).save(
+                                        buffer, format='JPEG', quality=90)
+        depth = np.asarray(Image.fromarray(np.asarray(depth, dtype='float32')).resize(
+            (self.observation_size,) * 2, Image.Resampling.NEAREST))
+        return Observation(buffer.getvalue(),
+                           np.asarray(depth, dtype='<f4').tobytes(),
+                           self.observation_size, self.observation_size)
 
     def apply(self, action: str) -> list[float]:
         if action in ('left', 'right'):
@@ -142,8 +185,8 @@ class IsaacR2RSimulator(EpisodeSimulator):
             direction = np.array([math.cos(self.yaw), math.sin(self.yaw), 0.0])
             side = np.array([-direction[1], direction[0], 0.0])
             blocked = False
-            for height in (0.15, 0.45):
-                for offset in (-0.17, 0.17):
+            for height in (0.15, 0.75, 1.4):
+                for offset in (-self.agent_radius_m, 0.0, self.agent_radius_m):
                     origin = self.position + side * offset + [0.0, 0.0, height]
                     hit = get_physx_scene_query_interface().raycast_closest(
                         carb.Float3(*origin), carb.Float3(*direction), 0.25)

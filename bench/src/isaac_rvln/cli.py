@@ -41,6 +41,8 @@ def register(commands: argparse._SubParsersAction) -> None:
     rvln.add_argument('--physics-only', action='store_true',
                       help='run wheel and ROS checks without camera frames')
     rvln.add_argument('--max-seconds', type=float, default=0)
+    rvln.add_argument('--contact-out', type=Path,
+                      help='write obstacle-contact onsets from Isaac PhysX')
     rvln.set_defaults(handler=run)
 
     world = commands.add_parser('convert-world', help='convert a pilot SDF to USD')

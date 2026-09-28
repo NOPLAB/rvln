@@ -13,6 +13,20 @@ class Observation:
     """One first-person camera observation; the hidden goal is never included."""
 
     jpeg: bytes
+    depth_f32: bytes | None = None
+    depth_width: int | None = None
+    depth_height: int | None = None
+
+    def __post_init__(self) -> None:
+        fields = (self.depth_f32, self.depth_width, self.depth_height)
+        if all(value is None for value in fields):
+            return
+        if any(value is None for value in fields):
+            raise ValueError('depth data and dimensions must be supplied together')
+        if self.depth_width < 1 or self.depth_height < 1:
+            raise ValueError('depth dimensions must be positive')
+        if len(self.depth_f32) != self.depth_width * self.depth_height * 4:
+            raise ValueError('depth data must contain one float32 value per pixel')
 
 
 @dataclass(frozen=True)
@@ -85,11 +99,18 @@ class HttpPolicy(Policy):
 
     def act(self, episode_id: str, frame_id: int, instruction: str,
             observation: Observation) -> str:
-        response = self._request('/act', {
+        payload = {
             'episode_id': episode_id, 'frame_id': frame_id,
             'instruction': instruction,
             'jpeg_base64': base64.b64encode(observation.jpeg).decode('ascii'),
-        })
+        }
+        if observation.depth_f32 is not None:
+            payload.update({
+                'depth_f32_base64': base64.b64encode(observation.depth_f32).decode('ascii'),
+                'depth_width': observation.depth_width,
+                'depth_height': observation.depth_height,
+            })
+        response = self._request('/act', payload)
         if response.get('episode_id') != episode_id or response.get('frame_id') != frame_id:
             raise ValueError('stale policy action')
         action = response.get('action')

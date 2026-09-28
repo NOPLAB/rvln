@@ -10,6 +10,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from bench.summarize_live import POSE_SOURCES
+
 
 ORDER = ('asyncvla', 'omnivla', 'omnivla_edge', 'movla', 'navila', 'navida')
 SCENES = {'c': 'CORRIDOR', 'j': 'JUNCTION', 'w': 'WEAVE'}
@@ -44,6 +46,13 @@ def main() -> None:
     parser.add_argument('--runs', type=Path, required=True)
     parser.add_argument('--out', type=Path, required=True)
     args = parser.parse_args()
+    sources = {json.loads(path.read_text()).get('pose_source')
+               for model in ORDER for path in args.runs.glob(f'{model}-*.json')
+               if not path.name.endswith('.contacts.json')}
+    if len(sources) != 1 or next(iter(sources)) not in POSE_SOURCES:
+        raise ValueError('video needs one supported simulator pose source')
+    pose_source = next(iter(sources))
+    simulator = 'Isaac Sim' if pose_source == 'isaac_ground_truth' else 'Gazebo'
     writer = cv2.VideoWriter(str(args.out), cv2.VideoWriter_fourcc(*'mp4v'),
                              FPS, SIZE)
     if not writer.isOpened():
@@ -51,15 +60,16 @@ def main() -> None:
     clips = 0
     try:
         card(writer, ['RASPI CAT VLN - CLOSED LOOP PILOT',
-                      'Gazebo + Edge: local workstation',
-                      'Remote inference: Slurm GPU on pve1ubuntu',
-                      'Full episode footage, camera and overhead trace'], 4)
+                      f'{simulator} + ROS 2 Edge',
+                      'Full episode camera and ground-truth trace'], 4)
         for model in ORDER:
             rows = []
             for json_path in sorted(args.runs.glob(f'{model}-*.json')):
+                if json_path.name.endswith('.contacts.json'):
+                    continue
                 row = json.loads(json_path.read_text())
                 video = args.runs / row.get('video', '')
-                if (row.get('pose_source') != 'gazebo_model_states'
+                if (row.get('pose_source') != pose_source
                         or not video.is_file() or row.get('video_frames', 0) < 1):
                     continue
                 rows.append((row, video))
@@ -102,7 +112,7 @@ def main() -> None:
                                        f'{frames} != {row["video_frames"]}')
                 clips += 1
         card(writer, [f'END / {clips} COMPLETE ROUTE VIDEOS',
-                      'Contact rate and SPL use Gazebo contacts and path oracle.',
+                      f'Contact rate and SPL use {simulator} contacts and path oracle.',
                       'Small simulation pilot: 3-4 episodes per model.'], 5)
     finally:
         writer.release()

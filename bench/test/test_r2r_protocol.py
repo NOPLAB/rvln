@@ -31,6 +31,15 @@ class ProtocolTest(unittest.TestCase):
         self.assertEqual(score(episode, path, True)['spl'], 1.0)
         self.assertFalse(score(episode, path, False)['success'])
 
+    def test_success_requires_strictly_less_than_three_metres(self):
+        boundary = score(self.episode, [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], True)
+        near = score(self.episode, [[0.0, 0.0, 0.0], [1.01, 0.0, 0.0]], True)
+        self.assertEqual(boundary['navigation_error_m'], 3.0)
+        self.assertEqual(boundary['navigation_error_kind'], 'euclidean')
+        self.assertFalse(boundary['success'])
+        self.assertEqual(boundary['spl'], 0.0)
+        self.assertTrue(near['success'])
+
     def test_duplicate_episode_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'val.json'
@@ -85,12 +94,43 @@ class ProtocolTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'mixed R2R-CE split'):
                 summarize(paths)
 
+    def test_aggregate_rejects_policy_identity_mix(self):
+        with tempfile.TemporaryDirectory() as directory:
+            paths = []
+            for index, policy_id in enumerate(('model-a', 'model-b')):
+                path = Path(directory) / f'{index}.json'
+                path.write_text(json.dumps({
+                    'episode_id': str(index), 'metric_namespace': 'isaac_r2r_transfer',
+                    'status': 'completed', 'split_sha256': 'one-split',
+                    'scene_id': 'abc', 'policy_id': policy_id, 'success': False,
+                    'spl': 0.0, 'navigation_error_m': 5.0, 'blocked_steps': 0,
+                }))
+                paths.append(path)
+            with self.assertRaisesRegex(ValueError, 'mixed policy model identities'):
+                summarize(paths)
+
     def test_aggregate_rejects_incomplete_episode(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'episode.json'
             path.write_text(json.dumps({'episode_id': '7', 'status': 'started'}))
             with self.assertRaisesRegex(ValueError, 'incomplete'):
                 summarize([path])
+
+    def test_aggregate_requires_exact_split_coverage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            split = root / 'split.json'
+            split.write_text(json.dumps({'episodes': [self.episode, {
+                **self.episode, 'episode_id': '8'}]}), encoding='utf-8')
+            path = root / '7.json'
+            path.write_text(json.dumps({
+                'episode_id': '7', 'metric_namespace': 'isaac_r2r_transfer',
+                'status': 'completed', 'split_sha256': 'wrong', 'scene_id': 'abc',
+                'success': True, 'spl': 1.0, 'navigation_error_m': 0.0,
+                'blocked_steps': 0,
+            }), encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'exact split episodes'):
+                summarize([path], split)
 
 
 if __name__ == '__main__':

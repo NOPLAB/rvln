@@ -22,6 +22,7 @@ def main() -> None:
     parser.add_argument('--checkpoint', required=True)
     parser.add_argument('--bind', required=True)
     parser.add_argument('--port', type=int, default=8765)
+    parser.add_argument('--allowed-client', help='Only accept this client IP')
     parser.add_argument('--device', default='cuda:0')
     parser.add_argument('--resume-step', type=int, default=120000)
     args = parser.parse_args()
@@ -30,7 +31,15 @@ def main() -> None:
     previous = None
 
     class Handler(BaseHTTPRequestHandler):
+        def _allowed(self) -> bool:
+            if args.allowed_client and self.client_address[0] != args.allowed_client:
+                self.send_error(403)
+                return False
+            return True
+
         def do_GET(self) -> None:  # noqa: N802
+            if not self._allowed():
+                return
             if self.path != '/health':
                 self.send_error(404)
                 return
@@ -38,6 +47,8 @@ def main() -> None:
                         'slurm_job_id': os.environ.get('SLURM_JOB_ID')})
 
         def do_POST(self) -> None:  # noqa: N802
+            if not self._allowed():
+                return
             nonlocal backend, previous, version
             if self.path == '/reset':
                 previous = None

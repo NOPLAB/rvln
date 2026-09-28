@@ -18,6 +18,12 @@ class RobotTest(unittest.TestCase):
             root = ET.parse(output).getroot()
             links = {link.attrib['name']: link for link in root.findall('link')}
             self.assertEqual(metadata['wheel_radius_m'], WHEEL_RADIUS_M)
+            self.assertEqual(links['base_link'].find(
+                'collision/geometry/box').attrib['size'], '0.48 0.28 0.08')
+            for side in ('left', 'right'):
+                sphere = links[f'{side}_wheel_link'].find('collision/geometry/sphere')
+                self.assertIsNotNone(sphere)
+                self.assertEqual(float(sphere.attrib['radius']), WHEEL_RADIUS_M)
             for name in ('base_link', 'left_wheel_link', 'right_wheel_link',
                          'caster_link', 'caster_wheel_link', 'camera_link'):
                 self.assertIsNotNone(links[name].find('collision'))

@@ -55,11 +55,12 @@ def score(episode: dict, positions_habitat: list[list[float]], stopped: bool) ->
     traveled = sum(distance(a, b) for a, b in zip(positions_habitat,
                                                     positions_habitat[1:]))
     shortest = float(episode['info']['geodesic_distance'])
-    success = stopped and error <= 3.0
+    success = stopped and error < 3.0
     return {
         'episode_id': str(episode['episode_id']),
         'scene_id': scene_name(episode),
         'navigation_error_m': error,
+        'navigation_error_kind': 'euclidean',
         'trajectory_length_m': traveled,
         'source_geodesic_m': shortest,
         'stopped': stopped,
