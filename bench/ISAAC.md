@@ -56,7 +56,35 @@ raycasts, and known Habitat poses in Isaac before registering a converted scan;
 the import does not establish the Habitat-to-Isaac transform automatically.
 The command requires a new output path and leaves source scans unchanged.
 
-Register each verified scan in a JSON file:
+For each converted scan, record at least three non-collinear points that can be
+identified in both Habitat and Isaac. Spread them across the scan; do not use
+episode goals as substitutes for surveyed correspondences. Store the measured
+coordinates in a JSON file:
+
+```json
+{
+  "landmarks": [
+    {"habitat": [0, 0, 0], "isaac": [4, -2, 1]},
+    {"habitat": [2, 0, 0], "isaac": [6, -2, 1]},
+    {"habitat": [0, 3, 0], "isaac": [4, -2, 4]},
+    {"habitat": [1, 1, 2], "isaac": [5, -4, 2]}
+  ]
+}
+```
+
+Then fit a proper, unit-scale transform. The command rejects collinear points,
+reflections, and any landmark residual above 5 cm by default. Reuse the output
+registry path to add further scene IDs; it refuses to replace a registered ID.
+These example coordinates only illustrate the file format, not an MP3D
+calibration.
+
+```bash
+uv run --extra isaac rvln-bench calibrate-r2r \
+  --landmarks /data/landmarks/<scan-id>.json --scene <scan-id> \
+  --usd /data/mp3d-usd/<scan-id>.usd --out /data/scene_registry.json
+```
+
+The resulting registry uses this structure:
 
 ```json
 {
@@ -163,7 +191,7 @@ The Isaac adapter is locked to Isaac Sim 6.1.0.0 and Python 3.12. On the Slurm
 hosts, `uv sync --extra isaac --frozen --python 3.12` installed 172 packages,
 including Isaac Sim 6.1.0.0, in a temporary node-local environment while the
 project and assets remained on shared storage. The current local CPU suite
-passes 23 cases, with one skipped because Gazebo ROS messages are absent;
+passes 25 cases, with one skipped because Gazebo ROS messages are absent;
 the new `convert-scan` command has not been run inside Isaac 6.1 yet. The RTX 5070 Ti
 node runs Ubuntu 26.04 and driver 610.57.04; [Isaac Sim 6.1 lists Ubuntu
 22.04/24.04 and a tested 595.58.03 driver](https://docs.isaacsim.omniverse.nvidia.com/6.1.0/installation/requirements.html).

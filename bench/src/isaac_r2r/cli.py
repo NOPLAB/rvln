@@ -83,6 +83,13 @@ def convert_scan_asset(args) -> dict:
     return convert_scan(args.glb, args.out)
 
 
+def calibrate_scan(args) -> dict:
+    from isaac_r2r.calibration import calibrate_scene
+
+    return calibrate_scene(args.landmarks, args.scene, args.usd, args.out,
+                           args.max_error_m)
+
+
 def register(commands: argparse._SubParsersAction) -> None:
     r2r = commands.add_parser('r2r', help='run an R2R-CE transfer episode')
     r2r.add_argument('--split', type=Path, required=True)
@@ -113,3 +120,12 @@ def register(commands: argparse._SubParsersAction) -> None:
     scan.add_argument('--glb', type=Path, required=True)
     scan.add_argument('--out', type=Path, required=True)
     scan.set_defaults(handler=convert_scan_asset)
+
+    calibration = commands.add_parser(
+        'calibrate-r2r', help='fit a Habitat-to-Isaac transform from landmarks')
+    calibration.add_argument('--landmarks', type=Path, required=True)
+    calibration.add_argument('--scene', required=True)
+    calibration.add_argument('--usd', type=Path, required=True)
+    calibration.add_argument('--out', type=Path, required=True)
+    calibration.add_argument('--max-error-m', type=float, default=0.05)
+    calibration.set_defaults(handler=calibrate_scan)
