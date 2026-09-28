@@ -233,9 +233,8 @@ class MovlaBackend(VLABackend):
             da = math.atan2(math.sin(a - pa), math.cos(a - pa))
             history[0, -(len(poses) - i)] = torch.tensor(
                 [c * dx + s * dy, -s * dx + c * dy, math.cos(da), math.sin(da)])
-        cum_yaw = (math.degrees(math.atan2(math.sin(poses[-1][2] - poses[0][2]),
-                                               math.cos(poses[-1][2] - poses[0][2])))
-                   if poses else 0.0)
+        yaw_delta = poses[-1][2] - poses[0][2] if poses else 0.0
+        cum_yaw = math.degrees(math.atan2(math.sin(yaw_delta), math.cos(yaw_delta)))
         return NavBatch(
             vlm_inputs=[VLMInputs(
                 images=images,
