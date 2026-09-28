@@ -100,18 +100,19 @@ def convert_scan(source: Path, output: Path) -> dict:
             raise RuntimeError(f'Isaac did not write a USD stage: {output}')
         geometry = add_static_collisions(stage)
         stage.GetRootLayer().Save()
+        metadata = {
+            'schema': 1,
+            'source_glb': str(source),
+            'source_sha256': sha256(source),
+            'usd': str(output),
+            **geometry,
+        }
+        output.with_suffix('.json').write_text(json.dumps(metadata, indent=2) + '\n',
+                                               encoding='utf-8')
     except BaseException:
         output.unlink(missing_ok=True)
+        output.with_suffix('.json').unlink(missing_ok=True)
         raise
     finally:
         app.close()
-    metadata = {
-        'schema': 1,
-        'source_glb': str(source),
-        'source_sha256': sha256(source),
-        'usd': str(output),
-        **geometry,
-    }
-    output.with_suffix('.json').write_text(json.dumps(metadata, indent=2) + '\n',
-                                           encoding='utf-8')
     return metadata

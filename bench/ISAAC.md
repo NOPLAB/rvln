@@ -55,6 +55,9 @@ source GLB hash and mesh count. Inspect geometry, texture resolution, physics
 raycasts, and known Habitat poses in Isaac before registering a converted scan;
 the import does not establish the Habitat-to-Isaac transform automatically.
 The command requires a new output path and leaves source scans unchanged.
+For an asset-free importer check, run `uv run --extra isaac python scripts/smoke_scan.py`
+from `bench/`. It writes a small generated GLB and its converted USD under
+`runs/validation/scan-import/`, then reopens the USD and checks mesh collision.
 
 For each converted scan, record at least three non-collinear points that can be
 identified in both Habitat and Isaac. Spread them across the scan; do not use
@@ -190,9 +193,9 @@ validate the visual benchmark.
 The Isaac adapter is locked to Isaac Sim 6.1.0.0 and Python 3.12. On the Slurm
 hosts, `uv sync --extra isaac --frozen --python 3.12` installed 172 packages,
 including Isaac Sim 6.1.0.0, in a temporary node-local environment while the
-project and assets remained on shared storage. The current local CPU suite
-passes 25 cases, with one skipped because Gazebo ROS messages are absent;
-the new `convert-scan` command has not been run inside Isaac 6.1 yet. The RTX 5070 Ti
+project and assets remained on shared storage. The current Python 3.12 Isaac
+environment passes 25 tests, with one skipped because Gazebo ROS messages are
+absent. The RTX 5070 Ti
 node runs Ubuntu 26.04 and driver 610.57.04; [Isaac Sim 6.1 lists Ubuntu
 22.04/24.04 and a tested 595.58.03 driver](https://docs.isaacsim.omniverse.nvidia.com/6.1.0/installation/requirements.html).
 
@@ -217,6 +220,17 @@ The inventory found none of those scans or registered USDs in the tested data
 directory. Real R2R-CE scoring still requires the matching licensed Matterport3D
 scans converted to collidable USD, measured coordinate transforms, and an
 R2R-compatible policy.
+
+On the local Windows RTX 4060 Ti, `uv sync --extra isaac --frozen --python 3.12`
+installed Isaac Sim 6.1.0.0 in a separate ignored environment. The generated
+GLB importer smoke completed: one Y-up mesh became a Z-up, metre-scale USD
+with one static triangle-mesh collider. The synthetic R2R episode also completed
+in headless mode with 11 JPEG observations, ten forward actions and a stop,
+success `true`, and SPL 0.82. A five-second headless RVLN bridge run completed
+11 physics steps and 11 camera frames after retrying an initially empty camera
+capture. These checks validate the local integration, not a real MP3D scene or
+model policy. The local launch needed an inaccessible `Unity\bin` entry removed
+from `PATH`; this was an environment-specific DLL search error.
 
 The following results are historical Isaac Sim 5.0 checks and do not validate
 the 6.1 visual benchmark. The local Windows environment installed 5.0.0 through `uv`. The

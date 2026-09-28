@@ -263,9 +263,12 @@ def _run(args) -> None:
             now = time.monotonic()
             if camera is not None and now - last_camera >= 0.1:
                 color, _ = camera.get_data('rgb')
+                if color is None:
+                    rep.orchestrator.step(rt_subframes=2, pause_timeline=False)
+                    color, _ = camera.get_data('rgb')
                 rgba = (color.numpy() if color is not None and hasattr(color, 'numpy')
-                        else np.asarray(color))
-                if rgba.size == 0:
+                        else np.asarray(color) if color is not None else np.empty(0))
+                if rgba.size == 0 or rgba.shape == ():
                     empty_camera_frames += 1
                     if empty_camera_frames >= 30:
                         raise RuntimeError('Isaac camera produced no RGB frame '
