@@ -77,6 +77,12 @@ def inventory_scenes(args) -> dict:
     return result
 
 
+def convert_scan_asset(args) -> dict:
+    from isaac_r2r.scans import convert_scan
+
+    return convert_scan(args.glb, args.out)
+
+
 def register(commands: argparse._SubParsersAction) -> None:
     r2r = commands.add_parser('r2r', help='run an R2R-CE transfer episode')
     r2r.add_argument('--split', type=Path, required=True)
@@ -101,3 +107,9 @@ def register(commands: argparse._SubParsersAction) -> None:
     audit.add_argument('--scenes', type=Path, help='optional USD scene registry')
     audit.add_argument('--out', type=Path)
     audit.set_defaults(handler=inventory_scenes)
+
+    scan = commands.add_parser('convert-scan',
+                               help='import an MP3D GLB as a collidable Isaac USD')
+    scan.add_argument('--glb', type=Path, required=True)
+    scan.add_argument('--out', type=Path, required=True)
+    scan.set_defaults(handler=convert_scan_asset)

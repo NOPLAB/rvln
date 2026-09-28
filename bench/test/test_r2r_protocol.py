@@ -7,6 +7,7 @@ from pathlib import Path
 
 from isaac_r2r.protocol import load_episodes, score
 from isaac_r2r.inventory import inventory
+from isaac_r2r.scans import validate_scan
 from isaac_r2r.summary import summarize
 
 
@@ -55,6 +56,19 @@ class ProtocolTest(unittest.TestCase):
         self.assertEqual([(row['scene_id'], row['episodes'], row['scan_exists'])
                           for row in result['scenes']],
                          [('abc', 2, True), ('def', 1, False)])
+
+    def test_scan_preflight_rejects_corrupt_glb(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'scan.glb'
+            output = Path(directory) / 'scan.usd'
+            source.write_bytes(b'glTF' + (2).to_bytes(4, 'little') +
+                               (13).to_bytes(4, 'little'))
+            with self.assertRaisesRegex(ValueError, 'invalid GLB'):
+                validate_scan(source, output)
+            source.write_bytes(b'glTF' + (2).to_bytes(4, 'little') +
+                               (12).to_bytes(4, 'little'))
+            self.assertEqual(validate_scan(source, output),
+                             (source.resolve(), output.resolve()))
 
     def test_aggregate_rejects_split_mix(self):
         with tempfile.TemporaryDirectory() as directory:
