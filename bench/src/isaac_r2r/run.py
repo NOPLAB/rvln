@@ -68,17 +68,16 @@ class IsaacR2RSimulator(EpisodeSimulator):
             import omni.usd
             from isaacsim.core.api import World
             from isaacsim.core.utils.stage import add_reference_to_stage
-            from isaacsim.sensors.camera import Camera
+            from isaacsim.sensors.experimental.rtx import CameraSensor, RtxCamera
             from pxr import Usd, UsdGeom, UsdPhysics
 
             self.scene = scene
             self.world = World(stage_units_in_meters=1.0)
             add_reference_to_stage(str(scene['usd']), '/World/Environment')
-            self.camera = Camera(prim_path='/World/RVLN_Camera',
-                                 resolution=(224, 224), frequency=2)
-            self.world.scene.add(self.camera)
+            self.camera_prim = RtxCamera('/World/RVLN_Camera', tick_rate=0)
+            self.camera = CameraSensor(self.camera_prim, resolution=(224, 224),
+                                       annotators=['rgb'])
             self.world.reset()
-            self.camera.initialize()
             stage = omni.usd.get_context().get_stage()
             if UsdGeom.GetStageUpAxis(stage) != UsdGeom.Tokens.z:
                 raise ValueError('USD scene must use Z-up coordinates')
@@ -107,16 +106,20 @@ class IsaacR2RSimulator(EpisodeSimulator):
         import numpy as np
         from PIL import Image
 
-        orientation = np.array([math.cos(self.yaw / 2), 0, 0, math.sin(self.yaw / 2)])
-        self.camera.set_world_pose(position=self.position + [0.0, 0.0, 1.25],
-                                   orientation=orientation, camera_axes='world')
+        c, s = math.cos(self.yaw / 2), math.sin(self.yaw / 2)
+        orientation = np.array([c + s, c + s, s - c, s - c]) * 0.5
+        self.camera_prim.set_world_poses(
+            positions=np.asarray([self.position + [0.0, 0.0, 1.25]]),
+            orientations=np.asarray([orientation]))
         for _ in range(30):
             self.world.step(render=True)
-            rgba = np.asarray(self.camera.get_rgba())
-            if rgba.shape == (224, 224, 4):
+            data, _ = self.camera.get_data('rgb')
+            rgba = (data.numpy() if data is not None and hasattr(data, 'numpy')
+                    else np.asarray(data))
+            if rgba.shape in ((224, 224, 3), (224, 224, 4)):
                 break
         else:
-            raise RuntimeError(f'Isaac camera produced no RGBA frame after 30 steps: '
+            raise RuntimeError(f'Isaac camera produced no RGB frame after 30 steps: '
                                f'{rgba.shape}')
         rgb = rgba[:, :, :3]
         buffer = io.BytesIO()

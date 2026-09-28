@@ -2,7 +2,7 @@
 name = "rvln-bench"
 version = "0.1.0"
 description = "Isaac Sim evaluation for R2R-CE and the RVLN ROS stack"
-requires-python = ">=3.11,<3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = []
 
 [project.scripts]
@@ -15,14 +15,17 @@ isaac_rvln = "isaac_rvln.cli:register"
 [project.optional-dependencies]
 usd = ["usd-core==25.5", "numpy>=1.26,<2"]
 isaac = [
-  "isaacsim[all,extscache]==5.0.0",
-  "numpy>=1.26,<2",
-  "pillow>=10,<12",
+  "isaacsim[all,extscache]==6.1.0.0",
+  "numpy==2.3.1",
+  "pillow>=12.1.1,<13",
 ]
 
 [tool.uv]
 extra-index-url = ["https://pypi.nvidia.com"]
+index-strategy = "unsafe-best-match"
+prerelease = "allow"
 environments = ["sys_platform == 'win32'", "sys_platform == 'linux'"]
+conflicts = [[{ extra = "usd" }, { extra = "isaac" }]]
 
 [build-system]
 requires = ["hatchling>=1.27,<2"]

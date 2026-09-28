@@ -1,7 +1,7 @@
-"""Isaac Sim 5.0 ROS 2 bridge for the Raspicat VLA edge/follower contract.
+"""Isaac Sim 6.1 ROS 2 bridge for the Raspicat VLA edge/follower contract.
 
 Requires an expanded Raspicat URDF and a collidable, Z-up USD world. This
-module is kept separate from ROS launch because Isaac uses Python 3.11.
+module is kept separate from ROS launch because Isaac uses Python 3.12.
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def _load_ros_python() -> None:
     except ModuleNotFoundError:
         pass
     if sys.platform != 'win32':
-        raise RuntimeError('rclpy is unavailable; source a Python 3.11 ROS environment')
+        raise RuntimeError('rclpy is unavailable; source a Python 3.12 ROS environment')
     distro = os.environ.setdefault('ROS_DISTRO', 'humble')
     os.environ.setdefault('RMW_IMPLEMENTATION', 'rmw_fastrtps_cpp')
     bundle = (Path(os.environ['ISAAC_PATH']) / 'exts' / 'isaacsim.ros2.bridge' /
@@ -79,7 +79,7 @@ def _run(args) -> None:
         from isaacsim.core.prims import SingleArticulation
         from isaacsim.core.utils.stage import add_reference_to_stage
         from isaacsim.core.utils.types import ArticulationAction
-        from isaacsim.sensors.camera import Camera
+        from isaacsim.sensors.experimental.rtx import CameraSensor, RtxCamera
         from nav_msgs.msg import Odometry
         from rclpy.node import Node
         from rclpy.qos import QoSProfile, ReliabilityPolicy
@@ -125,13 +125,12 @@ def _run(args) -> None:
             drive.GetMaxForceAttr().Set(1000.0)
         robot = world.scene.add(SingleArticulation(prim_path=prim_path, name='raspicat'))
         camera = None
+        camera_prim = None
         if not args.physics_only:
-            camera = world.scene.add(Camera(prim_path='/World/RVLN_Camera',
-                                           resolution=(640, 480), frequency=10))
+            camera_prim = RtxCamera('/World/RVLN_Camera', tick_rate=0)
+            camera = CameraSensor(camera_prim, resolution=(480, 640),
+                                  annotators=['rgb', 'distance_to_image_plane'])
         world.reset()
-        if camera is not None:
-            camera.initialize()
-            camera.add_distance_to_image_plane_to_frame()
         left = robot.get_dof_index(args.left_joint)
         right = robot.get_dof_index(args.right_joint)
         if left == right or min(left, right) < 0:
@@ -196,10 +195,14 @@ def _run(args) -> None:
                      previous_orientation[1] * previous_orientation[2]),
                 1 - 2 * (previous_orientation[2] ** 2 + previous_orientation[3] ** 2))
             if camera is not None:
-                camera.set_world_pose(
-                    position=previous_position + np.array([
-                        0.1 * math.cos(previous_yaw), 0.1 * math.sin(previous_yaw), 0.1433]),
-                    orientation=previous_orientation, camera_axes='world')
+                w, x, y, z = previous_orientation
+                camera_orientation = np.array([w - x + y + z, w + x - y + z,
+                                               -w + x + y + z, -w - x - y + z]) * 0.5
+                camera_prim.set_world_poses(
+                    positions=np.asarray([previous_position + np.array([
+                        0.1 * math.cos(previous_yaw),
+                        0.1 * math.sin(previous_yaw), 0.1433])]),
+                    orientations=np.asarray([camera_orientation]))
             world.step(render=camera is not None)
             steps += 1
             position, orientation = robot.get_world_pose()
@@ -239,14 +242,16 @@ def _run(args) -> None:
             bridge.tf_pub.publish(TFMessage(transforms=[transform]))
             now = time.monotonic()
             if camera is not None and now - last_camera >= 0.1:
-                rgba = np.asarray(camera.get_rgba())
+                color, _ = camera.get_data('rgb')
+                rgba = (color.numpy() if color is not None and hasattr(color, 'numpy')
+                        else np.asarray(color))
                 if rgba.size == 0:
                     empty_camera_frames += 1
                     if empty_camera_frames >= 30:
-                        raise RuntimeError('Isaac camera produced no RGBA frame '
+                        raise RuntimeError('Isaac camera produced no RGB frame '
                                            'after 30 capture attempts')
                     continue
-                if rgba.shape != (480, 640, 4):
+                if rgba.shape not in ((480, 640, 3), (480, 640, 4)):
                     raise RuntimeError(f'unexpected camera frame: {rgba.shape}')
                 image = Image()
                 image.header.stamp = stamp
@@ -256,8 +261,12 @@ def _run(args) -> None:
                 image.step = 640 * 3
                 image.data = rgba[:, :, :3].astype('uint8').tobytes()
                 bridge.image_pub.publish(image)
-                depth = camera.get_depth()
-                if depth is None or np.asarray(depth).shape != (480, 640):
+                depth, _ = camera.get_data('distance_to_image_plane')
+                depth = (depth.numpy() if depth is not None and hasattr(depth, 'numpy')
+                         else np.asarray(depth))
+                if depth.shape == (480, 640, 1):
+                    depth = depth[:, :, 0]
+                if depth.shape != (480, 640):
                     raise RuntimeError('depth camera frame unavailable')
                 depth_image = Image()
                 depth_image.header = image.header

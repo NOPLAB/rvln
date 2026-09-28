@@ -12,7 +12,7 @@ through `rvln-bench`; the historical Gazebo tools remain Python modules under
 
 ## Install
 
-Use Python 3.11 and [Isaac Sim 5.0's pip package](https://docs.isaacsim.omniverse.nvidia.com/5.0.0/installation/install_python.html).
+Use Python 3.12 and [Isaac Sim 6.1's pip package](https://docs.isaacsim.omniverse.nvidia.com/6.1.0/installation/install_python.html).
 From the repository root:
 
 ```bash
@@ -22,16 +22,15 @@ uv run --extra isaac rvln-bench --help
 ```
 
 For standalone USD conversion, run `uv sync --extra usd`. Switching between
-`usd` and `isaac` extras updates the same `.venv`; sync the desired extra again
-before running its commands.
+`usd` and `isaac` extras updates the same `.venv`; they require incompatible
+NumPy versions, so sync the desired extra again before running its commands.
 
 `pyproject.toml` selects NVIDIA's Python index. Review NVIDIA's terms and set
 `OMNI_KIT_ACCEPT_EULA=YES` before launching Isaac. The ROS 2 bridge also needs
 `rclpy`, `geometry_msgs`, `nav_msgs`, `sensor_msgs`, and `std_srvs` importable in
-the Isaac Python environment. Isaac Sim 5.0 bundles Python 3.11-compatible ROS 2
-Humble libraries; the RVLN adapter loads them directly on Windows when `rclpy`
-is otherwise unavailable. Do not source a Python 3.10 ROS
-installation into the Isaac process. See [NVIDIA's ROS installation guide](https://docs.isaacsim.omniverse.nvidia.com/5.0.0/installation/install_ros.html).
+the Isaac Python environment. Isaac Sim 6.1 uses Python 3.12; custom ROS 2
+interfaces must be built for that Python version. Do not source a Python 3.10
+ROS installation into the Isaac process. See [NVIDIA's ROS installation guide](https://docs.isaacsim.omniverse.nvidia.com/6.1.0/installation/install_ros.html).
 
 ## R2R-CE transfer track
 
@@ -118,7 +117,25 @@ validate the visual benchmark.
 
 ## Validation status
 
-The local Windows environment installed Isaac Sim 5.0.0 through `uv`. The
+The Isaac adapter is locked to Isaac Sim 6.1.0.0 and Python 3.12. On the Slurm
+hosts, `uv sync --extra isaac --frozen --python 3.12` installed 172 packages,
+including Isaac Sim 6.1.0.0, in a temporary node-local environment while the
+project and assets remained on shared storage. CPU tests passed (20 cases,
+two skipped because optional ROS/Gazebo packages are absent). On the RTX 5070 Ti
+node, the 6.1 application reached `app ready` and created an RTX camera, but
+the synthetic R2R episode has not yielded an RGB frame or a completed score.
+The node runs Ubuntu 26.04; [Isaac Sim 6.1 lists Ubuntu 22.04/24.04 and a
+tested 595.58.03 driver](https://docs.isaacsim.omniverse.nvidia.com/6.1.0/installation/requirements.html).
+The test node has driver 610.57.04, so the OS is outside that tested matrix.
+A minimal cube scene also produced no RGB data after 20 rendered updates on
+that node. The Ubuntu 24.04 RTX PRO 6000 node gave the same result for both
+`World.step(render=True)` and Kit `app.update()`; its 580.159.03 driver predates
+the tested 595 series. These tests isolate the missing frames from the corridor
+USD, but do not establish whether the cause is a driver, Kit configuration, or
+the experimental camera API. A visual score remains unverified.
+
+The following results are historical Isaac Sim 5.0 checks and do not validate
+the 6.1 visual benchmark. The local Windows environment installed 5.0.0 through `uv`. The
 standalone USD converter produced and reopened collidable USD for all three
 pilot worlds; each has four collision prims. Robot preparation produced a
 19-link, 18-joint URDF with collision and inertia on the physical links. CPU
@@ -144,3 +161,14 @@ can return process exit code 0 even after a Python error, so inspect the result
 status (or RVLN's printed status) rather than relying on the exit code here.
 The R2R-CE transfer track also needs separately licensed scene and episode
 assets.
+
+On the Slurm host, `uv sync --extra isaac --frozen --python 3.11` completed in
+the shared workspace. The RTX 5070 Ti node runs Ubuntu 26.04, which lacks
+`libGLU.so.1` and the `libxml2.so.2` ABI required by Isaac Sim 5.0; their
+Ubuntu packages and the matching ICU runtime were extracted under a user-owned
+shared directory for this run. Isaac then started and entered `observe()`, but
+segfaulted on the first rendered step. PathTracing gave the same result as the
+default renderer. The synthetic result remained `status: started`, and the
+aggregator correctly rejected it as incomplete. The RTX 5090 Slurm node was
+unavailable at that time due to a 1 MiB RealMemory mismatch. Slurm registration
+has since been repaired.
