@@ -11,7 +11,7 @@
 # For a slim CPU-only image:
 #   docker build -f docker/Dockerfile.movla --build-arg TORCH_INDEX=cpu \
 #     -t rvln-movla .
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONDONTWRITEBYTECODE=1
