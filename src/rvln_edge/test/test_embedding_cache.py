@@ -1,4 +1,5 @@
 """Tests for EmbeddingCache."""
+
 import time
 
 import numpy as np
@@ -15,14 +16,14 @@ def _emb(frame_id: int, value: float = 0.0) -> CachedEmbedding:
         num_tokens=8,
         embed_dim=1024,
         inference_ms=10.0,
-        model_version='dummy',
+        model_version="dummy",
     )
 
 
 def test_cache_starts_empty():
     cache = EmbeddingCache(max_age_sec=6.0, hard_timeout_sec=15.0)
     assert cache.get_fresh() is None
-    assert cache.status() == 'WAITING_REMOTE'
+    assert cache.status() == "WAITING_REMOTE"
 
 
 def test_cache_stores_and_returns_latest():
@@ -31,7 +32,7 @@ def test_cache_stores_and_returns_latest():
     cur = cache.get_fresh()
     assert cur is not None
     assert cur.frame_id == 1
-    assert cache.status() == 'OK'
+    assert cache.status() == "OK"
 
 
 def test_cache_drops_older_frame_id():
@@ -44,22 +45,23 @@ def test_cache_drops_older_frame_id():
     assert cur.embedding[0] == pytest.approx(10.0)
 
 
-def test_cache_returns_none_when_stale_past_max_age():
+def test_cache_returns_none_when_stale_past_max_age(monkeypatch):
     cache = EmbeddingCache(max_age_sec=0.001, hard_timeout_sec=0.01)
     e = _emb(frame_id=1)
     cache.put(e)
-    time.sleep(0.005)
+    monkeypatch.setattr(time, "monotonic_ns", lambda: e.recv_time_ns + 5_000_000)
     assert cache.get_fresh() is None
     # but raw still readable for diagnostics
     assert cache.get_latest_raw() is not None
-    assert cache.status() == 'DEGRADED'
+    assert cache.status() == "DEGRADED"
 
 
-def test_cache_status_stale_after_hard_timeout():
+def test_cache_status_stale_after_hard_timeout(monkeypatch):
     cache = EmbeddingCache(max_age_sec=0.001, hard_timeout_sec=0.005)
-    cache.put(_emb(frame_id=1))
-    time.sleep(0.020)
-    assert cache.status() == 'STALE'
+    e = _emb(frame_id=1)
+    cache.put(e)
+    monkeypatch.setattr(time, "monotonic_ns", lambda: e.recv_time_ns + 20_000_000)
+    assert cache.status() == "STALE"
 
 
 def test_cache_invalidate_clears_state():
@@ -67,7 +69,7 @@ def test_cache_invalidate_clears_state():
     cache.put(_emb(frame_id=1))
     cache.invalidate()
     assert cache.get_fresh() is None
-    assert cache.status() == 'WAITING_REMOTE'
+    assert cache.status() == "WAITING_REMOTE"
 
 
 def test_cache_invalidate_with_floor_rejects_stale_frames():
@@ -85,7 +87,7 @@ def test_cache_invalidate_with_floor_rejects_stale_frames():
     cache.invalidate(floor=5)
     # invalidate must also drop the current latest
     assert cache.get_latest_raw() is None
-    assert cache.status() == 'WAITING_REMOTE'
+    assert cache.status() == "WAITING_REMOTE"
 
     # frame_id == floor: rejected
     cache.put(_emb(frame_id=5, value=5.0))
