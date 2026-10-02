@@ -7,6 +7,25 @@
 ROS 2 Humble VLA navigation for Raspberry Pi Cat. Nodes connect through ROS 2
 topics and can run either natively on the host or in Docker.
 
+## Simulator repository
+
+The generic mobile robot simulator (core, ROS 2 bridge, Gazebo and Isaac ports)
+lives in [NOPLAB/usim](https://github.com/NOPLAB/usim), pinned here as
+`external/usim`. Initialize it, plus the AsyncVLA and MBRA sources the RVLN
+overlay copies, before building a simulator image:
+
+```bash
+git submodule update --init external/usim external/AsyncVLA external/MBRA
+scripts/vla.sh build sim
+```
+
+This builds the standalone `usim-gazebo:local` base, then the RVLN edge overlay.
+RVLN keeps its launch composition (`src/rvln_bringup/`), the overlay
+`docker/Dockerfile.sim`, and the VLN benchmark (`bench/`, see
+[`bench/ISAAC.md`](bench/ISAAC.md)). For generic simulator and Isaac Sim setup,
+see [`external/usim/README.md`](external/usim/README.md).
+Develop against a sibling checkout with `USIM_ROOT=/path/to/usim`.
+
 ## How the nodes connect
 
 ```text
@@ -163,6 +182,8 @@ modes, and options.
 | `src/rvln_core/` | ROS-independent OmniVLA-edge inference core |
 | `src/rvln_proto/` | Python mobile gRPC stubs and conversion code |
 | `src/rvln_bringup/` | Launch files for different deployments |
+| `bench/` | VLN benchmark, episode contract, R2R and Raspicat/RVLN adapters |
+| `external/usim/` | Generic mobile robot simulator and its tests (submodule `NOPLAB/usim`) |
 | `app/inference/`, `web/` | Phone and browser clients that infer and send paths |
 | `app/logger/` | Standalone Flutter training-data logger |
 

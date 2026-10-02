@@ -13,3 +13,6 @@
 [submodule "external/movla"]
 	path = external/movla
 	url = https://github.com/NOPLAB/movla.git
+[submodule "external/usim"]
+	path = external/usim
+	url = https://github.com/NOPLAB/usim.git

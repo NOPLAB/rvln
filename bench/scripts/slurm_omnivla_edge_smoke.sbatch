@@ -9,9 +9,9 @@
 #SBATCH --output=/mnt/workspace/nop/rvln/bench/runs/validation/omnivla_edge_smoke-%j.log
 
 set -euo pipefail
-shared=/mnt/workspace/nop/rvln
+shared=${RVLN_BENCH_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 echo "Slurm GPU allocation: ${CUDA_VISIBLE_DEVICES:-unset}"
-export PYTHONPATH="$shared/src/rvln_remote:$shared/src/rvln_core:${PYTHONPATH:-}"
+export PYTHONPATH="$shared/bench/src:$shared/src/rvln_remote:$shared/src/rvln_core:${PYTHONPATH:-}"
 export HOME="$shared/bench/runs/datasets/omnivla-edge"
 export HF_HOME=/mnt/workspace/nop/hf_cache
 export TOKENIZERS_PARALLELISM=false

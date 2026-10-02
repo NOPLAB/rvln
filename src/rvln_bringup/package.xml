@@ -21,7 +21,8 @@
        sources to be co-built with rvln_bringup even in CI / test
        containers that only need the vla packages. The rt-net packages are
        provided at runtime by the dedicated Docker images (Dockerfile.real
-       / Dockerfile.sim build them in /opt/real_ws / /opt/sim_ws) and
+       builds /opt/real_ws; external/usim/docker/Dockerfile.gazebo supplies
+       /opt/sim_ws to the Dockerfile.sim RVLN overlay) and
        resolved by AMENT_PREFIX_PATH overlay. -->
 
   <test_depend>ament_lint_auto</test_depend>

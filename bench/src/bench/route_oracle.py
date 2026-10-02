@@ -1,4 +1,5 @@
 """Shortest collision-free path to each 0.30 m goal region on a disk footprint."""
+
 from __future__ import annotations
 
 import argparse
@@ -10,52 +11,54 @@ import xml.etree.ElementTree as ET
 from functools import lru_cache
 from pathlib import Path
 
+from bench.paths import workspace_root
+
 from bench.scenes import SCENES
 
 
 ROBOT_RADIUS_M = 0.34
 GOAL_TOLERANCE_M = 0.30
 BOUNDS = (-1.0, 5.0, -3.0, 3.0)
-NEIGHBORS = ((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)
-             if dx or dy)
+NEIGHBORS = ((dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy)
 NEIGHBORS = tuple(NEIGHBORS)
 
 
 def scene_boxes(scene: str) -> list[tuple[str, float, float, float, float]]:
     """Return static obstacle collision rectangles from the versioned scene source."""
-    return [(name, x - sx / 2, x + sx / 2, y - sy / 2, y + sy / 2)
-            for name, x, y, _z, sx, sy, _sz, _rgba in SCENES[scene]]
+    return [
+        (name, x - sx / 2, x + sx / 2, y - sy / 2, y + sy / 2)
+        for name, x, y, _z, sx, sy, _sz, _rgba in SCENES[scene]
+    ]
 
 
 def verify_world(scene: str, world_file: Path) -> str:
     """Refuse to score if generated Gazebo collision boxes differ from the oracle."""
     root = ET.parse(world_file).getroot()
     observed = {}
-    for model in root.findall('.//model'):
-        box = model.find('./link/collision/geometry/box/size')
+    for model in root.findall(".//model"):
+        box = model.find("./link/collision/geometry/box/size")
         if box is None:
             continue
-        x, y, _z, *_ = map(float, model.findtext('pose').split())
+        x, y, _z, *_ = map(float, model.findtext("pose").split())
         sx, sy, _sz = map(float, box.text.split())
-        observed[model.attrib['name']] = (x - sx / 2, x + sx / 2,
-                                          y - sy / 2, y + sy / 2)
-    expected = {name: (x0, x1, y0, y1)
-                for name, x0, x1, y0, y1 in scene_boxes(scene)}
+        observed[model.attrib["name"]] = (x - sx / 2, x + sx / 2, y - sy / 2, y + sy / 2)
+    expected = {name: (x0, x1, y0, y1) for name, x0, x1, y0, y1 in scene_boxes(scene)}
     if observed.keys() != expected.keys() or any(
-            any(abs(a - b) > 1e-9 for a, b in zip(observed[name], expected[name]))
-            for name in expected):
-        raise ValueError(f'world collision geometry differs from {scene} oracle')
+        any(abs(a - b) > 1e-9 for a, b in zip(observed[name], expected[name])) for name in expected
+    ):
+        raise ValueError(f"world collision geometry differs from {scene} oracle")
     return hashlib.sha256(world_file.read_bytes()).hexdigest()
 
 
-def shortest_path(scene: str, start: tuple[float, float], goal: tuple[float, float],
-                  resolution: float = 0.0125) -> tuple[float, list[tuple[float, float]]]:
+def shortest_path(
+    scene: str, start: tuple[float, float], goal: tuple[float, float], resolution: float = 0.0125
+) -> tuple[float, list[tuple[float, float]]]:
     """Use any-angle Theta* and exact disk-to-rectangle clearance checks."""
     xmin, xmax, ymin, ymax = BOUNDS
     nx = round((xmax - xmin) / resolution)
     ny = round((ymax - ymin) / resolution)
     boxes = scene_boxes(scene)
-    radius_sq = ROBOT_RADIUS_M ** 2
+    radius_sq = ROBOT_RADIUS_M**2
 
     def xy(node: tuple[int, int]) -> tuple[float, float]:
         return xmin + node[0] * resolution, ymin + node[1] * resolution
@@ -84,9 +87,10 @@ def shortest_path(scene: str, start: tuple[float, float], goal: tuple[float, flo
         ax, ay = xy(a)
         bx, by = xy(b)
         steps = max(1, math.ceil(math.hypot(bx - ax, by - ay) / (resolution / 3)))
-        return all(clear_point(ax + (bx - ax) * i / steps,
-                               ay + (by - ay) * i / steps)
-                   for i in range(steps + 1))
+        return all(
+            clear_point(ax + (bx - ax) * i / steps, ay + (by - ay) * i / steps)
+            for i in range(steps + 1)
+        )
 
     def distance(a: tuple[int, int], b: tuple[int, int]) -> float:
         x0, y0 = xy(a)
@@ -99,7 +103,7 @@ def shortest_path(scene: str, start: tuple[float, float], goal: tuple[float, flo
 
     source = index(start)
     if not free(source):
-        raise ValueError(f'{scene} start is not collision-free')
+        raise ValueError(f"{scene} start is not collision-free")
     best = {source: 0.0}
     parent = {source: source}
     queue = [(heuristic(source), 0.0, source)]
@@ -128,39 +132,42 @@ def shortest_path(scene: str, start: tuple[float, float], goal: tuple[float, flo
             if new_cost + 1e-9 < best.get(neighbor, math.inf):
                 best[neighbor] = new_cost
                 parent[neighbor] = new_parent
-                heapq.heappush(queue, (new_cost + heuristic(neighbor),
-                                       new_cost, neighbor))
-    raise ValueError(f'no collision-free route to {goal} in {scene}')
+                heapq.heappush(queue, (new_cost + heuristic(neighbor), new_cost, neighbor))
+    raise ValueError(f"no collision-free route to {goal} in {scene}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--manifest', type=Path, default=Path('bench/episodes/pilot.json'))
-    parser.add_argument('--worlds', type=Path, default=Path('bench/worlds'))
-    parser.add_argument('--resolution', type=float, default=0.0125)
-    parser.add_argument('--out', type=Path, required=True)
+    parser.add_argument("--manifest", type=Path, default=workspace_root() / "episodes/pilot.json")
+    parser.add_argument("--worlds", type=Path, default=workspace_root() / "worlds")
+    parser.add_argument("--resolution", type=float, default=0.0125)
+    parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
-    data = json.loads(args.manifest.read_text(encoding='utf-8'))
-    hashes = {scene: verify_world(scene, args.worlds / f'{scene}.world')
-              for scene in SCENES}
+    data = json.loads(args.manifest.read_text(encoding="utf-8"))
+    hashes = {scene: verify_world(scene, args.worlds / f"{scene}.world") for scene in SCENES}
     routes = {}
-    for episode in data['episodes']:
-        key = (episode['scene'], *episode['goal_xy'])
+    for episode in data["episodes"]:
+        key = (episode["scene"], *episode["goal_xy"])
         if key not in routes:
-            length, points = shortest_path(episode['scene'],
-                                           tuple(episode['start_xyyaw'][:2]),
-                                           tuple(episode['goal_xy']), args.resolution)
-            routes[key] = {'shortest_m': length, 'route_xy': points}
-        episode['shortest_m'] = routes[key]['shortest_m']
-    data['oracle'] = {'method': 'Theta* disk-to-goal-region',
-                      'robot_radius_m': ROBOT_RADIUS_M,
-                      'goal_tolerance_m': GOAL_TOLERANCE_M,
-                      'grid_resolution_m': args.resolution,
-                      'world_sha256': hashes}
-    args.out.write_text(json.dumps(data, indent=2) + '\n', encoding='utf-8')
+            length, points = shortest_path(
+                episode["scene"],
+                tuple(episode["start_xyyaw"][:2]),
+                tuple(episode["goal_xy"]),
+                args.resolution,
+            )
+            routes[key] = {"shortest_m": length, "route_xy": points}
+        episode["shortest_m"] = routes[key]["shortest_m"]
+    data["oracle"] = {
+        "method": "Theta* disk-to-goal-region",
+        "robot_radius_m": ROBOT_RADIUS_M,
+        "goal_tolerance_m": GOAL_TOLERANCE_M,
+        "grid_resolution_m": args.resolution,
+        "world_sha256": hashes,
+    }
+    args.out.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     for key, route in routes.items():
-        print(key, round(route['shortest_m'], 4), route['route_xy'])
+        print(key, round(route["shortest_m"], 4), route["route_xy"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

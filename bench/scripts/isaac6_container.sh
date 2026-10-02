@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Node-local runtime; benchmark inputs and outputs remain on shared storage.
 runtime=/var/tmp/rvln-isaac6-container
-shared=/mnt/workspace/nop/rvln
+shared=${RVLN_BENCH_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 mkdir -p "$runtime/home" "$runtime/cache" "$runtime/uv-cache"
 
 entrypoint=$1
@@ -29,6 +29,8 @@ exec docker run --rm --runtime=runc "${network_args[@]}" "${name_args[@]}" \
   --mount type=bind,source="$runtime",target="$runtime" \
   --mount type=bind,source=/home/nop/.local/bin/uv,target=/usr/local/bin/uv,readonly \
   --workdir="$shared/bench" \
+  -e RVLN_BENCH_ROOT="$shared/bench" \
+  -e PYTHONPATH="$shared/bench/src:$shared/external/usim/src" \
   -e HOME="$runtime/home" \
   -e USER=nop -e LOGNAME=nop \
   -e XDG_CACHE_HOME="$runtime/cache" \

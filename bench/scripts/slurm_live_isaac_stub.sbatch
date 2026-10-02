@@ -7,6 +7,6 @@
 #SBATCH --output=/mnt/workspace/nop/rvln/bench/runs/validation/live_isaac_slurm-%j.log
 
 set -euo pipefail
-shared=/mnt/workspace/nop/rvln
+shared=${RVLN_BENCH_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 out="$shared/bench/runs/validation/live_isaac_stub_${SLURM_JOB_ID}"
 bash "$shared/bench/scripts/smoke_live_isaac.sh" "$out"

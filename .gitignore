@@ -31,6 +31,7 @@ src/rvln_proto/rvln_proto/edge_action_pb2_grpc.py
 # does not swallow the vendored model *source* at
 # src/rvln_edge/rvln_edge/models/.
 /models/
+# Preserve historical local simulator runs/environments after moving sources to usim.
 /bench/runs/
 /bench/.venv/
 /.uv-cache/

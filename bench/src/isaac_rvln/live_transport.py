@@ -1,4 +1,4 @@
-"""Run one local Gazebo/Edge episode against a Slurm hosted inference server."""
+"""ROS callbacks, inference transport, video and live episode execution."""
 
 from __future__ import annotations
 
@@ -7,26 +7,21 @@ import base64
 import hashlib
 import json
 import math
-import signal
-import subprocess
-import sys
 import time
 import urllib.request
-import xml.etree.ElementTree as ET
 from pathlib import Path
-
-from bench.paths import workspace_root
 
 import cv2
 import numpy as np
 import rclpy
-from gazebo_msgs.msg import ModelStates
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import PoseStamped, Twist
 from nav_msgs.msg import Odometry, Path as RosPath
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from rvln_msgs.msg import ActionEmbedding, GoalSpec, Observation
 from std_srvs.srv import SetBool
+
+from isaac_rvln.live_results import assemble_result
 
 
 class Episode(Node):
@@ -50,7 +45,7 @@ class Episode(Node):
         latched = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.create_subscription(Observation, "/rvln/observation", self._observation, best_effort)
         self.create_subscription(Odometry, "/odom", self._odom, 10)
-        self.create_subscription(ModelStates, "/model_states", self._state, 10)
+        self.create_subscription(PoseStamped, "/sim/ground_truth_pose", self._state, 10)
         self.create_subscription(Twist, "/cmd_vel", self._command, 10)
         self.create_subscription(RosPath, "/rvln/predicted_path", self._path, 10)
         self.embedding_pub = self.create_publisher(
@@ -82,10 +77,8 @@ class Episode(Node):
             float(msg.twist.twist.angular.z),
         ]
 
-    def _state(self, msg: ModelStates) -> None:
-        if "raspicat" not in msg.name:
-            return
-        pose = msg.pose[msg.name.index("raspicat")]
+    def _state(self, msg: PoseStamped) -> None:
+        pose = msg.pose
         q = pose.orientation
         yaw = math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
         self.last_pose = (float(pose.position.x), float(pose.position.y), yaw)
@@ -276,63 +269,14 @@ def spin_until(node: Node, condition, deadline: float) -> bool:
     return False
 
 
-def start_contacts(scene: str, output: Path, worlds: Path):
-    world = worlds / f"{scene}.world"
-    obstacles = [model.attrib["name"] for model in ET.parse(world).getroot().findall(".//model")]
-    if not obstacles:
-        raise RuntimeError(f"no obstacle models in {world}")
-    contact_file = output.with_suffix(".contacts.json")
-    ready_file = output.with_suffix(".contacts.ready")
-    ready_file.unlink(missing_ok=True)
-    contact_file.unlink(missing_ok=True)
-    log_file = output.with_suffix(".contacts.log")
-    with log_file.open("w", encoding="utf-8") as log:
-        process = subprocess.Popen(
-            [
-                sys.executable,
-                "-m",
-                "bench.legacy_gazebo.contact_logger",
-                "--obstacles",
-                ",".join(obstacles),
-                "--out",
-                str(contact_file),
-                "--ready",
-                str(ready_file),
-            ],
-            stdout=log,
-            stderr=subprocess.STDOUT,
-        )
-    deadline = time.monotonic() + 15
-    while time.monotonic() < deadline and process.poll() is None:
-        if ready_file.exists():
-            return process, contact_file, log_file
-        time.sleep(0.1)
-    process.send_signal(signal.SIGINT)
-    process.wait(timeout=10)
-    raise RuntimeError(f"contact logger did not receive all sensors: {log_file}")
-
-
-def finish_contacts(process, contact_file: Path) -> dict:
-    if process.poll() is None:
-        process.send_signal(signal.SIGINT)
-    process.wait(timeout=10)
-    if process.returncode != 0 or not contact_file.exists():
-        raise RuntimeError(f"contact logger failed: exit={process.returncode}")
-    result = json.loads(contact_file.read_text(encoding="utf-8"))
-    if not all(count > 0 for count in result["samples"].values()):
-        raise RuntimeError("one or more contact sensors produced no samples")
-    if result.get("receive_errors", 0):
-        raise RuntimeError(f"contact conversion errors: {result['receive_errors']}")
-    return result
-
-
 def run(args: argparse.Namespace) -> dict:
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
     episode = next(x for x in manifest["episodes"] if x["id"] == args.episode)
-    world = args.worlds / f"{episode['scene']}.world"
+    world = args.world_source
     actual_hash = hashlib.sha256(world.read_bytes()).hexdigest()
     if actual_hash != manifest["oracle"]["world_sha256"][episode["scene"]]:
         raise RuntimeError(f"world changed since shortest path calculation: {world}")
+    usd_hash = hashlib.sha256(args.usd.read_bytes()).hexdigest()
     reset = urllib.request.Request(args.url.rstrip("/") + "/reset", data=b"{}", method="POST")
     with urllib.request.urlopen(reset, timeout=120) as response:
         if not json.load(response)["reset"]:
@@ -343,20 +287,14 @@ def run(args: argparse.Namespace) -> dict:
     )
     stop_reason = "startup_failure"
     confirmed_stop = False
-    contact_process = None
-    contact_data = None
-    contact_file = None
     try:
         deadline = time.monotonic() + args.startup_timeout
         if not spin_until(node, lambda: node.last_pose is not None, deadline):
-            raise RuntimeError("no Gazebo odometry")
+            raise RuntimeError("no Isaac ground-truth pose")
         if not node.follower_stop.wait_for_service(timeout_sec=10):
             raise RuntimeError("no local follower stop service")
         if not node.set_bool(node.follower_stop, True):
             raise RuntimeError("cannot gate follower")
-        contact_process, contact_file, _log = start_contacts(
-            episode["scene"], args.out, args.worlds
-        )
         node.publish_goal()
         if not spin_until(node, lambda: node.published > 0, deadline):
             raise RuntimeError("no remote embedding after goal")
@@ -414,79 +352,18 @@ def run(args: argparse.Namespace) -> dict:
             node.set_bool(node.motor, False, timeout=3)
         except Exception as exc:
             node.errors.append(f"shutdown: {exc}")
-        if contact_process is not None:
-            try:
-                contact_data = finish_contacts(contact_process, contact_file)
-            except Exception as exc:
-                node.errors.append(f"contacts: {exc}")
         node.writer.release()
         node.destroy_node()
         rclpy.shutdown()
-    events = contact_data["events"] if contact_data is not None else None
-    if events is not None and node.started_at is not None:
-        for event in events:
-            event["t_sec"] = event["wall_monotonic_sec"] - node.started_at
-    return {
-        **episode,
-        "model": args.model,
-        "deployment": "remote_gpu_local_edge",
-        "oracle": manifest["oracle"],
-        "pose_source": "gazebo_model_states",
-        "instruction_sent": node.instruction,
-        "trace": node.trace,
-        "stop_reason": stop_reason,
-        "confirmed_stop": confirmed_stop,
-        "collisions": len(events) if events is not None else None,
-        "contact_events": events,
-        "contact_samples": contact_data["samples"] if contact_data else None,
-        "contact_log": contact_file.name if contact_data else None,
-        "observations": node.received,
-        "embeddings": node.published,
-        "paths": node.path_count,
-        "nonempty_paths": node.nonempty_paths,
-        "path_samples": node.path_samples,
-        "model_version": node.model_version,
-        "inferences": node.inferences,
-        "errors": node.errors,
-        "video": args.video.name,
-        "video_frames": node.video_frames,
-        "final_odom_xy": node.last_odom_pose,
-    }
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--url", required=True)
-    parser.add_argument("--model", required=True)
-    parser.add_argument("--episode", required=True)
-    parser.add_argument("--manifest", type=Path, default=workspace_root() / "episodes/pilot.json")
-    parser.add_argument("--worlds", type=Path, default=workspace_root() / "worlds")
-    parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--video", type=Path, required=True)
-    parser.add_argument("--text")
-    parser.add_argument("--duration", type=float, default=45.0)
-    parser.add_argument("--startup-timeout", type=float, default=90.0)
-    parser.add_argument("--tolerance", type=float, default=0.30)
-    args = parser.parse_args()
-    result = run(args)
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(result, indent=2) + "\n")
-    print(
-        json.dumps(
-            {
-                "model": args.model,
-                "episode": args.episode,
-                "stop_reason": result["stop_reason"],
-                "embeddings": result["embeddings"],
-                "video_frames": result["video_frames"],
-                "collisions": result["collisions"],
-                "final": result["trace"][-1] if result["trace"] else None,
-                "errors": result["errors"],
-            }
-        ),
-        flush=True,
+    wall_ended_at = time.monotonic()
+    return assemble_result(
+        args,
+        manifest,
+        episode,
+        node,
+        actual_hash,
+        usd_hash,
+        stop_reason,
+        confirmed_stop,
+        wall_ended_at,
     )
-
-
-if __name__ == "__main__":
-    main()

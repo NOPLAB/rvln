@@ -7,7 +7,7 @@
 #SBATCH --output=/mnt/workspace/nop/rvln/bench/runs/validation/live_omnivla_slurm-%j.log
 
 set -euo pipefail
-shared=/mnt/workspace/nop/rvln
+shared=${RVLN_BENCH_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 for attempt in $(seq 1 30); do
   if curl -fsS --max-time 2 http://100.76.158.87:8765/health > /dev/null; then
     break

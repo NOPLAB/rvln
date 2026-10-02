@@ -3,7 +3,10 @@ name = "rvln-bench"
 version = "0.1.0"
 description = "Isaac Sim evaluation for R2R-CE and the RVLN ROS stack"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = ["usim"]
+
+[tool.uv.sources]
+usim = { path = "../external/usim", editable = true }
 
 [project.scripts]
 rvln-bench = "bench.cli:main"

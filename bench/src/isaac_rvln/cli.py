@@ -1,8 +1,30 @@
 """Isaac implementation of the RVLN robot simulation commands."""
+
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
+
+
+RVLN_DEFAULTS = {
+    "wheel_radius": 0.0762,
+    "wheel_separation": 0.27918,
+    "camera_offset": (0.1, 0.0, 0.1433),
+    "robot_name": "raspicat",
+    "robot_prim_path": "/World/Raspicat",
+    "camera_prim_path": "/World/RVLN_Camera",
+    "node_name": "isaac_rvln_bridge",
+}
+
+
+def configuration(args):
+    from usim.ports.isaac.cli import configured
+
+    from usim.simulation import SimulationConfig
+
+    if isinstance(args, SimulationConfig):
+        return args
+    return configured(argparse.Namespace(**{**RVLN_DEFAULTS, **vars(args)}))
 
 
 def run(args) -> None:
@@ -10,10 +32,10 @@ def run(args) -> None:
 
     for path in (args.world, args.robot_urdf):
         if not path.is_file():
-            raise ValueError(f'missing asset: {path}')
+            raise ValueError(f"missing asset: {path}")
     wheel_velocities(0, 0, args.wheel_radius, args.wheel_separation)
     if args.max_seconds < 0:
-        raise ValueError('max-seconds must be nonnegative')
+        raise ValueError("max-seconds must be nonnegative")
     IsaacRVLNSimulator().run(args)
 
 
@@ -30,27 +52,14 @@ def prepare(args) -> dict:
 
 
 def register(commands: argparse._SubParsersAction) -> None:
-    rvln = commands.add_parser('rvln', help='run the Isaac ROS 2 robot bridge')
-    rvln.add_argument('--world', type=Path, required=True)
-    rvln.add_argument('--robot-urdf', type=Path, required=True)
-    rvln.add_argument('--wheel-radius', type=float, default=0.0762)
-    rvln.add_argument('--wheel-separation', type=float, default=0.27918)
-    rvln.add_argument('--left-joint', default='left_wheel_joint')
-    rvln.add_argument('--right-joint', default='right_wheel_joint')
-    rvln.add_argument('--headless', action='store_true')
-    rvln.add_argument('--physics-only', action='store_true',
-                      help='run wheel and ROS checks without camera frames')
-    rvln.add_argument('--max-seconds', type=float, default=0)
-    rvln.add_argument('--contact-out', type=Path,
-                      help='write obstacle-contact onsets from Isaac PhysX')
+    rvln = commands.add_parser("rvln", help="run the Isaac ROS 2 robot bridge")
+    from usim.ports.isaac.cli import add_arguments, register_world
+
+    add_arguments(rvln, defaults=RVLN_DEFAULTS)
     rvln.set_defaults(handler=run)
+    register_world(commands)
 
-    world = commands.add_parser('convert-world', help='convert a pilot SDF to USD')
-    world.add_argument('--world', type=Path, required=True)
-    world.add_argument('--out', type=Path, required=True)
-    world.set_defaults(handler=convert)
-
-    robot = commands.add_parser('prepare-robot', help='prepare the pinned Raspicat URDF')
-    robot.add_argument('--description-root', type=Path, required=True)
-    robot.add_argument('--out', type=Path, required=True)
+    robot = commands.add_parser("prepare-robot", help="prepare the pinned Raspicat URDF")
+    robot.add_argument("--description-root", type=Path, required=True)
+    robot.add_argument("--out", type=Path, required=True)
     robot.set_defaults(handler=prepare)

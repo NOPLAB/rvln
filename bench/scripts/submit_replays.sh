@@ -2,7 +2,7 @@
 # Submit one fixed-camera replay per available VLN backend to Slurm.
 set -euo pipefail
 
-workspace=${RVLN_BENCH_WORKSPACE:-/mnt/workspace/nop/raspicat_vla}
+workspace=${RVLN_BENCH_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 scene=${1:?usage: submit_replays.sh SCENE 'instruction'}
 instruction=${2:?usage: submit_replays.sh SCENE 'instruction'}
 frames="$workspace/bench/runs/${scene}_capture"

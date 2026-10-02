@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-shared=/mnt/workspace/nop/rvln
+shared=${RVLN_BENCH_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 runtime=/var/tmp/rvln-ros-edge
 out=${1:?output directory required}
 backend_url=${RVLN_BACKEND_URL:-http://127.0.0.1:8766}
@@ -57,12 +57,13 @@ docker run --rm --network=host \
   -e ROS_DOMAIN_ID="$ROS_DOMAIN_ID" \
   -e FASTRTPS_DEFAULT_PROFILES_FILE="$shared/bench/scripts/fastdds_udp.xml" \
   -e RMW_IMPLEMENTATION=rmw_fastrtps_cpp \
+  -e RVLN_BENCH_ROOT="$shared/bench" \
   -e RVLN_LIVE_OUT="$out" \
   -e RVLN_BACKEND_URL="$backend_url" \
   -e RVLN_BENCH_MODEL="$model" \
   -e RVLN_BENCH_DEPLOYMENT="$deployment" \
   --entrypoint /bin/bash rvln-ros-edge:humble -lc \
-  'source /opt/ros/humble/setup.bash; source /runtime/install/setup.bash; export PYTHONPATH=/mnt/workspace/nop/rvln/bench/src:${PYTHONPATH:-}; exec python3 -m isaac_rvln.live_episode --url "$RVLN_BACKEND_URL" --model "$RVLN_BENCH_MODEL" --deployment "$RVLN_BENCH_DEPLOYMENT" --episode c01 --manifest /mnt/workspace/nop/rvln/bench/episodes/pilot.json --world-source /mnt/workspace/nop/rvln/bench/worlds/corridor.world --usd /mnt/workspace/nop/rvln/bench/assets/corridor.usd --out "$RVLN_LIVE_OUT/$RVLN_BENCH_MODEL-c01.json" --video "$RVLN_LIVE_OUT/$RVLN_BENCH_MODEL-c01.mp4" --duration 25 --startup-timeout 45' \
+  'source /opt/ros/humble/setup.bash; source /runtime/install/setup.bash; export PYTHONPATH=$RVLN_BENCH_ROOT/src:${PYTHONPATH:-}; exec python3 -m isaac_rvln.live_episode --url "$RVLN_BACKEND_URL" --model "$RVLN_BENCH_MODEL" --deployment "$RVLN_BENCH_DEPLOYMENT" --episode c01 --manifest $RVLN_BENCH_ROOT/episodes/pilot.json --world-source $RVLN_BENCH_ROOT/worlds/corridor.world --usd $RVLN_BENCH_ROOT/assets/corridor.usd --out "$RVLN_LIVE_OUT/$RVLN_BENCH_MODEL-c01.json" --video "$RVLN_LIVE_OUT/$RVLN_BENCH_MODEL-c01.mp4" --duration 25 --startup-timeout 45' \
   >"$out/episode.log" 2>&1
 
 wait "$isaac_pid"

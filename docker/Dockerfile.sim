@@ -1,49 +1,31 @@
-# Dockerfile.sim — raspicat Gazebo simulation + rvln edge stack.
-#
-# Bundles:
-#  - ROS2 Humble desktop-full (Gazebo Classic 11)
-#  - rt-net raspicat sim packages (raspicat_ros, raspicat_description,
-#    raspicat_sim, raspicat_slam_navigation), fetched via vcstool from
-#    raspicat.repos and pre-built in /opt/sim_ws.
-#  - CPU torch 2.2 + efficientnet_pytorch + grpcio so the edge node can run
-#    AsyncVLA's Edge_adapter.
-#  - external/AsyncVLA prismatic source vendored at /opt/AsyncVLA/prismatic
-#    with the heavy training-time __init__ chain stubbed so importing
-#    prismatic.models.small_head works without transformers / draccus / peft.
-#  - external/MBRA on PYTHONPATH (vint_train.models.vint.self_attention).
-#
-# Used by scripts/vla.sh `run {asyncvla,omnivla} --sim --host HOST[:PORT]`.
-# At runtime mount the repo at /workspace; the user-side rvln
-# packages are built on first launch by the entry script.
-FROM osrf/ros:humble-desktop-full
+# RVLN inference overlay on the standalone usim Gazebo runtime.
+ARG USIM_GAZEBO_IMAGE=usim-gazebo:local
+FROM ${USIM_GAZEBO_IMAGE}
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-SHELL ["/bin/bash", "-c"]
-
-# --------------------------------------------------------------- system deps
+# Build and inference dependencies are RVLN-owned, not inherited from usim.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        bash-completion \
-        curl \
-        git \
-        python3-pip \
-        python3-pytest \
-        python3-numpy \
-        python3-opencv \
-        python3-pil \
-        python3-typing-extensions \
-        python3-colcon-common-extensions \
-        python3-rosdep \
-        python3-vcstool \
-        ros-humble-cv-bridge \
-        ros-humble-diagnostic-msgs \
-        ros-humble-gazebo-ros-pkgs \
-        sudo \
-        vim \
-        wget \
-        xvfb \
+        git wget python3-pip python3-colcon-common-extensions python3-rosdep \
+        python3-vcstool python3-numpy python3-opencv python3-pil \
+        ros-humble-cv-bridge ros-humble-diagnostic-msgs \
     && rm -rf /var/lib/apt/lists/*
+RUN pip3 install --no-cache-dir 'setuptools==59.6.0'
+
+# RVLN owns Raspicat; the standalone usim base stays robot-independent.
+COPY raspicat.repos /tmp/raspicat.repos
+RUN mkdir -p /opt/sim_ws/src \
+    && vcs import /opt/sim_ws/src < /tmp/raspicat.repos \
+    && rm /tmp/raspicat.repos
+RUN if [ -f /opt/sim_ws/src/raspicat_sim/raspicat_gazebo/scripts/download_gazebo_models.sh ]; then \
+        bash /opt/sim_ws/src/raspicat_sim/raspicat_gazebo/scripts/download_gazebo_models.sh; \
+    fi
+RUN apt-get update \
+    && rosdep update \
+    && rosdep install -r -y --from-paths /opt/sim_ws/src --ignore-src --rosdistro humble \
+    && rm -rf /var/lib/apt/lists/*
+RUN cd /opt/sim_ws \
+    && source /opt/ros/humble/setup.bash \
+    && colcon build --symlink-install --merge-install \
+    && chmod -R a+rX /opt/sim_ws
 
 # --------------------------------------------------------------- python deps
 # CPU-only torch (sim runs on a workstation/laptop, not the GPU box).
@@ -69,32 +51,6 @@ RUN pip3 install --no-cache-dir 'setuptools==59.6.0'
 
 # edge_action_ws_node (Web/スマホ -> Pi の action chunk WS ブリッジ)。
 RUN pip3 install --no-cache-dir 'websockets>=10'
-
-# ---------------------------------------------- rt-net raspicat sim workspace
-# Build the rt-net packages once at image build time so Gazebo + raspicat sim
-# is ready out-of-the-box. Sources are fetched from GitHub via vcstool using
-# the pinned commits in raspicat.repos.
-COPY raspicat.repos /tmp/raspicat.repos
-RUN mkdir -p /opt/sim_ws/src \
-    && vcs import /opt/sim_ws/src < /tmp/raspicat.repos \
-    && rm /tmp/raspicat.repos
-
-# Pre-fetch Gazebo models bundled with raspicat_sim so they're cached in the
-# image and offline runs work.
-RUN if [ -f /opt/sim_ws/src/raspicat_sim/raspicat_gazebo/scripts/download_gazebo_models.sh ]; then \
-        bash /opt/sim_ws/src/raspicat_sim/raspicat_gazebo/scripts/download_gazebo_models.sh \
-            || echo "warning: gazebo model download failed; sim worlds may be incomplete"; \
-    fi
-
-RUN apt-get update \
-    && rosdep update \
-    && rosdep install -r -y --from-paths /opt/sim_ws/src --ignore-src --rosdistro humble \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN cd /opt/sim_ws \
-    && source /opt/ros/humble/setup.bash \
-    && colcon build --symlink-install --merge-install \
-    && chmod -R a+rX /opt/sim_ws
 
 # ---------------------------------------------- AsyncVLA edge inference deps
 # Vendor only the prismatic source (training deps NOT installed). Stub the

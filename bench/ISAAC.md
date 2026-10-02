@@ -4,11 +4,17 @@
 execution, artifact helpers, and the `rvln-bench` plugin host. It discovers
 implementations through package entry points and does not import either adapter.
 `bench/src/isaac_r2r` owns R2R-CE split loading, scoring, result aggregation,
-the Isaac renderer, and discrete movement.
-`bench/src/isaac_rvln` provides the Isaac ROS 2 robot bridge and converts the
-three owned Gazebo pilot SDF worlds to collidable USD. New Isaac commands enter
+Habitat coordinate and action adapters, and evaluation. Generic Isaac rendering
+and movement belong to the usim port.
+`bench/src/isaac_rvln` configures the generic usim Isaac/ROS bridge for
+Raspicat and delegates SDF conversion to usim. RVLN owns the three pilot worlds. New Isaac commands enter
 through `rvln-bench`; the historical Gazebo tools remain Python modules under
 `bench/src/bench/legacy_gazebo`.
+
+Benchmark resources resolve under `RVLN_BENCH_ROOT`, defaulting to this source
+checkout's `bench/`. They never resolve through `USIM_ROOT`. For source-only CPU
+checks, the existing benchmark interpreter also works with
+`PYTHONPATH=<rvln>/bench/src;<rvln>/external/usim/src` on Windows (`:` on Linux). The RVLN plugin host is `bench.cli`.
 
 ## Install
 
@@ -17,6 +23,8 @@ From the repository root:
 
 ```bash
 cd bench
+# Requires the usim submodule: git submodule update --init external/usim
+uv lock
 uv sync --extra isaac --group dev --frozen
 uv run --extra isaac rvln-bench --help
 ```

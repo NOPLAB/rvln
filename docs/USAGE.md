@@ -91,6 +91,20 @@ ROS2 Humble が同梱)。ホスト側 ROS2 が必要になるのは §3.4 (colco
 
 ### 3.1 Docker イメージの build
 
+汎用モバイルロボットシミュレータは `NOPLAB/usim` に分離され、
+`external/usim` の submodule として固定されている (ベンチマークは本リポジトリの `bench/`)。`build sim` は
+usim の Gazebo 基盤を先に build し、その上に RVLN の推論・エッジ依存を追加する。
+
+```bash
+# overlay は AsyncVLA と MBRA のソースもコピーする
+git submodule update --init external/usim external/AsyncVLA external/MBRA
+```
+
+独立 checkout を使う場合は `USIM_ROOT=/path/to/usim scripts/vla.sh build sim`。
+汎用シミュレータと Isaac Sim のセットアップ、テストは
+`external/usim/README.md` と `external/usim/docs/isaac.md`、
+RVLN ベンチマークの評価手順は `bench/ISAAC.md` を参照する。
+
 ```bash
 scripts/vla.sh build --all              # すべて
 scripts/vla.sh build asyncvla           # リモート側 AsyncVLA

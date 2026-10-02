@@ -6,3 +6,8 @@ log/
 .pytest_cache/
 **/__pycache__/
 **/*.pyc
+
+# Historical local simulator environments/data remain after extraction.
+bench/
+**/.venv/
+**/.git/

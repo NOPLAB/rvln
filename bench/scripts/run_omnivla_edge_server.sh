@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-shared=/mnt/workspace/nop/rvln
+shared=${RVLN_BENCH_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 assets="$shared/bench/runs/datasets/omnivla-edge"
-export PYTHONPATH="$shared/src/rvln_remote:$shared/src/rvln_core:${PYTHONPATH:-}"
+export PYTHONPATH="$shared/bench/src:$shared/src/rvln_remote:$shared/src/rvln_core:${PYTHONPATH:-}"
 export HOME="$assets"
 export HF_HOME=/mnt/workspace/nop/hf_cache
 export TOKENIZERS_PARALLELISM=false

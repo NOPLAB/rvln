@@ -8,7 +8,7 @@
 #SBATCH --output=/mnt/workspace/nop/raspicat_vla/bench/runs/slurm-%j.out
 #SBATCH --error=/mnt/workspace/nop/raspicat_vla/bench/runs/slurm-%j.err
 set -euo pipefail
-workspace=${RVLN_BENCH_WORKSPACE:-/mnt/workspace/nop/raspicat_vla}
+workspace=${RVLN_BENCH_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 vendor=${RVLN_BENCH_VENDOR:-/home/nop/.cache/rvln_bench_vendor}
 backend=''
 arguments=("$@")
@@ -28,7 +28,8 @@ case $backend in
     movla) vendor='' ;;
     navida) vendor=${RVLN_BENCH_NAVIDA_VENDOR:-/home/nop/.cache/rvln_bench_navida} ;;
 esac
-export PYTHONPATH="$workspace/bench/src:${vendor:+$vendor:}$workspace/src/rvln_remote:$workspace/src/rvln_core:${model_source:+$model_source:}$workspace/external/MBRA/train:$workspace/external/movla/src:${PYTHONPATH:-}"
+export RVLN_BENCH_ROOT=${RVLN_BENCH_ROOT:-$workspace/bench}
+export PYTHONPATH="$RVLN_BENCH_ROOT/src:${vendor:+$vendor:}$workspace/src/rvln_remote:$workspace/src/rvln_core:${model_source:+$model_source:}$workspace/external/MBRA/train:$workspace/external/movla/src:${PYTHONPATH:-}"
 export HF_HOME=${HF_HOME:-/mnt/workspace/nop/hf_cache}
 export TOKENIZERS_PARALLELISM=false
 exec "${RVLN_BENCH_PYTHON:-/mnt/workspace/nop/vla/.venv/bin/python}" \

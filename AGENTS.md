@@ -4,6 +4,8 @@
 
 This is a ROS 2 Humble colcon workspace. `src/rvln_*` contains the owned ROS messages, inference core, remote ROS 2 node, edge nodes, and launch files. `proto/edge_action.proto` defines only the mobile-to-Pi contract; regenerate its stubs with `scripts/gen_proto.sh` after editing it. Edge and remote use `rvln_msgs` topics. `app/inference/` and `app/logger/` are separate Flutter apps, while `web/` is a Next.js browser client. `docker/` holds runtime images and Compose profiles; `docs/` holds operating and design notes. Python tests live in each package's `test/`, Dart tests in each app's `test/`, and web tests in `web/test/`. Downloaded weights in `models/` and runtime assets are not committed.
 
+The generic mobile robot simulator (Python core, ROS 2 bridge, Gazebo and Isaac ports, generic smoke tools) and its tests live in the `external/usim` submodule (`NOPLAB/usim`). Initialize it with `git submodule update --init external/usim`. Follow its own `AGENTS.md` for simulator edits. The VLN benchmark (`bench/`, including the episode contract, R2R and `isaac_rvln` adapters) and `docker/Dockerfile.sim` stay in this repository. `scripts/vla.sh build sim` builds usim's standalone Gazebo base (`USIM_ROOT` or `external/usim`) before the RVLN inference overlay; RVLN-specific launch composition remains under `src/rvln_bringup/`.
+
 ## Build, Test, and Development Commands
 
 - On a ROS 2 Humble host, run `vcs import src < raspicat.repos`, `rosdep install --from-paths src --ignore-src -r -y`, then `colcon build --symlink-install`.

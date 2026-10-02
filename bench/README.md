@@ -2,7 +2,16 @@
 
 The Isaac Sim benchmark is under `bench/src/`: `bench` owns dataset-independent
 contracts, execution, and the `rvln-bench` plugin host. `isaac_r2r` owns its
-R2R protocol and scoring; `isaac_rvln` owns the robot simulation. See
+R2R protocol and scoring; `isaac_rvln` owns Raspicat preparation and RVLN protocol adapters. Generic
+physics, world conversion, and ROS bridges are imported from `usim`.
+
+The package stays `rvln-bench`, with its own `rvln_bench.plugins` discovery.
+`bench/pyproject.toml` installs usim editable from the `external/usim`
+submodule (`git submodule update --init external/usim`). For source-only CPU
+checks on Windows, the existing `bench/.venv/Scripts/python.exe` also works with
+`PYTHONPATH=<rvln>/bench/src;<rvln>/external/usim/src`.
+Benchmark resources use `RVLN_BENCH_ROOT` (default: this checkout's `bench/`),
+never `USIM_ROOT`. Installed wheels require `RVLN_BENCH_ROOT`. See
 [ISAAC.md](ISAAC.md) for setup,
 assets, commands, and current runtime limitations. The Gazebo workflow below
 remains the legacy path until the Isaac ROS bridge is validated end to end.

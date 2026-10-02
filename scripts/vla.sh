@@ -358,8 +358,21 @@ build_one() {
         warn "'sim' uses osrf/ros:humble-desktop-full, which has no arm64 image;"
         warn "this build will fail on Jetson with 'exec format error'. Use a x86 host for sim."
     fi
-    log "building ${image} from ${dfile_rel}"
-    docker build -f "$dfile" -t "$image" "$REPO_ROOT"
+    if [[ $target == sim ]]; then
+        local usim_root="${USIM_ROOT:-$REPO_ROOT/external/usim}"
+        local gazebo_image="${USIM_GAZEBO_IMAGE:-usim-gazebo:local}"
+        [[ -f $usim_root/docker/Dockerfile.gazebo ]] || {
+            err "usim Gazebo Dockerfile not found under $usim_root; set USIM_ROOT"
+            return 1
+        }
+        log "building ${gazebo_image} from usim"
+        docker build -f "$usim_root/docker/Dockerfile.gazebo" -t "$gazebo_image" "$usim_root" || return
+        log "building ${image} from ${dfile_rel}"
+        docker build --build-arg "USIM_GAZEBO_IMAGE=$gazebo_image" -f "$dfile" -t "$image" "$REPO_ROOT"
+    else
+        log "building ${image} from ${dfile_rel}"
+        docker build -f "$dfile" -t "$image" "$REPO_ROOT"
+    fi
 }
 
 cmd_build() {

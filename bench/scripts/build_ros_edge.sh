@@ -2,7 +2,7 @@
 set -eo pipefail
 
 source /opt/ros/humble/setup.bash
-workspace=/mnt/workspace/nop/rvln
+workspace=${RVLN_BENCH_WORKSPACE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}
 runtime=/runtime
 mkdir -p "$runtime"
 colcon --log-base "$runtime/log" build \

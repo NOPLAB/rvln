@@ -2252,6 +2252,9 @@ wheels = [
 name = "rvln-bench"
 version = "0.1.0"
 source = { editable = "." }
+dependencies = [
+    { name = "usim" },
+]
 
 [package.optional-dependencies]
 isaac = [
@@ -2302,6 +2305,7 @@ requires-dist = [
     { name = "torchvision", marker = "extra == 'isaac'", specifier = "==0.26.0" },
     { name = "torchvision", marker = "extra == 'omnivla-edge-inference'", specifier = "==0.26.0" },
     { name = "usd-core", marker = "extra == 'usd'", specifier = "==25.5" },
+    { name = "usim", editable = "../external/usim" },
 ]
 provides-extras = ["usd", "isaac", "omnivla-edge-inference"]
 
@@ -2578,6 +2582,27 @@ wheels = [
     { url = "https://pypi.nvidia.com/usd-exchange/usd_exchange-3.0.0-cp312-cp312-manylinux_2_35_aarch64.whl", hash = "sha256:59a3b8ef4bc545c76059f7efc5fec94023e0818c5a714fae40f8e0411de79db5" },
     { url = "https://pypi.nvidia.com/usd-exchange/usd_exchange-3.0.0-cp312-cp312-manylinux_2_35_x86_64.whl", hash = "sha256:3d5a3ca9f6153abaf2bb4f8fda6c4026e174b6b050eb904a6e4a5bdf89a52926" },
     { url = "https://pypi.nvidia.com/usd-exchange/usd_exchange-3.0.0-cp312-cp312-win_amd64.whl", hash = "sha256:374499c3d06bd10f4cda2036239935222527f17e1f3ee059fc093aeb9058439b" },
+]
+
+[[package]]
+name = "usim"
+version = "0.1.0"
+source = { editable = "../external/usim" }
+
+[package.metadata]
+requires-dist = [
+    { name = "isaacsim", extras = ["all", "extscache"], marker = "python_full_version == '3.12.*' and extra == 'isaac'", specifier = "==6.1.0.0" },
+    { name = "numpy", marker = "python_full_version == '3.12.*' and extra == 'isaac'", specifier = "==2.3.1" },
+    { name = "numpy", marker = "extra == 'usd'", specifier = ">=1.26,<2" },
+    { name = "usd-core", marker = "extra == 'usd'", specifier = "==25.5" },
+]
+provides-extras = ["usd", "isaac"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "numpy", specifier = ">=1.26,<3" },
+    { name = "pytest", specifier = ">=9.1,<10" },
+    { name = "ruff", specifier = "==0.16.9" },
 ]
 
 [[package]]
