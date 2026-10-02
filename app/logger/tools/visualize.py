@@ -22,10 +22,8 @@ from __future__ import annotations
 
 import argparse
 import http.server
-import os
 import shutil
 import socketserver
-import sys
 import tempfile
 import threading
 import webbrowser

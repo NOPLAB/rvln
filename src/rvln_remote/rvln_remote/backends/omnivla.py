@@ -10,6 +10,7 @@ heavy compute lives here — shared with AsyncVLA via
 :class:`~rvln_remote.backends._openvla_oft.OpenVLAOFTBackendBase`; only
 the output head differs.
 """
+
 from __future__ import annotations
 
 import torch
@@ -27,13 +28,13 @@ class OmniVLABackend(OpenVLAOFTBackendBase):
         *,
         vla_path: str,
         resume_step: int = 120000,
-        device: str = 'cuda:0',
+        device: str = "cuda:0",
         dtype: torch.dtype = torch.bfloat16,
         num_images_in_input: int = 2,
         use_l1_regression: bool = True,
     ) -> None:
         if not use_l1_regression:
-            raise NotImplementedError('use_l1_regression=False (diffusion head) not wired yet')
+            raise NotImplementedError("use_l1_regression=False (diffusion head) not wired yet")
         self._use_l1_regression = use_l1_regression
         super().__init__(
             vla_path=vla_path,
@@ -48,7 +49,9 @@ class OmniVLABackend(OpenVLAOFTBackendBase):
         return self._action_dim
 
     def _project_actions(
-        self, actions_hidden: torch.Tensor, modality_id: torch.Tensor,
+        self,
+        actions_hidden: torch.Tensor,
+        modality_id: torch.Tensor,
     ) -> torch.Tensor:
         # The L1 regression head decodes the hidden states straight to waypoints
         # (x, y, cos, sin) in waypoint-spacing units. Scale x/y to metres here so
@@ -62,8 +65,8 @@ class OmniVLABackend(OpenVLAOFTBackendBase):
 
     def model_info(self) -> ModelInfoDict:
         return ModelInfoDict(
-            model_name='NHirose/omnivla-original',
-            model_version=f'omnivla-orig-step{self._resume_step}',
+            model_name="NHirose/omnivla-original",
+            model_version=f"omnivla-orig-step{self._resume_step}",
             num_tokens=self._num_actions_chunk,
             embed_dim=self._action_dim,
             device=str(self._device),

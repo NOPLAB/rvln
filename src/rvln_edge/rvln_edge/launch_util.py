@@ -9,6 +9,7 @@ contribute only their server process and parameter overrides.
 Only imported by launch files (needs the ``launch`` / ``launch_ros`` runtime),
 so keep the node modules free of imports from here.
 """
+
 from __future__ import annotations
 
 import os
@@ -24,8 +25,9 @@ from launch_ros.actions import LifecycleNode, Node
 def edge_params_path() -> str:
     """Absolute path to the edge node's default parameter YAML."""
     return os.path.join(
-        get_package_share_directory('rvln_edge'),
-        'config', 'edge_params.yaml',
+        get_package_share_directory("rvln_edge"),
+        "config",
+        "edge_params.yaml",
     )
 
 
@@ -48,47 +50,55 @@ def edge_lifecycle_actions(*, parameters, configure_delay_sec: float = 4.0) -> l
     on an AGX Orin, leaving the edge unconfigured forever.
     """
     edge = LifecycleNode(
-        package='rvln_edge',
-        executable='vla_edge_node',
-        name='vla_edge_node',
-        namespace='',
-        output='screen',
+        package="rvln_edge",
+        executable="vla_edge_node",
+        name="vla_edge_node",
+        namespace="",
+        output="screen",
         parameters=parameters,
     )
 
     def _lifecycle_set_retrying(transition: str, *, attempts: int = 30) -> ExecuteProcess:
         return ExecuteProcess(
-            cmd=['bash', '-c',
-                 f'for i in $(seq {attempts}); do '
-                 f'ros2 lifecycle set /vla_edge_node {transition} && exit 0; '
-                 f'echo "retrying edge {transition} ($i/{attempts})"; sleep 2; done; '
-                 f'echo "edge {transition} FAILED after {attempts} attempts" >&2; exit 1'],
-            output='screen',
+            cmd=[
+                "bash",
+                "-c",
+                f"for i in $(seq {attempts}); do "
+                f"ros2 lifecycle set /vla_edge_node {transition} && exit 0; "
+                f'echo "retrying edge {transition} ($i/{attempts})"; sleep 2; done; '
+                f'echo "edge {transition} FAILED after {attempts} attempts" >&2; exit 1',
+            ],
+            output="screen",
         )
 
-    configure_cmd = _lifecycle_set_retrying('configure')
-    activate_cmd = _lifecycle_set_retrying('activate')
+    configure_cmd = _lifecycle_set_retrying("configure")
+    activate_cmd = _lifecycle_set_retrying("activate")
     return [
         edge,
-        RegisterEventHandler(OnProcessStart(
-            target_action=edge,
-            on_start=[TimerAction(period=configure_delay_sec, actions=[configure_cmd])],
-        )),
-        RegisterEventHandler(OnProcessExit(
-            target_action=configure_cmd, on_exit=[activate_cmd],
-        )),
+        RegisterEventHandler(
+            OnProcessStart(
+                target_action=edge,
+                on_start=[TimerAction(period=configure_delay_sec, actions=[configure_cmd])],
+            )
+        ),
+        RegisterEventHandler(
+            OnProcessExit(
+                target_action=configure_cmd,
+                on_exit=[activate_cmd],
+            )
+        ),
     ]
 
 
 def follower_node(*, condition=None, **params) -> Node:
     """path_follower_node with the stack-default limits; ``params`` overrides."""
-    parameters = {'max_v': 0.4, 'max_w': 1.0, 'rate_hz': 20.0}
+    parameters = {"max_v": 0.4, "max_w": 1.0, "rate_hz": 20.0}
     parameters.update(params)
     return Node(
-        package='rvln_edge',
-        executable='path_follower_node',
-        name='path_follower_node',
-        output='screen',
+        package="rvln_edge",
+        executable="path_follower_node",
+        name="path_follower_node",
+        output="screen",
         parameters=[parameters],
         condition=condition,
     )
@@ -106,10 +116,15 @@ def edge_camera_overrides() -> dict:
     Merge the returned dict into the edge's parameter overrides.
     """
     return {
-        'camera_device': PythonExpression([
-            "'", LaunchConfiguration('camera_device'),
-            "' if '", LaunchConfiguration('camera_kind'), "' == 'v4l2' else ''",
-        ]),
+        "camera_device": PythonExpression(
+            [
+                "'",
+                LaunchConfiguration("camera_device"),
+                "' if '",
+                LaunchConfiguration("camera_kind"),
+                "' == 'v4l2' else ''",
+            ]
+        ),
     }
 
 
@@ -127,13 +142,13 @@ def camera_nodes(*, image_topic) -> list:
     """
     return [
         Node(
-            package='realsense2_camera',
-            executable='realsense2_camera_node',
-            name='camera',
-            namespace='',
-            output='screen',
-            remappings=[('/camera/color/image_raw', image_topic)],
-            condition=LaunchConfigurationEquals('camera_kind', 'realsense'),
+            package="realsense2_camera",
+            executable="realsense2_camera_node",
+            name="camera",
+            namespace="",
+            output="screen",
+            remappings=[("/camera/color/image_raw", image_topic)],
+            condition=LaunchConfigurationEquals("camera_kind", "realsense"),
         ),
     ]
 
@@ -142,9 +157,13 @@ def vla_server_process(*, backend: str, extra_args=()) -> ExecuteProcess:
     """A rvln_remote ROS 2 inference process for the backend."""
     return ExecuteProcess(
         cmd=[
-            'ros2', 'run', 'rvln_remote', 'vla_inference_node',
-            '--backend', backend,
+            "ros2",
+            "run",
+            "rvln_remote",
+            "vla_inference_node",
+            "--backend",
+            backend,
             *extra_args,
         ],
-        output='screen',
+        output="screen",
     )

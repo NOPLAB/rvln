@@ -1,4 +1,5 @@
 """Tests for Pure Pursuit controller."""
+
 import pytest
 
 from rvln_edge.pure_pursuit import PurePursuit, Pose2D, Waypoint

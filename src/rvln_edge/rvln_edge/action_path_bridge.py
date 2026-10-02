@@ -1,4 +1,5 @@
 """Shared action-chunk to Path state and watchdog for mobile transports."""
+
 from __future__ import annotations
 
 import threading
@@ -23,11 +24,11 @@ def decode_path(
 ) -> Path:
     """Validate the shared fp16 payload and convert its trajectory to a Path."""
     if num_tokens < 1 or embed_dim < 4:
-        raise ValueError(f'bad shape: num_tokens={num_tokens} embed_dim={embed_dim}')
+        raise ValueError(f"bad shape: num_tokens={num_tokens} embed_dim={embed_dim}")
     values = fp16_bytes_to_float32_list(raw)
     if len(values) != num_tokens * embed_dim:
         raise ValueError(
-            f'values length {len(values)} != num_tokens*embed_dim {num_tokens * embed_dim}'
+            f"values length {len(values)} != num_tokens*embed_dim {num_tokens * embed_dim}"
         )
     waypoints = np.asarray(values, dtype=np.float32).reshape(num_tokens, embed_dim)
     spacing = 1.0 if scaled_to_m else waypoint_spacing
@@ -43,7 +44,7 @@ class ActionPathBridge:
         self._lock = threading.Lock()
         self._pending: Optional[Path] = None
         self._last_rx: Optional[float] = None
-        self._goal_id = ''
+        self._goal_id = ""
         self._stopped = True
 
     @property
@@ -64,8 +65,11 @@ class ActionPathBridge:
     def tick(self, now: float) -> Tuple[Optional[Path], bool]:
         """Return a queued Path or a one-shot stop Path, and whether it timed out."""
         with self._lock:
-            if (self._last_rx is not None and not self._stopped
-                    and now - self._last_rx > self._max_age_sec):
+            if (
+                self._last_rx is not None
+                and not self._stopped
+                and now - self._last_rx > self._max_age_sec
+            ):
                 self._stopped = True
                 self._pending = None
                 empty = Path()

@@ -1,4 +1,5 @@
 """EdgeAdapter ABC, implemented by stub / asyncvla / omnivla / omnivla_edge_local adapters."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -24,7 +25,7 @@ class EdgeGoal:
 
     mode: str
     pose_xy_theta: Optional[Tuple[float, float, float]] = None
-    text: str = ''
+    text: str = ""
     image_rgb: Optional[np.ndarray] = None  # RGB uint8 HxWx3
 
 
@@ -44,9 +45,8 @@ class EdgeAdapter(ABC):
         embedding_shape: Tuple[int, int, int],
         cur_image_rgb: Optional[np.ndarray] = None,
         past_image_rgb: Optional[np.ndarray] = None,
-        frame_id: str = 'base_link',
-    ) -> Path:
-        ...
+        frame_id: str = "base_link",
+    ) -> Path: ...
 
     def set_goal(self, goal: EdgeGoal) -> None:  # noqa: ARG002
         """Receive the latest navigation goal.

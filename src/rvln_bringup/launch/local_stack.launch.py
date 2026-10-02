@@ -29,80 +29,88 @@ Launch args:
   edge_device  - asyncvla only: Edge_adapter device (default: cpu)
   inference_ms - dummy only: simulated inference latency (default: 50.0)
 """
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
 
 from rvln_edge.launch_util import (
-    edge_lifecycle_actions, edge_params_path, follower_node, vla_server_process,
+    edge_lifecycle_actions,
+    edge_params_path,
+    follower_node,
+    vla_server_process,
 )
 
 
 # Per-backend checkpoint defaults, applied when vla_path/resume_step are ''.
 _BACKEND_DEFAULTS = {
-    'asyncvla': ('/workspace/models/AsyncVLA_release', '750000'),
-    'omnivla': ('/workspace/models/omnivla-original', '120000'),
-    'omnivla_edge': ('/workspace/models/omnivla-edge/omnivla-edge.pth', '0'),
+    "asyncvla": ("/workspace/models/AsyncVLA_release", "750000"),
+    "omnivla": ("/workspace/models/omnivla-original", "120000"),
+    "omnivla_edge": ("/workspace/models/omnivla-edge/omnivla-edge.pth", "0"),
 }
 
 
 def _setup(context):
-    backend = LaunchConfiguration('backend').perform(context)
-    device = LaunchConfiguration('device').perform(context)
-    default_path, default_step = _BACKEND_DEFAULTS.get(backend, ('', ''))
-    vla_path = LaunchConfiguration('vla_path').perform(context) or default_path
-    resume_step = LaunchConfiguration('resume_step').perform(context) or default_step
+    backend = LaunchConfiguration("backend").perform(context)
+    device = LaunchConfiguration("device").perform(context)
+    default_path, default_step = _BACKEND_DEFAULTS.get(backend, ("", ""))
+    vla_path = LaunchConfiguration("vla_path").perform(context) or default_path
+    resume_step = LaunchConfiguration("resume_step").perform(context) or default_step
 
     edge_overrides = {}
 
-    if backend == 'dummy':
+    if backend == "dummy":
         server = ExecuteProcess(
             cmd=[
-                'ros2', 'run', 'rvln_remote', 'vla_inference_node',
-                '--inference-ms', LaunchConfiguration('inference_ms').perform(context),
-                '--num-tokens', '8',
-                '--embed-dim', '1024',
+                "ros2",
+                "run",
+                "rvln_remote",
+                "vla_inference_node",
+                "--inference-ms",
+                LaunchConfiguration("inference_ms").perform(context),
+                "--num-tokens",
+                "8",
+                "--embed-dim",
+                "1024",
             ],
-            output='screen',
+            output="screen",
         )
-    elif backend == 'asyncvla':
+    elif backend == "asyncvla":
         server = vla_server_process(
-            backend='asyncvla',
-            extra_args=['--vla-path', vla_path,
-                        '--resume-step', resume_step,
-                        '--device', device],
+            backend="asyncvla",
+            extra_args=["--vla-path", vla_path, "--resume-step", resume_step, "--device", device],
         )
-        edge_overrides.update({
-            'adapter_kind': 'asyncvla',
-            'asyncvla_weights_path': vla_path,
-            'asyncvla_resume_step': int(resume_step),
-            'asyncvla_device': LaunchConfiguration('edge_device').perform(context),
-            # Edge_adapter CPU inference takes O(100 ms) on the robot; the default
-            # 10 Hz action tick therefore runs back-to-back, monopolising CPU that
-            # the camera driver needs (frames then stall and the freshness guard
-            # safe-stops). 3 Hz still refreshes the path ~4x per cloud embedding.
-            'action_rate_hz': 3.0,
-        })
-    elif backend == 'omnivla':
+        edge_overrides.update(
+            {
+                "adapter_kind": "asyncvla",
+                "asyncvla_weights_path": vla_path,
+                "asyncvla_resume_step": int(resume_step),
+                "asyncvla_device": LaunchConfiguration("edge_device").perform(context),
+                # Edge_adapter CPU inference takes O(100 ms) on the robot; the default
+                # 10 Hz action tick therefore runs back-to-back, monopolising CPU that
+                # the camera driver needs (frames then stall and the freshness guard
+                # safe-stops). 3 Hz still refreshes the path ~4x per cloud embedding.
+                "action_rate_hz": 3.0,
+            }
+        )
+    elif backend == "omnivla":
         server = vla_server_process(
-            backend='omnivla',
-            extra_args=['--vla-path', vla_path,
-                        '--resume-step', resume_step,
-                        '--device', device],
+            backend="omnivla",
+            extra_args=["--vla-path", vla_path, "--resume-step", resume_step, "--device", device],
         )
-        edge_overrides['adapter_kind'] = 'omnivla'
-    elif backend == 'omnivla_edge':
+        edge_overrides["adapter_kind"] = "omnivla"
+    elif backend == "omnivla_edge":
         # --vla-path is the .pth weights file; --resume-step is unused. The edge
         # runs the same path-only adapter as omnivla (waypoints arrive computed).
         server = vla_server_process(
-            backend='omnivla_edge',
-            extra_args=['--vla-path', vla_path,
-                        '--device', device],
+            backend="omnivla_edge",
+            extra_args=["--vla-path", vla_path, "--device", device],
         )
-        edge_overrides['adapter_kind'] = 'omnivla'
+        edge_overrides["adapter_kind"] = "omnivla"
     else:
         raise RuntimeError(
-            f'unknown backend {backend!r} (want dummy|asyncvla|omnivla|omnivla_edge)')
+            f"unknown backend {backend!r} (want dummy|asyncvla|omnivla|omnivla_edge)"
+        )
 
     return [
         server,
@@ -112,12 +120,14 @@ def _setup(context):
 
 
 def generate_launch_description():
-    return LaunchDescription([
-        DeclareLaunchArgument('backend', default_value='dummy'),
-        DeclareLaunchArgument('vla_path', default_value=''),
-        DeclareLaunchArgument('resume_step', default_value=''),
-        DeclareLaunchArgument('device', default_value='cuda:0'),
-        DeclareLaunchArgument('edge_device', default_value='cpu'),
-        DeclareLaunchArgument('inference_ms', default_value='50.0'),
-        OpaqueFunction(function=_setup),
-    ])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument("backend", default_value="dummy"),
+            DeclareLaunchArgument("vla_path", default_value=""),
+            DeclareLaunchArgument("resume_step", default_value=""),
+            DeclareLaunchArgument("device", default_value="cuda:0"),
+            DeclareLaunchArgument("edge_device", default_value="cpu"),
+            DeclareLaunchArgument("inference_ms", default_value="50.0"),
+            OpaqueFunction(function=_setup),
+        ]
+    )

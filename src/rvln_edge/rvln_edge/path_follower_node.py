@@ -1,4 +1,5 @@
 """ROS2 wrapper around WaypointPD: subscribe to Path, publish Twist."""
+
 from __future__ import annotations
 
 from typing import List, Optional
@@ -14,26 +15,25 @@ from .waypoint_pd import PathPoint, WaypointPD
 
 
 class PathFollowerNode(Node):
-
     def __init__(self) -> None:
-        super().__init__('path_follower_node')
+        super().__init__("path_follower_node")
         # Steering law: OmniVLA-edge's single-waypoint PD (waypoint_pd.py), used
         # for every backend. Pure Pursuit under-steers on the long-horizon paths
         # these policies emit (waypoints reach several metres ahead), so we pick
         # a waypoint a fixed number of steps ahead and drive a proportional law
         # whose gain comes from the heading to it, not a vanishing curvature.
-        self.declare_parameter('waypoint_select', 4)
-        self.declare_parameter('control_dt', 1.0 / 3.0)
-        self.declare_parameter('max_v', 0.4)
-        self.declare_parameter('max_w', 1.0)
-        self.declare_parameter('rate_hz', 20.0)
-        self.declare_parameter('path_topic', '/rvln/predicted_path')
-        self.declare_parameter('cmd_vel_topic', '/cmd_vel')
+        self.declare_parameter("waypoint_select", 4)
+        self.declare_parameter("control_dt", 1.0 / 3.0)
+        self.declare_parameter("max_v", 0.4)
+        self.declare_parameter("max_w", 1.0)
+        self.declare_parameter("rate_hz", 20.0)
+        self.declare_parameter("path_topic", "/rvln/predicted_path")
+        self.declare_parameter("cmd_vel_topic", "/cmd_vel")
         # Plan 1: paths are always treated as being expressed in the robot
         # frame (typically base_link). If a path arrives with a different
         # frame_id we warn and zero the command, since blindly following
         # would steer toward the wrong pose.
-        self.declare_parameter('expected_frame', 'base_link')
+        self.declare_parameter("expected_frame", "base_link")
         # Hold-last-command (safety net only): the follower re-evaluates the
         # *same* path at rate_hz (20 Hz) while new paths arrive only at the
         # inference rate, so between path updates we may recompute a momentary
@@ -47,21 +47,20 @@ class PathFollowerNode(Node):
         # take effect immediately instead of coasting on the old command. The
         # hold applies only when no new path has arrived since the last tick.
         # Set to 0 to disable (zero command is emitted immediately).
-        self.declare_parameter('hold_timeout_sec', 1.0)
+        self.declare_parameter("hold_timeout_sec", 1.0)
         # A command is "moving" (worth latching) if |linear| or |angular|
         # exceeds this. Below it we treat the command as a stop.
-        self.declare_parameter('cmd_epsilon', 1e-3)
+        self.declare_parameter("cmd_epsilon", 1e-3)
 
         self._pp = WaypointPD(
-            max_v=float(self.get_parameter('max_v').value),
-            max_w=float(self.get_parameter('max_w').value),
-            waypoint_select=int(self.get_parameter('waypoint_select').value),
-            dt=float(self.get_parameter('control_dt').value),
+            max_v=float(self.get_parameter("max_v").value),
+            max_w=float(self.get_parameter("max_w").value),
+            waypoint_select=int(self.get_parameter("waypoint_select").value),
+            dt=float(self.get_parameter("control_dt").value),
         )
-        self._expected_frame: str = str(self.get_parameter('expected_frame').value)
-        self._hold_timeout_ns: int = int(
-            float(self.get_parameter('hold_timeout_sec').value) * 1e9)
-        self._cmd_eps: float = float(self.get_parameter('cmd_epsilon').value)
+        self._expected_frame: str = str(self.get_parameter("expected_frame").value)
+        self._hold_timeout_ns: int = int(float(self.get_parameter("hold_timeout_sec").value) * 1e9)
+        self._cmd_eps: float = float(self.get_parameter("cmd_epsilon").value)
         self._latest: List[PathPoint] = []
         self._frame_mismatch: bool = False
         # Set by _on_path whenever a new Path (a fresh inference result) lands;
@@ -74,16 +73,19 @@ class PathFollowerNode(Node):
         # Motion state of the last published command, for transition logging.
         self._was_moving = False
         self._forced_stop = False
-        self.create_service(SetBool, '/rvln/follower_stop', self._on_forced_stop)
+        self.create_service(SetBool, "/rvln/follower_stop", self._on_forced_stop)
         self._sub = self.create_subscription(
             Path,
-            self.get_parameter('path_topic').value,
-            self._on_path, 10,
+            self.get_parameter("path_topic").value,
+            self._on_path,
+            10,
         )
         self._pub = self.create_publisher(
-            Twist, self.get_parameter('cmd_vel_topic').value, 10,
+            Twist,
+            self.get_parameter("cmd_vel_topic").value,
+            10,
         )
-        rate = float(self.get_parameter('rate_hz').value)
+        rate = float(self.get_parameter("rate_hz").value)
         self._timer = self.create_timer(1.0 / rate, self._tick)
 
     def _on_path(self, msg: Path) -> None:
@@ -93,8 +95,8 @@ class PathFollowerNode(Node):
         if msg.header.frame_id and msg.header.frame_id != self._expected_frame:
             if not self._frame_mismatch:
                 self.get_logger().warn(
-                    f'path frame_id={msg.header.frame_id!r} != '
-                    f'expected {self._expected_frame!r}; zeroing cmd_vel'
+                    f"path frame_id={msg.header.frame_id!r} != "
+                    f"expected {self._expected_frame!r}; zeroing cmd_vel"
                 )
             self._frame_mismatch = True
             self._latest = []
@@ -104,17 +106,18 @@ class PathFollowerNode(Node):
         for ps in msg.poses:
             # Heading is a yaw-only quaternion (w=cos, z=sin); carry it so the
             # controller can rotate in place when the target sits on the robot.
-            wps.append(PathPoint(
-                x=ps.pose.position.x,
-                y=ps.pose.position.y,
-                cos=ps.pose.orientation.w,
-                sin=ps.pose.orientation.z,
-            ))
+            wps.append(
+                PathPoint(
+                    x=ps.pose.position.x,
+                    y=ps.pose.position.y,
+                    cos=ps.pose.orientation.w,
+                    sin=ps.pose.orientation.z,
+                )
+            )
         self._latest = wps
 
     def _tick(self) -> None:
-        cmd = (TwistCmd(0.0, 0.0) if self._forced_stop
-               else self._decide_cmd(self.get_clock().now()))
+        cmd = TwistCmd(0.0, 0.0) if self._forced_stop else self._decide_cmd(self.get_clock().now())
         self._log_motion_transition(cmd)
         twist = Twist()
         twist.linear.x = float(cmd.linear)
@@ -126,7 +129,7 @@ class PathFollowerNode(Node):
         self._held_cmd = None
         self._held_at = None
         response.success = True
-        response.message = 'follower stopped' if self._forced_stop else 'follower resumed'
+        response.message = "follower stopped" if self._forced_stop else "follower resumed"
         return response
 
     def _log_motion_transition(self, cmd: TwistCmd) -> None:
@@ -143,17 +146,16 @@ class PathFollowerNode(Node):
         self._was_moving = moving
         if moving:
             self.get_logger().info(
-                f'resume: cmd=({cmd.linear:+.3f},{cmd.angular:+.3f}) '
-                f'path_len={len(self._latest)}'
+                f"resume: cmd=({cmd.linear:+.3f},{cmd.angular:+.3f}) path_len={len(self._latest)}"
             )
             return
         if self._frame_mismatch:
-            reason = 'frame mismatch'
+            reason = "frame mismatch"
         elif not self._latest:
-            reason = 'empty path (edge safe-stop)'
+            reason = "empty path (edge safe-stop)"
         else:
-            reason = 'model output near-zero waypoint'
-        self.get_logger().info(f'stop: {reason} (path_len={len(self._latest)})')
+            reason = "model output near-zero waypoint"
+        self.get_logger().info(f"stop: {reason} (path_len={len(self._latest)})")
 
     def _decide_cmd(self, now) -> TwistCmd:
         """Pick the command to publish, applying hold-last-command.

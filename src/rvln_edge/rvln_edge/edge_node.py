@@ -4,6 +4,7 @@ In Plan 1 the "edge adapter" is a stub that emits a fixed straight-ahead
 path of length 1.0 m sampled at 0.1 m. Plan 2 replaces this stub with the
 real Edge Adapter PyTorch model (model-specific, e.g. AsyncVLA / OmniVLA).
 """
+
 from __future__ import annotations
 
 import math
@@ -41,31 +42,38 @@ def _build_adapter(kind: str, *, params: dict) -> EdgeAdapter:
     ``params`` is a dict of node parameters used by adapters that need extra
     config (e.g. AsyncVLA's Edge_adapter weights path).
     """
-    if kind == 'stub':
+    if kind == "stub":
         from .adapters.stub import StubAdapter
+
         return StubAdapter()
-    if kind == 'omnivla':
+    if kind == "omnivla":
         from .adapters.omnivla import OmniVLAEdgeAdapter
+
         return OmniVLAEdgeAdapter()
-    if kind == 'omnivla_edge_local':
+    if kind == "omnivla_edge_local":
         from .adapters.omnivla_edge_local import OmniVLAEdgeLocalAdapter
+
         return OmniVLAEdgeLocalAdapter(
-            weights_path=str(params.get(
-                'omnivla_edge_weights_path', '/workspace/models/omnivla-edge/omnivla-edge.pth')),
-            clip_type=str(params.get('omnivla_edge_clip_type', 'ViT-B/32')),
-            device=str(params.get('omnivla_edge_device', 'cuda:0')),
+            weights_path=str(
+                params.get(
+                    "omnivla_edge_weights_path", "/workspace/models/omnivla-edge/omnivla-edge.pth"
+                )
+            ),
+            clip_type=str(params.get("omnivla_edge_clip_type", "ViT-B/32")),
+            device=str(params.get("omnivla_edge_device", "cuda:0")),
         )
-    if kind == 'asyncvla':
+    if kind == "asyncvla":
         from .adapters.asyncvla import AsyncVLAEdgeAdapter
+
         return AsyncVLAEdgeAdapter(
-            weights_path=str(params.get('asyncvla_weights_path',
-                             '/workspace/models/AsyncVLA_release')),
-            resume_step=int(params.get('asyncvla_resume_step', 750000)),
-            device=str(params.get('asyncvla_device', 'cpu')),
+            weights_path=str(
+                params.get("asyncvla_weights_path", "/workspace/models/AsyncVLA_release")
+            ),
+            resume_step=int(params.get("asyncvla_resume_step", 750000)),
+            device=str(params.get("asyncvla_device", "cpu")),
         )
     raise ValueError(
-        f'unknown adapter_kind: {kind!r} '
-        '(choices: stub|asyncvla|omnivla|omnivla_edge_local)'
+        f"unknown adapter_kind: {kind!r} (choices: stub|asyncvla|omnivla|omnivla_edge_local)"
     )
 
 
@@ -82,17 +90,19 @@ def _pose_goal_in_base_link(goal: GoalSpecMsg, odom: Odometry) -> GoalSpecMsg:
     """Convert a fixed odom goal into a robot-relative inference goal."""
     robot = odom.pose.pose
     target = goal.pose.pose
-    yaw = _quat_to_yaw(robot.orientation.x, robot.orientation.y,
-                       robot.orientation.z, robot.orientation.w)
+    yaw = _quat_to_yaw(
+        robot.orientation.x, robot.orientation.y, robot.orientation.z, robot.orientation.w
+    )
     dx = target.position.x - robot.position.x
     dy = target.position.y - robot.position.y
     relative = GoalSpecMsg()
     relative.mode = goal.mode
-    relative.pose.header.frame_id = 'base_link'
+    relative.pose.header.frame_id = "base_link"
     relative.pose.pose.position.x = math.cos(yaw) * dx + math.sin(yaw) * dy
     relative.pose.pose.position.y = -math.sin(yaw) * dx + math.cos(yaw) * dy
-    goal_yaw = _quat_to_yaw(target.orientation.x, target.orientation.y,
-                            target.orientation.z, target.orientation.w)
+    goal_yaw = _quat_to_yaw(
+        target.orientation.x, target.orientation.y, target.orientation.z, target.orientation.w
+    )
     relative_yaw = goal_yaw - yaw
     relative.pose.pose.orientation.z = math.sin(relative_yaw / 2.0)
     relative.pose.pose.orientation.w = math.cos(relative_yaw / 2.0)
@@ -100,9 +110,8 @@ def _pose_goal_in_base_link(goal: GoalSpecMsg, odom: Odometry) -> GoalSpecMsg:
 
 
 class VLAEdgeNode(LifecycleNode):
-
     def __init__(self) -> None:
-        super().__init__('vla_edge_node')
+        super().__init__("vla_edge_node")
         self._declare_parameters()
         self._bridge = CvBridge()
         self._camera_frames = CameraFrameStore()
@@ -149,108 +158,118 @@ class VLAEdgeNode(LifecycleNode):
     # ----------------------------------------------------------------- params
 
     def _declare_parameters(self) -> None:
-        self.declare_parameter('observation_topic', '/rvln/observation')
-        self.declare_parameter('remote_embedding_topic', '/rvln/remote_embedding')
-        self.declare_parameter('obs_publish_rate_hz', 2.0)
-        self.declare_parameter('action_rate_hz', 10.0)
-        self.declare_parameter('image_size', [224, 224])
+        self.declare_parameter("observation_topic", "/rvln/observation")
+        self.declare_parameter("remote_embedding_topic", "/rvln/remote_embedding")
+        self.declare_parameter("obs_publish_rate_hz", 2.0)
+        self.declare_parameter("action_rate_hz", 10.0)
+        self.declare_parameter("image_size", [224, 224])
         # A camera frame older than this is treated as "no image": stop
         # sending observations and safe-stop the action loop. Prevents blind
         # driving on a frozen frame when the camera driver dies mid-run.
-        self.declare_parameter('image_max_age_sec', 2.0)
-        self.declare_parameter('jpeg_quality', 85)
-        self.declare_parameter('embedding_max_age_sec', 6.0)
-        self.declare_parameter('embedding_hard_timeout_sec', 15.0)
-        self.declare_parameter('goal_tolerance_m', 0.3)
+        self.declare_parameter("image_max_age_sec", 2.0)
+        self.declare_parameter("jpeg_quality", 85)
+        self.declare_parameter("embedding_max_age_sec", 6.0)
+        self.declare_parameter("embedding_hard_timeout_sec", 15.0)
+        self.declare_parameter("goal_tolerance_m", 0.3)
         # A topic ending in '/compressed' is subscribed as CompressedImage
         # (JPEG) instead of raw Image — use it whenever the camera lives on
         # another host (raw 30 fps Image does not survive WiFi).
-        self.declare_parameter('image_topic', '/camera/image_raw')
+        self.declare_parameter("image_topic", "/camera/image_raw")
         # Non-empty = grab this V4L2 device in-process instead of subscribing
         # to image_topic. 0 / 0.0 leave the driver defaults untouched.
-        self.declare_parameter('camera_device', '')
-        self.declare_parameter('camera_width', 0)
-        self.declare_parameter('camera_height', 0)
-        self.declare_parameter('camera_fps', 0.0)
-        self.declare_parameter('goal_topic', '/rvln/goal')
-        self.declare_parameter('odom_topic', '/odom')
-        self.declare_parameter('odom_max_age_sec', 1.0)
-        self.declare_parameter('path_topic', '/rvln/predicted_path')
-        self.declare_parameter('status_topic', '/rvln/status')
-        self.declare_parameter('embedding_debug_topic', '/rvln/embedding')
-        self.declare_parameter('publish_embedding_debug', True)
-        self.declare_parameter('adapter_kind', 'stub')  # stub|asyncvla|omnivla|omnivla_edge_local
+        self.declare_parameter("camera_device", "")
+        self.declare_parameter("camera_width", 0)
+        self.declare_parameter("camera_height", 0)
+        self.declare_parameter("camera_fps", 0.0)
+        self.declare_parameter("goal_topic", "/rvln/goal")
+        self.declare_parameter("odom_topic", "/odom")
+        self.declare_parameter("odom_max_age_sec", 1.0)
+        self.declare_parameter("path_topic", "/rvln/predicted_path")
+        self.declare_parameter("status_topic", "/rvln/status")
+        self.declare_parameter("embedding_debug_topic", "/rvln/embedding")
+        self.declare_parameter("publish_embedding_debug", True)
+        self.declare_parameter("adapter_kind", "stub")  # stub|asyncvla|omnivla|omnivla_edge_local
         # AsyncVLA edge knobs (only used when adapter_kind='asyncvla').
-        self.declare_parameter('asyncvla_weights_path', '/workspace/models/AsyncVLA_release')
-        self.declare_parameter('asyncvla_resume_step', 750000)
-        self.declare_parameter('asyncvla_device', 'cpu')
+        self.declare_parameter("asyncvla_weights_path", "/workspace/models/AsyncVLA_release")
+        self.declare_parameter("asyncvla_resume_step", 750000)
+        self.declare_parameter("asyncvla_device", "cpu")
         # OmniVLA-edge local knobs (only used when adapter_kind='omnivla_edge_local').
         self.declare_parameter(
-            'omnivla_edge_weights_path', '/workspace/models/omnivla-edge/omnivla-edge.pth')
-        self.declare_parameter('omnivla_edge_clip_type', 'ViT-B/32')
-        self.declare_parameter('omnivla_edge_device', 'cuda:0')
+            "omnivla_edge_weights_path", "/workspace/models/omnivla-edge/omnivla-edge.pth"
+        )
+        self.declare_parameter("omnivla_edge_clip_type", "ViT-B/32")
+        self.declare_parameter("omnivla_edge_device", "cuda:0")
 
     # ------------------------------------------------------------- lifecycle
 
     def on_configure(self, state: State) -> TransitionCallbackReturn:  # noqa: ARG002
-        self.get_logger().info('on_configure')
-        max_age = self.get_parameter('embedding_max_age_sec').value
-        hard = self.get_parameter('embedding_hard_timeout_sec').value
+        self.get_logger().info("on_configure")
+        max_age = self.get_parameter("embedding_max_age_sec").value
+        hard = self.get_parameter("embedding_hard_timeout_sec").value
         self._cache = EmbeddingCache(max_age_sec=float(max_age), hard_timeout_sec=float(hard))
-        adapter_kind = str(self.get_parameter('adapter_kind').value)
+        adapter_kind = str(self.get_parameter("adapter_kind").value)
         adapter_params = {
-            'asyncvla_weights_path': self.get_parameter('asyncvla_weights_path').value,
-            'asyncvla_resume_step': self.get_parameter('asyncvla_resume_step').value,
-            'asyncvla_device': self.get_parameter('asyncvla_device').value,
-            'omnivla_edge_weights_path': self.get_parameter('omnivla_edge_weights_path').value,
-            'omnivla_edge_clip_type': self.get_parameter('omnivla_edge_clip_type').value,
-            'omnivla_edge_device': self.get_parameter('omnivla_edge_device').value,
+            "asyncvla_weights_path": self.get_parameter("asyncvla_weights_path").value,
+            "asyncvla_resume_step": self.get_parameter("asyncvla_resume_step").value,
+            "asyncvla_device": self.get_parameter("asyncvla_device").value,
+            "omnivla_edge_weights_path": self.get_parameter("omnivla_edge_weights_path").value,
+            "omnivla_edge_clip_type": self.get_parameter("omnivla_edge_clip_type").value,
+            "omnivla_edge_device": self.get_parameter("omnivla_edge_device").value,
         }
         self._adapter = _build_adapter(adapter_kind, params=adapter_params)
-        self._local_mode = bool(getattr(self._adapter, 'is_local', False))
+        self._local_mode = bool(getattr(self._adapter, "is_local", False))
         if not self._local_mode:
             qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
             self._observation_pub = self.create_publisher(
-                ObservationMsg, self.get_parameter('observation_topic').value, qos)
+                ObservationMsg, self.get_parameter("observation_topic").value, qos
+            )
             self._remote_embedding_sub = self.create_subscription(
-                ActionEmbeddingMsg, self.get_parameter('remote_embedding_topic').value,
-                self._on_embedding_received, qos, callback_group=self._io_group)
-        self.get_logger().info(
-            f'edge adapter_kind={adapter_kind!r} local_mode={self._local_mode}'
-        )
+                ActionEmbeddingMsg,
+                self.get_parameter("remote_embedding_topic").value,
+                self._on_embedding_received,
+                qos,
+                callback_group=self._io_group,
+            )
+        self.get_logger().info(f"edge adapter_kind={adapter_kind!r} local_mode={self._local_mode}")
 
-        image_topic = self.get_parameter('image_topic').value
-        goal_topic = self.get_parameter('goal_topic').value
-        path_topic = self.get_parameter('path_topic').value
-        status_topic = self.get_parameter('status_topic').value
-        emb_topic = self.get_parameter('embedding_debug_topic').value
+        image_topic = self.get_parameter("image_topic").value
+        goal_topic = self.get_parameter("goal_topic").value
+        path_topic = self.get_parameter("path_topic").value
+        status_topic = self.get_parameter("status_topic").value
+        emb_topic = self.get_parameter("embedding_debug_topic").value
 
-        camera_device = str(self.get_parameter('camera_device').value)
+        camera_device = str(self.get_parameter("camera_device").value)
         if camera_device:
             # In-process capture: the edge owns the camera; no subscription.
             if not self._open_camera(camera_device):
                 return TransitionCallbackReturn.FAILURE
             self.get_logger().info(
-                f'grabbing camera {camera_device} in-process '
-                f'(image_topic {image_topic!r} is NOT subscribed)'
+                f"grabbing camera {camera_device} in-process "
+                f"(image_topic {image_topic!r} is NOT subscribed)"
             )
         else:
             # depth=1 + BEST_EFFORT: always hand the callback the newest frame.
             # A deeper queue re-delivers a backlog of stale frames whenever the
             # executor was busy, which defeats the freshness guard's purpose.
             image_qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
-            if image_topic.endswith('/compressed'):
+            if image_topic.endswith("/compressed"):
                 # JPEG transport: 20-50x less traffic than raw Image. Essential
                 # when the camera sits on another host (e.g. the Pi's camera
                 # feeding an edge on the Jetson over WiFi — raw 30 fps Image
                 # saturates the link and frames stall for seconds).
                 self._image_sub = self.create_subscription(
-                    CompressedImage, image_topic, self._on_compressed_image,
-                    image_qos, callback_group=self._io_group,
+                    CompressedImage,
+                    image_topic,
+                    self._on_compressed_image,
+                    image_qos,
+                    callback_group=self._io_group,
                 )
             else:
                 self._image_sub = self.create_subscription(
-                    Image, image_topic, self._on_image, image_qos,
+                    Image,
+                    image_topic,
+                    self._on_image,
+                    image_qos,
                     callback_group=self._io_group,
                 )
         # Goals are latched: control.py publishes a single goal with
@@ -262,45 +281,56 @@ class VLAEdgeNode(LifecycleNode):
         # goal is delivered on match regardless of timing.
         goal_qos = QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self._goal_sub = self.create_subscription(
-            GoalSpecMsg, goal_topic, self._on_goal, goal_qos,
+            GoalSpecMsg,
+            goal_topic,
+            self._on_goal,
+            goal_qos,
             callback_group=self._io_group,
         )
         self._odom_sub = self.create_subscription(
-            Odometry, self.get_parameter('odom_topic').value, self._on_odom, 10,
+            Odometry,
+            self.get_parameter("odom_topic").value,
+            self._on_odom,
+            10,
             callback_group=self._io_group,
         )
         self._path_pub = self.create_publisher(Path, path_topic, 10)
         self._status_pub = self.create_publisher(DiagnosticArray, status_topic, 10)
-        if self.get_parameter('publish_embedding_debug').value:
+        if self.get_parameter("publish_embedding_debug").value:
             self._embedding_pub = self.create_publisher(ActionEmbeddingMsg, emb_topic, 10)
 
         return TransitionCallbackReturn.SUCCESS
 
     def on_activate(self, state: State) -> TransitionCallbackReturn:  # noqa: ARG002
-        self.get_logger().info('on_activate')
+        self.get_logger().info("on_activate")
         self._camera.start()
-        act_rate = float(self.get_parameter('action_rate_hz').value)
+        act_rate = float(self.get_parameter("action_rate_hz").value)
         # In local mode there is no cloud: skip the ROS observation and the
         # observation-send loop; the action loop drives the local policy directly.
         if not self._local_mode:
-            obs_rate = float(self.get_parameter('obs_publish_rate_hz').value)
+            obs_rate = float(self.get_parameter("obs_publish_rate_hz").value)
             self._send_timer = self.create_timer(
-                1.0 / obs_rate, self._send_observation_tick,
+                1.0 / obs_rate,
+                self._send_observation_tick,
                 callback_group=self._io_group,
             )
         # The action tick runs the adapter (CPU inference, possibly ~1 s on the
         # robot) — keep it off the I/O group so camera/goal/send callbacks are
         # never starved behind it.
         self._action_timer = self.create_timer(
-            1.0 / act_rate, self._action_tick, callback_group=self._heavy_group,
+            1.0 / act_rate,
+            self._action_tick,
+            callback_group=self._heavy_group,
         )
         self._status_timer = self.create_timer(
-            1.0, self._publish_status, callback_group=self._io_group,
+            1.0,
+            self._publish_status,
+            callback_group=self._io_group,
         )
         return super().on_activate(state)
 
     def on_deactivate(self, state: State) -> TransitionCallbackReturn:  # noqa: ARG002
-        self.get_logger().info('on_deactivate')
+        self.get_logger().info("on_deactivate")
         self._camera.stop()
         self._camera_frames.clear()
         for t in (self._send_timer, self._action_timer, self._status_timer):
@@ -310,7 +340,7 @@ class VLAEdgeNode(LifecycleNode):
         return super().on_deactivate(state)
 
     def on_cleanup(self, state: State) -> TransitionCallbackReturn:  # noqa: ARG002
-        self.get_logger().info('on_cleanup')
+        self.get_logger().info("on_cleanup")
         self._camera.close()
         self._observations.reset()
         if self._remote_embedding_sub is not None:
@@ -336,7 +366,7 @@ class VLAEdgeNode(LifecycleNode):
             self._odom_sub = None
         self._latest_odom = None
         self._odom_received_ns = 0
-        for pub_attr in ('_path_pub', '_status_pub', '_embedding_pub'):
+        for pub_attr in ("_path_pub", "_status_pub", "_embedding_pub"):
             pub = getattr(self, pub_attr)
             if pub is not None:
                 self.destroy_publisher(pub)
@@ -344,7 +374,7 @@ class VLAEdgeNode(LifecycleNode):
         return TransitionCallbackReturn.SUCCESS
 
     def on_shutdown(self, state: State) -> TransitionCallbackReturn:  # noqa: ARG002
-        self.get_logger().info('on_shutdown')
+        self.get_logger().info("on_shutdown")
         return TransitionCallbackReturn.SUCCESS
 
     # ---------------------------------------------------------- camera (v4l2)
@@ -358,21 +388,21 @@ class VLAEdgeNode(LifecycleNode):
         """
         opened = self._camera.open_device(
             device,
-            width=int(self.get_parameter('camera_width').value),
-            height=int(self.get_parameter('camera_height').value),
-            fps=float(self.get_parameter('camera_fps').value),
+            width=int(self.get_parameter("camera_width").value),
+            height=int(self.get_parameter("camera_height").value),
+            fps=float(self.get_parameter("camera_fps").value),
         )
         if not opened:
-            self.get_logger().error(f'cannot open camera device {device}')
+            self.get_logger().error(f"cannot open camera device {device}")
         return opened
 
     # ----------------------------------------------------------- subscribers
 
     def _on_image(self, msg: Image) -> None:
         try:
-            cv_img = self._bridge.imgmsg_to_cv2(msg, desired_encoding='rgb8')
+            cv_img = self._bridge.imgmsg_to_cv2(msg, desired_encoding="rgb8")
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().warn(f'cv_bridge failed: {exc}')
+            self.get_logger().warn(f"cv_bridge failed: {exc}")
             return
         self._camera_frames.put(cv_img)
 
@@ -380,8 +410,7 @@ class VLAEdgeNode(LifecycleNode):
         buf = np.frombuffer(bytes(msg.data), dtype=np.uint8)
         bgr = cv2.imdecode(buf, cv2.IMREAD_COLOR)
         if bgr is None:
-            self.get_logger().warn(
-                'compressed image decode failed', throttle_duration_sec=5.0)
+            self.get_logger().warn("compressed image decode failed", throttle_duration_sec=5.0)
             return
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
         self._camera_frames.put(rgb)
@@ -396,7 +425,7 @@ class VLAEdgeNode(LifecycleNode):
             q = goal.pose.pose.orientation
             theta = _quat_to_yaw(q.x, q.y, q.z, q.w)
             return EdgeGoal(
-                mode='pose',
+                mode="pose",
                 pose_xy_theta=(
                     goal.pose.pose.position.x,
                     goal.pose.pose.position.y,
@@ -404,19 +433,19 @@ class VLAEdgeNode(LifecycleNode):
                 ),
             )
         if goal.mode == GoalSpecMsg.MODE_TEXT:
-            return EdgeGoal(mode='text', text=goal.text)
+            return EdgeGoal(mode="text", text=goal.text)
         if goal.mode == GoalSpecMsg.MODE_IMAGE:
             try:
-                img = self._bridge.imgmsg_to_cv2(goal.image, desired_encoding='rgb8')
+                img = self._bridge.imgmsg_to_cv2(goal.image, desired_encoding="rgb8")
             except Exception as exc:  # noqa: BLE001
-                self.get_logger().warn(f'goal image decode failed: {exc}')
+                self.get_logger().warn(f"goal image decode failed: {exc}")
                 return None
-            return EdgeGoal(mode='image', image_rgb=img)
-        self.get_logger().warn(f'unknown goal mode {goal.mode}; not forwarding to adapter')
+            return EdgeGoal(mode="image", image_rgb=img)
+        self.get_logger().warn(f"unknown goal mode {goal.mode}; not forwarding to adapter")
         return None
 
     def _on_goal(self, msg: GoalSpecMsg) -> None:
-        self.get_logger().info(f'received goal mode={msg.mode}')
+        self.get_logger().info(f"received goal mode={msg.mode}")
         self._observations.change_goal(
             msg,
             lambda floor: self._cache.invalidate(floor=floor) if self._cache else None,
@@ -431,7 +460,7 @@ class VLAEdgeNode(LifecycleNode):
         self._odom_received_ns = time.monotonic_ns()
 
     def _fresh_odom(self) -> Optional[Odometry]:
-        max_age_ns = int(float(self.get_parameter('odom_max_age_sec').value) * 1e9)
+        max_age_ns = int(float(self.get_parameter("odom_max_age_sec").value) * 1e9)
         if time.monotonic_ns() - self._odom_received_ns > max_age_ns:
             return None
         return self._latest_odom
@@ -446,11 +475,11 @@ class VLAEdgeNode(LifecycleNode):
         cloud and the same `cur` to the adapter, and the robot would blindly
         drive the model's constant output for that frozen frame.
         """
-        max_age_ns = int(float(self.get_parameter('image_max_age_sec').value) * 1e9)
+        max_age_ns = int(float(self.get_parameter("image_max_age_sec").value) * 1e9)
         img = self._camera_frames.fresh(max_age_ns)
         if img is None:
             self.get_logger().warn(
-                f'camera frame stale (>{max_age_ns / 1e9:.1f}s old); treating as no image',
+                f"camera frame stale (>{max_age_ns / 1e9:.1f}s old); treating as no image",
                 throttle_duration_sec=2.0,
             )
         return img
@@ -463,29 +492,29 @@ class VLAEdgeNode(LifecycleNode):
         if img is None or goal is None:
             return
         if goal.mode == GoalSpecMsg.MODE_POSE:
-            frame = goal.pose.header.frame_id or 'base_link'
-            if frame == 'odom':
+            frame = goal.pose.header.frame_id or "base_link"
+            if frame == "odom":
                 odom = self._fresh_odom()
                 if odom is None:
                     self.get_logger().warn(
-                        'pose goal is in odom but odometry is unavailable or stale; '
-                        'skipping observation',
+                        "pose goal is in odom but odometry is unavailable or stale; "
+                        "skipping observation",
                         throttle_duration_sec=2.0,
                     )
                     return
                 goal = _pose_goal_in_base_link(goal, odom)
-            elif frame != 'base_link':
+            elif frame != "base_link":
                 self.get_logger().warn(
-                    f'unsupported pose goal frame {frame!r}; skipping observation',
+                    f"unsupported pose goal frame {frame!r}; skipping observation",
                     throttle_duration_sec=2.0,
                 )
                 return
-        size = self.get_parameter('image_size').value
-        quality = int(self.get_parameter('jpeg_quality').value)
+        size = self.get_parameter("image_size").value
+        quality = int(self.get_parameter("jpeg_quality").value)
         try:
             jpeg, w, h = resize_and_jpeg(img, target=(int(size[0]), int(size[1])), quality=quality)
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().warn(f'preprocess failed: {exc}')
+            self.get_logger().warn(f"preprocess failed: {exc}")
             return
         frame_id = self._observations.record_sent(generation, img)
         if frame_id is None:
@@ -493,7 +522,7 @@ class VLAEdgeNode(LifecycleNode):
         obs = ObservationMsg()
         obs.frame_id = frame_id
         obs.image.header.stamp = self.get_clock().now().to_msg()
-        obs.image.format = 'jpeg'
+        obs.image.format = "jpeg"
         obs.image.data = jpeg
         obs.goal = goal
         self._observation_pub.publish(obs)
@@ -504,7 +533,7 @@ class VLAEdgeNode(LifecycleNode):
         if self._cache is None:
             return
         if emb.num_tokens * emb.embed_dim != len(emb.embedding):
-            self.get_logger().warn(f'invalid embedding shape for frame {emb.frame_id}')
+            self.get_logger().warn(f"invalid embedding shape for frame {emb.frame_id}")
             return
         arr = np.asarray(emb.embedding, dtype=np.float32)
         obs_img = self._observations.take_reply_frame(int(emb.frame_id))
@@ -544,26 +573,30 @@ class VLAEdgeNode(LifecycleNode):
             return
         status = self._cache.status()
         path = Path()
-        path.header.frame_id = 'base_link'
+        path.header.frame_id = "base_link"
         path.header.stamp = self.get_clock().now().to_msg()
 
         goal, _ = self._observations.snapshot_goal()
-        if (goal is not None and goal.mode == GoalSpecMsg.MODE_POSE
-                and goal.pose.header.frame_id == 'odom' and self._fresh_odom() is None):
+        if (
+            goal is not None
+            and goal.mode == GoalSpecMsg.MODE_POSE
+            and goal.pose.header.frame_id == "odom"
+            and self._fresh_odom() is None
+        ):
             self._path_pub.publish(path)
             return
 
         if status in (EmbeddingCache.STATUS_WAITING, EmbeddingCache.STATUS_STALE):
             # Empty path → follower emits zero Twist (safe-stop).
             self.get_logger().warn(
-                f'embedding {status}; publishing empty path (safe-stop)',
+                f"embedding {status}; publishing empty path (safe-stop)",
                 throttle_duration_sec=2.0,
             )
             self._path_pub.publish(path)
             return
 
         if status == EmbeddingCache.STATUS_DEGRADED:
-            self.get_logger().warn('embedding age over max_age; running degraded')
+            self.get_logger().warn("embedding age over max_age; running degraded")
 
         emb = self._cache.get_latest_raw()  # OK or DEGRADED
         cur = self._fresh_image()
@@ -583,13 +616,13 @@ class VLAEdgeNode(LifecycleNode):
                 embedding_shape=(1, int(emb.num_tokens), int(emb.embed_dim)),
                 cur_image_rgb=cur,
                 past_image_rgb=past,
-                frame_id='base_link',
+                frame_id="base_link",
             )
             self._last_predict_ms = (time.monotonic() - t0) * 1000.0
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().warn(f'adapter.predict_path failed: {exc}; safe-stopping')
+            self.get_logger().warn(f"adapter.predict_path failed: {exc}; safe-stopping")
             path = Path()
-            path.header.frame_id = 'base_link'
+            path.header.frame_id = "base_link"
         self._log_action_diag(emb, path)
         path.header.stamp = self.get_clock().now().to_msg()
         self._path_pub.publish(path)
@@ -609,17 +642,17 @@ class VLAEdgeNode(LifecycleNode):
         age_ms = (now_ns - emb.recv_time_ns) / 1e6
         img_age_ms = self._camera_frames.age_ms(now_ns)
         arr = np.asarray(emb.embedding, dtype=np.float32)
-        wp = 'none'
+        wp = "none"
         if len(path.poses) > 4:
             p = path.poses[4].pose.position
             bearing = float(np.degrees(np.arctan2(p.y, p.x)))
-            wp = f'({p.x:+.3f},{p.y:+.3f}) brg={bearing:+.1f}deg'
+            wp = f"({p.x:+.3f},{p.y:+.3f}) brg={bearing:+.1f}deg"
         self.get_logger().info(
-            f'diag: emb frame={emb.frame_id} age={age_ms:.0f}ms '
-            f'img_age={img_age_ms:.0f}ms pred={self._last_predict_ms:.0f}ms '
-            f'std={arr.std():.4f} absmax={np.abs(arr).max():.3f} '
-            f'past={"paired" if emb.obs_image_rgb is not None else "MISSING(cur)"} '
-            f'wp4={wp}'
+            f"diag: emb frame={emb.frame_id} age={age_ms:.0f}ms "
+            f"img_age={img_age_ms:.0f}ms pred={self._last_predict_ms:.0f}ms "
+            f"std={arr.std():.4f} absmax={np.abs(arr).max():.3f} "
+            f"past={'paired' if emb.obs_image_rgb is not None else 'MISSING(cur)'} "
+            f"wp4={wp}"
         )
 
     def _action_tick_local(self) -> None:
@@ -632,7 +665,7 @@ class VLAEdgeNode(LifecycleNode):
         """
         cur = self._fresh_image()
         path = Path()
-        path.header.frame_id = 'base_link'
+        path.header.frame_id = "base_link"
         if cur is None:
             path.header.stamp = self.get_clock().now().to_msg()
             self._path_pub.publish(path)
@@ -643,12 +676,12 @@ class VLAEdgeNode(LifecycleNode):
                 embedding_shape=None,
                 cur_image_rgb=cur,
                 past_image_rgb=cur,
-                frame_id='base_link',
+                frame_id="base_link",
             )
         except Exception as exc:  # noqa: BLE001
-            self.get_logger().warn(f'local adapter.predict_path failed: {exc}; safe-stopping')
+            self.get_logger().warn(f"local adapter.predict_path failed: {exc}; safe-stopping")
             path = Path()
-            path.header.frame_id = 'base_link'
+            path.header.frame_id = "base_link"
         path.header.stamp = self.get_clock().now().to_msg()
         self._path_pub.publish(path)
 
@@ -659,10 +692,10 @@ class VLAEdgeNode(LifecycleNode):
             return
         if self._local_mode:
             # No cloud/cache: readiness is "do we have an image and a goal".
-            max_age_ns = int(float(self.get_parameter('image_max_age_sec').value) * 1e9)
+            max_age_ns = int(float(self.get_parameter("image_max_age_sec").value) * 1e9)
             have_img = self._camera_frames.has_fresh(max_age_ns)
             have_goal = self._observations.has_goal
-            status_str = 'OK' if (have_img and have_goal) else 'WAITING_REMOTE'
+            status_str = "OK" if (have_img and have_goal) else "WAITING_REMOTE"
         elif self._cache is None:
             return
         else:
@@ -670,17 +703,18 @@ class VLAEdgeNode(LifecycleNode):
         msg = DiagnosticArray()
         msg.header.stamp = self.get_clock().now().to_msg()
         ds = DiagnosticStatus()
-        ds.name = 'vla_edge'
+        ds.name = "vla_edge"
         ds.message = status_str
         ds.level = (
             DiagnosticStatus.OK
-            if status_str == 'OK'
+            if status_str == "OK"
             else DiagnosticStatus.WARN
-            if status_str in ('DEGRADED', 'WAITING_REMOTE')
+            if status_str in ("DEGRADED", "WAITING_REMOTE")
             else DiagnosticStatus.ERROR
         )
-        ds.values.append(KeyValue(
-            key='frame_counter', value=str(self._observations.frame_counter)))
+        ds.values.append(
+            KeyValue(key="frame_counter", value=str(self._observations.frame_counter))
+        )
         msg.status.append(ds)
         self._status_pub.publish(msg)
 

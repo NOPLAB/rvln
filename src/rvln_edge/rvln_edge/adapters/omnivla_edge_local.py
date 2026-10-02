@@ -23,6 +23,7 @@ Limitations (v1):
   robot-relative metres (x forward, y left). Use ``text`` goals for the cleanest
   behaviour until edge localization is wired up.
 """
+
 from __future__ import annotations
 
 import threading
@@ -33,6 +34,7 @@ from nav_msgs.msg import Path
 
 from .base import EdgeAdapter, EdgeGoal
 from ._path_util import trajectory_to_path
+
 # Re-export the ROS-free pipeline pieces from the shared engine so existing
 # imports (and unit tests) that reach them here keep working.
 from rvln_core.omnivla_edge_engine import (  # noqa: F401
@@ -51,7 +53,7 @@ def _trajectory_to_path(
     waypoints: np.ndarray,
     *,
     spacing: float = _METRIC_WAYPOINT_SPACING,
-    frame_id: str = 'base_link',
+    frame_id: str = "base_link",
 ) -> Path:
     """Back-compat shim for existing imports; canonical impl in ``_path_util``."""
     return trajectory_to_path(waypoints, spacing=spacing, frame_id=frame_id)
@@ -63,12 +65,14 @@ class OmniVLAEdgeLocalAdapter(EdgeAdapter):
     def __init__(
         self,
         *,
-        weights_path: str = '/workspace/models/omnivla-edge/omnivla-edge.pth',
-        clip_type: str = 'ViT-B/32',
-        device: str = 'cuda:0',
+        weights_path: str = "/workspace/models/omnivla-edge/omnivla-edge.pth",
+        clip_type: str = "ViT-B/32",
+        device: str = "cuda:0",
     ) -> None:
         self._engine = OmniVLAEdgeEngine(
-            weights_path=weights_path, clip_type=clip_type, device=device,
+            weights_path=weights_path,
+            clip_type=clip_type,
+            device=device,
         )
         self._goal: Optional[EdgeGoal] = None
         self._lock = threading.Lock()
@@ -89,14 +93,14 @@ class OmniVLAEdgeLocalAdapter(EdgeAdapter):
     def predict_path(
         self,
         *,
-        embedding: Optional[np.ndarray] = None,      # noqa: ARG002 (ignored: model runs on edge)
+        embedding: Optional[np.ndarray] = None,  # noqa: ARG002 (ignored: model runs on edge)
         embedding_shape: Optional[Tuple[int, int, int]] = None,  # noqa: ARG002
         cur_image_rgb: Optional[np.ndarray] = None,
         past_image_rgb: Optional[np.ndarray] = None,  # noqa: ARG002 (history kept internally)
-        frame_id: str = 'base_link',
+        frame_id: str = "base_link",
     ) -> Path:
         if cur_image_rgb is None:
-            raise ValueError('OmniVLAEdgeLocalAdapter requires cur_image_rgb')
+            raise ValueError("OmniVLAEdgeLocalAdapter requires cur_image_rgb")
 
         with self._lock:
             goal = self._goal
@@ -115,5 +119,7 @@ class OmniVLAEdgeLocalAdapter(EdgeAdapter):
             goal_image_rgb=goal.image_rgb,
         )
         return trajectory_to_path(
-            waypoints, spacing=self._engine.metric_waypoint_spacing, frame_id=frame_id,
+            waypoints,
+            spacing=self._engine.metric_waypoint_spacing,
+            frame_id=frame_id,
         )

@@ -3,6 +3,7 @@
 Exercise proto decoding and the watchdog with synthetic time, without
 starting a gRPC server (as in the WebSocket and follower tests).
 """
+
 from types import SimpleNamespace
 
 import numpy as np
@@ -18,17 +19,21 @@ from rvln_edge.edge_action_grpc_node import (
 )
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def ros_runtime():
     rclpy.init()
     yield
     rclpy.shutdown()
 
 
-def _chunk(waypoints=None, *, scaled_to_m=False, goal_id='text:door',
-           frame_seq=7, from_model=True):
-    wp = (np.arange(32, dtype=np.float32).reshape(8, 4)
-          if waypoints is None else np.asarray(waypoints, dtype=np.float32))
+def _chunk(
+    waypoints=None, *, scaled_to_m=False, goal_id="text:door", frame_seq=7, from_model=True
+):
+    wp = (
+        np.arange(32, dtype=np.float32).reshape(8, 4)
+        if waypoints is None
+        else np.asarray(waypoints, dtype=np.float32)
+    )
     return edge_action_pb2.ActionChunk(
         frame_id=frame_seq,
         capture_time_ns=0,
@@ -43,12 +48,14 @@ def _chunk(waypoints=None, *, scaled_to_m=False, goal_id='text:door',
 
 # --------------------------------------------------------- decode_action_chunk
 
+
 def test_decode_scales_by_waypoint_spacing():
     path, frame_seq, goal_id = decode_action_chunk(
-        _chunk(), waypoint_spacing=0.1, frame_id='base_link')
+        _chunk(), waypoint_spacing=0.1, frame_id="base_link"
+    )
     assert frame_seq == 7
-    assert goal_id == 'text:door'
-    assert path.header.frame_id == 'base_link'
+    assert goal_id == "text:door"
+    assert path.header.frame_id == "base_link"
     assert len(path.poses) == 8
     # Second row: scale x/y by 0.1; leave cos/sin unchanged.
     p1 = path.poses[1].pose
@@ -60,23 +67,27 @@ def test_decode_scales_by_waypoint_spacing():
 
 def test_decode_scaled_to_m_uses_unity_spacing():
     path, _, _ = decode_action_chunk(
-        _chunk(scaled_to_m=True), waypoint_spacing=0.1, frame_id='base_link')
+        _chunk(scaled_to_m=True), waypoint_spacing=0.1, frame_id="base_link"
+    )
     assert path.poses[1].pose.position.x == pytest.approx(4.0, abs=1e-2)
 
 
-@pytest.mark.parametrize('make_bad', [
-    lambda: edge_action_pb2.ActionChunk(num_tokens=0, embed_dim=4),
-    lambda: edge_action_pb2.ActionChunk(num_tokens=8, embed_dim=2),
-    # Byte length does not match num_tokens * embed_dim.
-    lambda: edge_action_pb2.ActionChunk(
-        num_tokens=8, embed_dim=4, values_fp16=b'\x00\x00'),
-])
+@pytest.mark.parametrize(
+    "make_bad",
+    [
+        lambda: edge_action_pb2.ActionChunk(num_tokens=0, embed_dim=4),
+        lambda: edge_action_pb2.ActionChunk(num_tokens=8, embed_dim=2),
+        # Byte length does not match num_tokens * embed_dim.
+        lambda: edge_action_pb2.ActionChunk(num_tokens=8, embed_dim=4, values_fp16=b"\x00\x00"),
+    ],
+)
 def test_decode_rejects_malformed(make_bad):
     with pytest.raises(ValueError):
-        decode_action_chunk(make_bad(), waypoint_spacing=0.1, frame_id='base_link')
+        decode_action_chunk(make_bad(), waypoint_spacing=0.1, frame_id="base_link")
 
 
 # ---------------------------------------------------- handle_chunk / watchdog
+
 
 def _make_node() -> tuple:
     node = EdgeActionGrpcNode()
@@ -89,7 +100,7 @@ def test_chunk_is_published_once_then_watchdog_stops(ros_runtime):
     node, published = _make_node()
     try:
         ack = node.handle_chunk(_chunk(), now=0.0)
-        assert ack.status == 'ok'
+        assert ack.status == "ok"
         assert ack.following is True
         assert ack.frame_id == 7
 
@@ -130,7 +141,7 @@ def test_malformed_chunk_acks_error_and_never_publishes(ros_runtime):
     try:
         bad = edge_action_pb2.ActionChunk(frame_id=3, num_tokens=8, embed_dim=2)
         ack = node.handle_chunk(bad, now=0.0)
-        assert ack.status.startswith('error:')
+        assert ack.status.startswith("error:")
         assert ack.following is False  # Nothing has been followed yet.
         assert ack.frame_id == 3
 
@@ -145,7 +156,7 @@ def test_dummy_chunk_is_followed_with_marked_status(ros_runtime):
     node, published = _make_node()
     try:
         ack = node.handle_chunk(_chunk(from_model=False), now=0.0)
-        assert ack.status == 'ok-dummy'
+        assert ack.status == "ok-dummy"
         assert ack.following is True
         node._tick(0.05)
         assert len(published) == 1
@@ -156,11 +167,10 @@ def test_dummy_chunk_is_followed_with_marked_status(ros_runtime):
 def test_goal_change_is_accepted(ros_runtime):
     node, published = _make_node()
     try:
-        node.handle_chunk(_chunk(goal_id='text:a'), now=0.0)
+        node.handle_chunk(_chunk(goal_id="text:a"), now=0.0)
         node._tick(0.05)
-        ack = node.handle_chunk(
-            _chunk(goal_id='pose:1.0,0.0,0.0', frame_seq=9), now=0.1)
-        assert ack.status == 'ok'
+        ack = node.handle_chunk(_chunk(goal_id="pose:1.0,0.0,0.0", frame_seq=9), now=0.1)
+        assert ack.status == "ok"
         node._tick(0.15)
         assert len(published) == 2
     finally:

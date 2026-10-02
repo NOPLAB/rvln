@@ -15,6 +15,7 @@ Launch args:
 The handrail-mounted D435 publishes color at ``/camera/color/image_raw`` and
 depth at ``/camera/depth/image_raw``. The edge node subscribes to color.
 """
+
 import os
 
 from ament_index_python.packages import get_package_share_directory
@@ -32,58 +33,65 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
-    adapter_kind = LaunchConfiguration('adapter_kind')
-    world = LaunchConfiguration('world')
-    rviz = LaunchConfiguration('rviz')
-    gui = LaunchConfiguration('gui')
-    asyncvla_weights_path = LaunchConfiguration('asyncvla_weights_path')
-    asyncvla_resume_step = LaunchConfiguration('asyncvla_resume_step')
-    asyncvla_device = LaunchConfiguration('asyncvla_device')
+    adapter_kind = LaunchConfiguration("adapter_kind")
+    world = LaunchConfiguration("world")
+    rviz = LaunchConfiguration("rviz")
+    gui = LaunchConfiguration("gui")
+    asyncvla_weights_path = LaunchConfiguration("asyncvla_weights_path")
+    asyncvla_resume_step = LaunchConfiguration("asyncvla_resume_step")
+    asyncvla_device = LaunchConfiguration("asyncvla_device")
 
-    raspicat_gazebo_share = get_package_share_directory('raspicat_gazebo')
-    gazebo_ros_share = get_package_share_directory('gazebo_ros')
+    raspicat_gazebo_share = get_package_share_directory("raspicat_gazebo")
+    gazebo_ros_share = get_package_share_directory("gazebo_ros")
     gzserver = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(gazebo_ros_share, 'launch', 'gzserver.launch.py')),
-        launch_arguments={'world': world}.items(),
+            os.path.join(gazebo_ros_share, "launch", "gzserver.launch.py")
+        ),
+        launch_arguments={"world": world}.items(),
     )
     gzclient = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(gazebo_ros_share, 'launch', 'gzclient.launch.py')),
+            os.path.join(gazebo_ros_share, "launch", "gzclient.launch.py")
+        ),
         condition=IfCondition(gui),
     )
     description_script = os.path.join(
-        get_package_share_directory('rvln_bringup'), 'urdf', 'raspicat_d435.py',
+        get_package_share_directory("rvln_bringup"),
+        "urdf",
+        "raspicat_d435.py",
     )
     robot_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        parameters=[{'robot_description': Command(['python3 ', description_script])}],
-        output='screen',
+        package="robot_state_publisher",
+        executable="robot_state_publisher",
+        parameters=[{"robot_description": Command(["python3 ", description_script])}],
+        output="screen",
     )
     spawn = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(
-            raspicat_gazebo_share, 'launch', 'spawn_raspicat.launch.py')),
+        PythonLaunchDescriptionSource(
+            os.path.join(raspicat_gazebo_share, "launch", "spawn_raspicat.launch.py")
+        ),
     )
     sim_node = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(os.path.join(
-            raspicat_gazebo_share, 'launch', 'raspicat_simulation.launch.py')),
-        launch_arguments={'rviz': rviz}.items(),
+        PythonLaunchDescriptionSource(
+            os.path.join(raspicat_gazebo_share, "launch", "raspicat_simulation.launch.py")
+        ),
+        launch_arguments={"rviz": rviz}.items(),
     )
 
     edge_launch_path = os.path.join(
-        get_package_share_directory('rvln_edge'),
-        'launch', 'edge_only.launch.py',
+        get_package_share_directory("rvln_edge"),
+        "launch",
+        "edge_only.launch.py",
     )
     edge = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(edge_launch_path),
         launch_arguments={
-            'adapter_kind': adapter_kind,
-            'image_topic': '/camera/color/image_raw',   # raspicat_sim RealSense topic
-            'with_follower': 'true',
-            'asyncvla_weights_path': asyncvla_weights_path,
-            'asyncvla_resume_step': asyncvla_resume_step,
-            'asyncvla_device': asyncvla_device,
+            "adapter_kind": adapter_kind,
+            "image_topic": "/camera/color/image_raw",  # raspicat_sim RealSense topic
+            "with_follower": "true",
+            "asyncvla_weights_path": asyncvla_weights_path,
+            "asyncvla_resume_step": asyncvla_resume_step,
+            "asyncvla_device": asyncvla_device,
         }.items(),
     )
 
@@ -102,35 +110,39 @@ def generate_launch_description():
         actions=[
             ExecuteProcess(
                 cmd=[
-                    'bash', '-lc',
-                    'timeout 10 ros2 topic echo /model_states --once 2>/dev/null '
-                    '| grep -q raspicat || '
-                    'ros2 run gazebo_ros spawn_entity.py '
-                    '-entity raspicat -topic /robot_description '
-                    '-x 0.0 -y 0.0 -z 0.0 -timeout 600',
+                    "bash",
+                    "-lc",
+                    "timeout 10 ros2 topic echo /model_states --once 2>/dev/null "
+                    "| grep -q raspicat || "
+                    "ros2 run gazebo_ros spawn_entity.py "
+                    "-entity raspicat -topic /robot_description "
+                    "-x 0.0 -y 0.0 -z 0.0 -timeout 600",
                 ],
-                output='screen',
+                output="screen",
             ),
         ],
     )
 
-    return LaunchDescription([
-        DeclareLaunchArgument('adapter_kind', default_value='omnivla'),
-        DeclareLaunchArgument(
-            'world',
-            default_value=os.path.join(raspicat_gazebo_share, 'worlds', 'empty.world'),
-        ),
-        DeclareLaunchArgument('rviz', default_value='false'),
-        DeclareLaunchArgument('gui', default_value='false'),
-        DeclareLaunchArgument('asyncvla_weights_path',
-                              default_value='/workspace/models/AsyncVLA_release'),
-        DeclareLaunchArgument('asyncvla_resume_step', default_value='750000'),
-        DeclareLaunchArgument('asyncvla_device', default_value='cpu'),
-        gzserver,
-        gzclient,
-        robot_state_publisher,
-        spawn,
-        sim_node,
-        edge,
-        respawn_fallback,
-    ])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument("adapter_kind", default_value="omnivla"),
+            DeclareLaunchArgument(
+                "world",
+                default_value=os.path.join(raspicat_gazebo_share, "worlds", "empty.world"),
+            ),
+            DeclareLaunchArgument("rviz", default_value="false"),
+            DeclareLaunchArgument("gui", default_value="false"),
+            DeclareLaunchArgument(
+                "asyncvla_weights_path", default_value="/workspace/models/AsyncVLA_release"
+            ),
+            DeclareLaunchArgument("asyncvla_resume_step", default_value="750000"),
+            DeclareLaunchArgument("asyncvla_device", default_value="cpu"),
+            gzserver,
+            gzclient,
+            robot_state_publisher,
+            spawn,
+            sim_node,
+            edge,
+            respawn_fallback,
+        ]
+    )

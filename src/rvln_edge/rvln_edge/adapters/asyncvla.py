@@ -17,6 +17,7 @@ Pre-requisite: ``vint_train`` from MBRA must be on PYTHONPATH at load
 time (small_head imports MultiLayerDecoder_trans). See
 ``Dockerfile.asyncvla``.
 """
+
 from __future__ import annotations
 
 import logging
@@ -55,7 +56,8 @@ def _preprocess_for_edge_adapter(image_rgb: np.ndarray) -> np.ndarray:
     """
     if image_rgb.dtype != np.uint8 or image_rgb.ndim != 3 or image_rgb.shape[2] != 3:
         raise ValueError(
-            f'expected uint8 HxWx3 RGB, got dtype={image_rgb.dtype} shape={image_rgb.shape}')
+            f"expected uint8 HxWx3 RGB, got dtype={image_rgb.dtype} shape={image_rgb.shape}"
+        )
     img = cv2.resize(image_rgb, (224, 224), interpolation=cv2.INTER_LINEAR)
     img = cv2.resize(img, (96, 96), interpolation=cv2.INTER_LINEAR)
     arr = img.astype(np.float32) / 255.0
@@ -108,7 +110,7 @@ class AsyncVLAEdgeAdapter(EdgeAdapter):
         *,
         weights_path: str,
         resume_step: int = 750000,
-        device: str = 'cpu',
+        device: str = "cpu",
         # Edge_adapter constructor knobs (from AsyncVLA's config_nav/dataset_config.yaml).
         # obs_encoding_size MUST match the cloud's Proj_Actiontokens output dim
         # (action_dim=1024 in run_asyncvla.py:660); otherwise the decoder cat fails.
@@ -126,11 +128,11 @@ class AsyncVLAEdgeAdapter(EdgeAdapter):
         self._device = torch.device(device)
         self._dtype = torch.float32  # edge runs CPU fp32 by default
 
-        cp_path = os.path.join(weights_path, f'shead--{resume_step}_checkpoint.pt')
+        cp_path = os.path.join(weights_path, f"shead--{resume_step}_checkpoint.pt")
         if not os.path.exists(cp_path):
-            raise FileNotFoundError(f'Edge_adapter checkpoint not found at {cp_path}')
+            raise FileNotFoundError(f"Edge_adapter checkpoint not found at {cp_path}")
 
-        _LOG.info('loading Edge_adapter from %s', cp_path)
+        _LOG.info("loading Edge_adapter from %s", cp_path)
         self._model = Edge_adapter(
             obs_encoding_size=obs_encoding_size,
             mha_num_attention_heads=mha_num_attention_heads,
@@ -138,13 +140,13 @@ class AsyncVLAEdgeAdapter(EdgeAdapter):
             mha_ff_dim_factor=mha_ff_dim_factor,
         )
         raw = torch.load(cp_path, map_location=device)
-        cleaned = {(k[len('module.'):] if k.startswith('module.') else k): v
-                   for k, v in raw.items()}
+        prefix_len = len("module.")
+        cleaned = {(k[prefix_len:] if k.startswith("module.") else k): v for k, v in raw.items()}
         missing, unexpected = self._model.load_state_dict(cleaned, strict=False)
         if missing:
-            _LOG.warning('Edge_adapter missing keys: %s', missing[:5])
+            _LOG.warning("Edge_adapter missing keys: %s", missing[:5])
         if unexpected:
-            _LOG.warning('Edge_adapter unexpected keys: %s', unexpected[:5])
+            _LOG.warning("Edge_adapter unexpected keys: %s", unexpected[:5])
         self._model = self._model.to(self._device).to(self._dtype).eval()
 
     def predict_path(
@@ -154,20 +156,26 @@ class AsyncVLAEdgeAdapter(EdgeAdapter):
         embedding_shape: Tuple[int, int, int],
         cur_image_rgb: Optional[np.ndarray] = None,
         past_image_rgb: Optional[np.ndarray] = None,
-        frame_id: str = 'base_link',
+        frame_id: str = "base_link",
     ) -> Path:
         if cur_image_rgb is None:
-            raise ValueError('AsyncVLAEdgeAdapter requires cur_image_rgb')
+            raise ValueError("AsyncVLAEdgeAdapter requires cur_image_rgb")
         # First-frame fallback: reuse current image if no past available.
         if past_image_rgb is None:
             past_image_rgb = cur_image_rgb
 
         import torch
 
-        cur = torch.from_numpy(_preprocess_for_edge_adapter(
-            cur_image_rgb)).to(self._device).to(self._dtype)
-        past = torch.from_numpy(_preprocess_for_edge_adapter(
-            past_image_rgb)).to(self._device).to(self._dtype)
+        cur = (
+            torch.from_numpy(_preprocess_for_edge_adapter(cur_image_rgb))
+            .to(self._device)
+            .to(self._dtype)
+        )
+        past = (
+            torch.from_numpy(_preprocess_for_edge_adapter(past_image_rgb))
+            .to(self._device)
+            .to(self._dtype)
+        )
 
         B, num_tokens, embed_dim = embedding_shape
         feat = (
@@ -178,10 +186,12 @@ class AsyncVLAEdgeAdapter(EdgeAdapter):
         )
 
         with torch.no_grad():
-            delta = self._model(cur, past, feat)        # (1, 8, 4)
+            delta = self._model(cur, past, feat)  # (1, 8, 4)
         poses = _delta_to_pose_np(delta.cpu().numpy())  # (1, 8, 4)
         # delta_to_pose accumulates world-frame poses but keeps x/y in
         # waypoint-spacing units; scale to metres here (pd_controller parity).
         return trajectory_to_path(
-            poses[0], spacing=_METRIC_WAYPOINT_SPACING, frame_id=frame_id,
+            poses[0],
+            spacing=_METRIC_WAYPOINT_SPACING,
+            frame_id=frame_id,
         )

@@ -1,4 +1,5 @@
 """Shared waypoint-array -> nav_msgs/Path conversion for edge adapters."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -10,7 +11,7 @@ def trajectory_to_path(
     waypoints: np.ndarray,
     *,
     spacing: float = 1.0,
-    frame_id: str = 'base_link',
+    frame_id: str = "base_link",
 ) -> Path:
     """(T, ACTION_DIM>=4) packed as (x, y, cos, sin) -> nav_msgs/Path.
 
@@ -22,7 +23,7 @@ def trajectory_to_path(
     wp = np.asarray(waypoints, dtype=np.float32)
     if wp.ndim != 2 or wp.shape[-1] < 4:
         raise ValueError(
-            f'expected (T, ACTION_DIM>=4) packed as (x, y, cos, sin); got shape={wp.shape}'
+            f"expected (T, ACTION_DIM>=4) packed as (x, y, cos, sin); got shape={wp.shape}"
         )
     path = Path()
     path.header.frame_id = frame_id

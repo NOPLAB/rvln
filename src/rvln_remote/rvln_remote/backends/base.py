@@ -1,4 +1,5 @@
 """VLABackend ABC. Concrete backends (dummy / asyncvla / omnivla) implement this."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

@@ -1,4 +1,5 @@
 """Plan-1 stub adapter: ignore embedding contents, emit a straight-ahead path."""
+
 from __future__ import annotations
 
 from typing import Optional, Tuple
@@ -24,7 +25,7 @@ class StubAdapter(EdgeAdapter):
         embedding_shape: Optional[Tuple[int, int, int]] = None,
         cur_image_rgb: Optional[np.ndarray] = None,
         past_image_rgb: Optional[np.ndarray] = None,
-        frame_id: str = 'base_link',
+        frame_id: str = "base_link",
     ) -> Path:
         path = Path()
         path.header.frame_id = frame_id

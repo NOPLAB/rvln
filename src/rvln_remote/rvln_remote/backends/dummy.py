@@ -1,4 +1,5 @@
 """Deterministic dummy backend used by Plan 1 / CI / smoke tests."""
+
 from __future__ import annotations
 
 import threading
@@ -19,7 +20,7 @@ class DummyBackend(VLABackend):
         num_tokens: int = 8,
         embed_dim: int = 1024,
         inference_ms: float = 50.0,
-        model_version: str = 'dummy-v1',
+        model_version: str = "dummy-v1",
     ) -> None:
         self._num_tokens = num_tokens
         self._embed_dim = embed_dim
@@ -36,7 +37,7 @@ class DummyBackend(VLABackend):
         *,
         current_image=None,
         past_image=None,
-        lang_instruction: str = '',
+        lang_instruction: str = "",
         goal_image=None,
         goal_pose_xy_theta=None,
     ) -> Tuple[np.ndarray, dict]:
@@ -47,14 +48,14 @@ class DummyBackend(VLABackend):
             time.sleep(self._inference_ms / 1000.0)
         seed = float(np.sin(cid * np.pi / 17))
         arr = np.full((self._num_tokens, self._embed_dim), seed, dtype=np.float32)
-        return arr, {'inference_ms': self._inference_ms}
+        return arr, {"inference_ms": self._inference_ms}
 
     def model_info(self) -> ModelInfoDict:
         return ModelInfoDict(
-            model_name='dummy',
+            model_name="dummy",
             model_version=self._model_version,
             num_tokens=self._num_tokens,
             embed_dim=self._embed_dim,
-            device='cpu',
+            device="cpu",
             ready=True,
         )

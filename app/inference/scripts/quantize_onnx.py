@@ -12,6 +12,7 @@ fp16 (onnxconverter-common) は onnx 1.22 で Range/Cast まわりが壊れる�
     ~/omnivla-export-venv/bin/python app/scripts/quantize_onnx.py \
         app/assets/models/omnivla_edge.onnx app/assets/models/clip_text.onnx
 """
+
 from __future__ import annotations
 
 import os
@@ -57,14 +58,14 @@ def convert(path: str):
     o32 = s32.run(None, feed)
     oq = sq.run(None, feed)
     max_diff = max(float(np.abs(a - b).max()) for a, b in zip(o32, oq))
-    rel = max(
-        float(np.abs(a - b).max() / (np.abs(a).max() + 1e-9)) for a, b in zip(o32, oq)
-    )
+    rel = max(float(np.abs(a - b).max() / (np.abs(a).max() + 1e-9)) for a, b in zip(o32, oq))
 
     os.replace(q_path, path)
     os.remove(sim_path)
     q_mb = os.path.getsize(path) / (1024 * 1024)
-    print(f"  size {fp32_mb:.1f}MB -> {q_mb:.1f}MB   max|int8-fp32|={max_diff:.3e} (rel {rel:.2%})")
+    print(
+        f"  size {fp32_mb:.1f}MB -> {q_mb:.1f}MB   max|int8-fp32|={max_diff:.3e} (rel {rel:.2%})"
+    )
     if rel > 0.15:
         print("  WARNING: int8 相対誤差が大きい。品質を実機で要確認")
 

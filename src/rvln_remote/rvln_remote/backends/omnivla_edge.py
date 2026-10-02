@@ -17,6 +17,7 @@ Contrast with :class:`OmniVLABackend` (Path 1), which runs OmniVLA-*original*.
 This backend serves the same *edge* policy as Path 2 — the split point differs,
 not the model.
 """
+
 from __future__ import annotations
 
 import logging
@@ -33,7 +34,10 @@ _LOG = logging.getLogger(__name__)
 
 
 def _goal_mode_for(
-    *, has_lang: bool, has_image_goal: bool, has_pose: bool,
+    *,
+    has_lang: bool,
+    has_image_goal: bool,
+    has_pose: bool,
 ) -> str:
     """Collapse the per-frame goal fields into a single OmniVLA-edge mode.
 
@@ -44,12 +48,12 @@ def _goal_mode_for(
     empty prompt the engine substitutes) when nothing is set.
     """
     if has_lang:
-        return 'text'
+        return "text"
     if has_image_goal:
-        return 'image'
+        return "image"
     if has_pose:
-        return 'pose'
-    return 'text'
+        return "pose"
+    return "text"
 
 
 class OmniVLAEdgeBackend(VLABackend):
@@ -58,16 +62,18 @@ class OmniVLAEdgeBackend(VLABackend):
     def __init__(
         self,
         *,
-        weights_path: str = '/workspace/models/omnivla-edge/omnivla-edge.pth',
-        clip_type: str = 'ViT-B/32',
-        device: str = 'cuda:0',
+        weights_path: str = "/workspace/models/omnivla-edge/omnivla-edge.pth",
+        clip_type: str = "ViT-B/32",
+        device: str = "cuda:0",
     ) -> None:
         # Imported here (not at module top) so the module is importable for
         # --help / arg parsing without torch/clip.
         from rvln_core.omnivla_edge_engine import OmniVLAEdgeEngine
 
         self._engine = OmniVLAEdgeEngine(
-            weights_path=weights_path, clip_type=clip_type, device=device,
+            weights_path=weights_path,
+            clip_type=clip_type,
+            device=device,
         )
         self._device = str(device)
         self._weights_path = weights_path
@@ -78,7 +84,7 @@ class OmniVLAEdgeBackend(VLABackend):
         # drop the black frames so the real stream starts with a clean history.
         black = np.zeros((224, 224, 3), dtype=np.uint8)
         for _ in range(max(1, num_iters)):
-            self._engine.infer_chunk(cur_image_rgb=black, goal_mode='text', goal_text='warmup')
+            self._engine.infer_chunk(cur_image_rgb=black, goal_mode="text", goal_text="warmup")
         self._engine.reset()
 
     def infer(
@@ -92,10 +98,9 @@ class OmniVLAEdgeBackend(VLABackend):
     ) -> Tuple[np.ndarray, dict]:
         t0 = time.monotonic()
 
-        cur_rgb = np.asarray(current_image.convert('RGB'), dtype=np.uint8)
+        cur_rgb = np.asarray(current_image.convert("RGB"), dtype=np.uint8)
         goal_rgb = (
-            None if goal_image is None
-            else np.asarray(goal_image.convert('RGB'), dtype=np.uint8)
+            None if goal_image is None else np.asarray(goal_image.convert("RGB"), dtype=np.uint8)
         )
         mode = _goal_mode_for(
             has_lang=bool(lang_instruction),
@@ -118,14 +123,14 @@ class OmniVLAEdgeBackend(VLABackend):
         out[:, 1] *= self._spacing
 
         return out, {
-            'inference_ms': (time.monotonic() - t0) * 1000.0,
-            'modality_id': _modality_id(mode),
+            "inference_ms": (time.monotonic() - t0) * 1000.0,
+            "modality_id": _modality_id(mode),
         }
 
     def model_info(self) -> ModelInfoDict:
         return ModelInfoDict(
-            model_name='NHirose/omnivla-edge',
-            model_version='omnivla-edge-v1',
+            model_name="NHirose/omnivla-edge",
+            model_version="omnivla-edge-v1",
             num_tokens=int(self._engine.len_traj_pred),
             embed_dim=4,
             device=self._device,
@@ -135,4 +140,5 @@ class OmniVLAEdgeBackend(VLABackend):
 
 def _modality_id(mode: str) -> int:
     from rvln_core.omnivla_edge_engine import _modality_id_for
+
     return _modality_id_for(mode)

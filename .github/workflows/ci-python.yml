@@ -1,0 +1,29 @@
+name: ci-python
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.py'
+      - 'pyproject.toml'
+      - '.github/workflows/ci-python.yml'
+  pull_request:
+    paths:
+      - '**/*.py'
+      - 'pyproject.toml'
+      - '.github/workflows/ci-python.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ruff:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - name: Lint owned Python (including bench)
+        run: uvx ruff==0.16.9 check .
+      - name: Check Python formatting
+        run: uvx ruff==0.16.9 format --check .

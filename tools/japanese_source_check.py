@@ -6,10 +6,10 @@ import sys
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SRC_ROOT = REPO_ROOT / 'src'
+SRC_ROOT = REPO_ROOT / "src"
 JAPANESE = re.compile(
-    '[\u3000-\u303f\u3040-\u30ff\u31f0-\u31ff\u3400-\u4dbf\u4e00-\u9fff'
-    '\uf900-\ufaff\uff01-\uff9f\U0001b000-\U0001b12f\U00020000-\U0002fa1f]'
+    "[\u3000-\u303f\u3040-\u30ff\u31f0-\u31ff\u3400-\u4dbf\u4e00-\u9fff"
+    "\uf900-\ufaff\uff01-\uff9f\U0001b000-\U0001b12f\U00020000-\U0002fa1f]"
 )
 
 
@@ -27,7 +27,7 @@ def check_japanese(physical_line, filename):
         return
     match = JAPANESE.search(physical_line)
     if match:
-        yield match.start(), 'RJV100 Japanese text is not allowed under src/'
+        yield match.start(), "RJV100 Japanese text is not allowed under src/"
 
 
 def main(paths):
@@ -35,22 +35,24 @@ def main(paths):
     failed = False
     for arg in paths or [SRC_ROOT]:
         path = Path(arg)
-        files = path.rglob('*') if path.is_dir() else [path]
+        files = path.rglob("*") if path.is_dir() else [path]
         for file in files:
             if not file.is_file() or not _in_src(file):
                 continue
             try:
-                lines = file.read_text(encoding='utf-8').splitlines()
+                lines = file.read_text(encoding="utf-8").splitlines()
             except (UnicodeError, OSError):
                 continue
             for number, line in enumerate(lines, 1):
                 match = JAPANESE.search(line)
                 if match:
-                    print(f'{file}:{number}:{match.start() + 1}: RJV100 Japanese text is not '
-                          'allowed under src/')
+                    print(
+                        f"{file}:{number}:{match.start() + 1}: RJV100 Japanese text is not "
+                        "allowed under src/"
+                    )
                     failed = True
     return int(failed)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))

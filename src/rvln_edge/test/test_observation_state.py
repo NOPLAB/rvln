@@ -1,4 +1,5 @@
 """Goal generation and camera freshness remain safe across callback races."""
+
 import numpy as np
 
 from rvln_edge.observation_state import CameraFrameStore, ObservationLedger
@@ -8,10 +9,10 @@ def test_goal_change_rejects_observation_preprocessed_for_old_goal():
     ledger = ObservationLedger()
     floors = []
     frame = np.zeros((2, 2, 3), dtype=np.uint8)
-    ledger.change_goal('first', floors.append)
+    ledger.change_goal("first", floors.append)
     _, old_generation = ledger.snapshot_goal()
     first_id = ledger.record_sent(old_generation, frame)
-    ledger.change_goal('second', floors.append)
+    ledger.change_goal("second", floors.append)
 
     assert floors == [0, first_id]
     assert ledger.record_sent(old_generation, frame) is None

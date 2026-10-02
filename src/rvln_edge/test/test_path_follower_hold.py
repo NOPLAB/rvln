@@ -9,6 +9,7 @@ Drives ``_decide_cmd`` directly with synthetic timestamps so the logic is
 exercised deterministically, without a running executor or the 20 Hz
 wall-clock timer.
 """
+
 import pytest
 import rclpy
 from rclpy.time import Time
@@ -19,14 +20,14 @@ from std_srvs.srv import SetBool
 from rvln_edge.path_follower_node import PathFollowerNode
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def ros_runtime():
     rclpy.init()
     yield
     rclpy.shutdown()
 
 
-def _forward_path(n: int = 10, step: float = 0.1, frame: str = 'base_link') -> Path:
+def _forward_path(n: int = 10, step: float = 0.1, frame: str = "base_link") -> Path:
     path = Path()
     path.header.frame_id = frame
     for i in range(1, n + 1):
@@ -36,7 +37,7 @@ def _forward_path(n: int = 10, step: float = 0.1, frame: str = 'base_link') -> P
     return path
 
 
-def _empty_path(frame: str = 'base_link') -> Path:
+def _empty_path(frame: str = "base_link") -> Path:
     path = Path()
     path.header.frame_id = frame
     return path
@@ -121,7 +122,7 @@ def test_frame_mismatch_stops_immediately(ros_runtime):
 
         # A wrong-frame path is a correctness fault: stop now, don't coast even
         # though we're well within the hold window.
-        node._on_path(_forward_path(frame='map'))
+        node._on_path(_forward_path(frame="map"))
         stopped = node._decide_cmd(_t(0.1))
         assert stopped.linear == 0.0 and stopped.angular == 0.0
     finally:
@@ -150,8 +151,7 @@ def test_forced_stop_gates_published_command_and_clears_hold(ros_runtime):
         node._tick()
         assert published[-1].linear.x > 0.0
 
-        response = node._on_forced_stop(
-            SetBool.Request(data=True), SetBool.Response())
+        response = node._on_forced_stop(SetBool.Request(data=True), SetBool.Response())
         assert response.success
         assert node._held_cmd is None
         node._tick()

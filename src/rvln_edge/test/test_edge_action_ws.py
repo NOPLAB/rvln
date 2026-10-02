@@ -3,6 +3,7 @@
 Exercise JSON decoding and the watchdog with synthetic time, without
 starting a WebSocket server (as in test_path_follower_hold.py).
 """
+
 import base64
 import json
 from types import SimpleNamespace
@@ -16,37 +17,43 @@ from rvln_proto.conversions import float32_array_to_fp16_bytes
 from rvln_edge.edge_action_ws_node import EdgeActionWsNode, decode_chunk_msg
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def ros_runtime():
     rclpy.init()
     yield
     rclpy.shutdown()
 
 
-def _chunk_msg(waypoints=None, *, scaled_to_m=False, goal_id='text:door', frame_seq=7):
-    wp = (np.arange(32, dtype=np.float32).reshape(8, 4)
-          if waypoints is None else np.asarray(waypoints, dtype=np.float32))
+def _chunk_msg(waypoints=None, *, scaled_to_m=False, goal_id="text:door", frame_seq=7):
+    wp = (
+        np.arange(32, dtype=np.float32).reshape(8, 4)
+        if waypoints is None
+        else np.asarray(waypoints, dtype=np.float32)
+    )
     return {
-        'type': 'action_chunk',
-        'frame_id': frame_seq,
-        'capture_time_ms': 0,
-        'num_tokens': wp.shape[0],
-        'embed_dim': wp.shape[1],
-        'values_fp16_b64': base64.b64encode(
-            float32_array_to_fp16_bytes(wp.ravel())).decode('ascii'),
-        'scaled_to_m': scaled_to_m,
-        'goal_id': goal_id,
+        "type": "action_chunk",
+        "frame_id": frame_seq,
+        "capture_time_ms": 0,
+        "num_tokens": wp.shape[0],
+        "embed_dim": wp.shape[1],
+        "values_fp16_b64": base64.b64encode(float32_array_to_fp16_bytes(wp.ravel())).decode(
+            "ascii"
+        ),
+        "scaled_to_m": scaled_to_m,
+        "goal_id": goal_id,
     }
 
 
 # ------------------------------------------------------------ decode_chunk_msg
 
+
 def test_decode_scales_by_waypoint_spacing():
     path, frame_seq, goal_id = decode_chunk_msg(
-        _chunk_msg(), waypoint_spacing=0.1, frame_id='base_link')
+        _chunk_msg(), waypoint_spacing=0.1, frame_id="base_link"
+    )
     assert frame_seq == 7
-    assert goal_id == 'text:door'
-    assert path.header.frame_id == 'base_link'
+    assert goal_id == "text:door"
+    assert path.header.frame_id == "base_link"
     assert len(path.poses) == 8
     # Second row: scale x/y by 0.1; leave cos/sin unchanged.
     p1 = path.poses[1].pose
@@ -58,26 +65,31 @@ def test_decode_scales_by_waypoint_spacing():
 
 def test_decode_scaled_to_m_uses_unity_spacing():
     path, _, _ = decode_chunk_msg(
-        _chunk_msg(scaled_to_m=True), waypoint_spacing=0.1, frame_id='base_link')
+        _chunk_msg(scaled_to_m=True), waypoint_spacing=0.1, frame_id="base_link"
+    )
     assert path.poses[1].pose.position.x == pytest.approx(4.0, abs=1e-2)
 
 
-@pytest.mark.parametrize('mutate', [
-    lambda m: m.update(type='observation'),
-    lambda m: m.update(embed_dim=2),
-    lambda m: m.update(num_tokens=0),
-    lambda m: m.update(values_fp16_b64='!!not-base64!!'),
-    lambda m: m.update(values_fp16_b64=base64.b64encode(b'\x00\x00').decode()),
-    lambda m: m.pop('values_fp16_b64'),
-])
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda m: m.update(type="observation"),
+        lambda m: m.update(embed_dim=2),
+        lambda m: m.update(num_tokens=0),
+        lambda m: m.update(values_fp16_b64="!!not-base64!!"),
+        lambda m: m.update(values_fp16_b64=base64.b64encode(b"\x00\x00").decode()),
+        lambda m: m.pop("values_fp16_b64"),
+    ],
+)
 def test_decode_rejects_malformed(mutate):
     msg = _chunk_msg()
     mutate(msg)
     with pytest.raises(ValueError):
-        decode_chunk_msg(msg, waypoint_spacing=0.1, frame_id='base_link')
+        decode_chunk_msg(msg, waypoint_spacing=0.1, frame_id="base_link")
 
 
 # ------------------------------------------------- handle_message / watchdog
+
 
 def _make_node() -> tuple:
     node = EdgeActionWsNode()
@@ -90,9 +102,9 @@ def test_chunk_is_published_once_then_watchdog_stops(ros_runtime):
     node, published = _make_node()
     try:
         ack = node.handle_message(json.dumps(_chunk_msg()), now=0.0)
-        assert ack['status'] == 'ok'
-        assert ack['following'] is True
-        assert ack['frame_id'] == 7
+        assert ack["status"] == "ok"
+        assert ack["following"] is True
+        assert ack["frame_id"] == 7
 
         # Publish the latest chunk once on the next tick.
         node._tick(0.05)
@@ -140,12 +152,12 @@ def test_stale_pending_chunk_is_never_published(ros_runtime):
 def test_malformed_message_acks_error_and_never_publishes(ros_runtime):
     node, published = _make_node()
     try:
-        ack = node.handle_message('not json at all', now=0.0)
-        assert ack['status'].startswith('error:')
-        assert ack['following'] is False  # Nothing has been followed yet.
+        ack = node.handle_message("not json at all", now=0.0)
+        assert ack["status"].startswith("error:")
+        assert ack["following"] is False  # Nothing has been followed yet.
 
-        ack = node.handle_message(json.dumps({'type': 'action_chunk'}), now=0.1)
-        assert ack['status'].startswith('error:')
+        ack = node.handle_message(json.dumps({"type": "action_chunk"}), now=0.1)
+        assert ack["status"].startswith("error:")
 
         node._tick(0.2)
         node._tick(5.0)
@@ -157,11 +169,12 @@ def test_malformed_message_acks_error_and_never_publishes(ros_runtime):
 def test_goal_change_is_accepted(ros_runtime):
     node, published = _make_node()
     try:
-        node.handle_message(json.dumps(_chunk_msg(goal_id='text:a')), now=0.0)
+        node.handle_message(json.dumps(_chunk_msg(goal_id="text:a")), now=0.0)
         node._tick(0.05)
         ack = node.handle_message(
-            json.dumps(_chunk_msg(goal_id='pose:1.0,0.0,0.0', frame_seq=9)), now=0.1)
-        assert ack['status'] == 'ok'
+            json.dumps(_chunk_msg(goal_id="pose:1.0,0.0,0.0", frame_seq=9)), now=0.1
+        )
+        assert ack["status"] == "ok"
         node._tick(0.15)
         assert len(published) == 2
     finally:

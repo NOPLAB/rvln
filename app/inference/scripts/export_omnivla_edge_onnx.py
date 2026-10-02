@@ -16,6 +16,7 @@
         --weights models/omnivla-edge/omnivla-edge.pth \
         --out app/assets/models/omnivla_edge.onnx
 """
+
 from __future__ import annotations
 
 import argparse
@@ -62,9 +63,7 @@ INPUT_NAMES = [
 OUTPUT_NAMES = ["action_pred"]
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MODEL_SRC = os.path.join(
-    REPO, "src/rvln_core/rvln_core/models/omnivla_edge_model.py"
-)
+MODEL_SRC = os.path.join(REPO, "src/rvln_core/rvln_core/models/omnivla_edge_model.py")
 
 
 def load_patched_model_class():
@@ -95,11 +94,17 @@ class ExportWrapper(nn.Module):
         super().__init__()
         self.model = model
 
-    def forward(self, obs_images, goal_pose, map_images, goal_image,
-                modality_id, feat_text, cur_large):
+    def forward(
+        self, obs_images, goal_pose, map_images, goal_image, modality_id, feat_text, cur_large
+    ):
         action_pred, _dist, _mask = self.model(
-            obs_images, goal_pose, map_images, goal_image,
-            modality_id, feat_text, cur_large,
+            obs_images,
+            goal_pose,
+            map_images,
+            goal_image,
+            modality_id,
+            feat_text,
+            cur_large,
         )
         return action_pred
 
@@ -107,19 +112,21 @@ class ExportWrapper(nn.Module):
 def dummy_inputs(seed: int = 0):
     g = torch.Generator().manual_seed(seed)
     return (
-        torch.randn(1, 3 * HIST, OBS, OBS, generator=g),   # obs_images
-        torch.randn(1, ADIM, generator=g),                 # goal_pose
-        torch.randn(1, 9, OBS, OBS, generator=g),          # map_images
-        torch.randn(1, 3, OBS, OBS, generator=g),          # goal_image
-        torch.tensor([7], dtype=torch.int64),              # modality_id (text)
-        torch.randn(1, 512, generator=g),                  # feat_text
-        torch.randn(1, 3, LARGE, LARGE, generator=g),      # cur_large
+        torch.randn(1, 3 * HIST, OBS, OBS, generator=g),  # obs_images
+        torch.randn(1, ADIM, generator=g),  # goal_pose
+        torch.randn(1, 9, OBS, OBS, generator=g),  # map_images
+        torch.randn(1, 3, OBS, OBS, generator=g),  # goal_image
+        torch.tensor([7], dtype=torch.int64),  # modality_id (text)
+        torch.randn(1, 512, generator=g),  # feat_text
+        torch.randn(1, 3, LARGE, LARGE, generator=g),  # cur_large
     )
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--weights", default=os.path.join(REPO, "models/omnivla-edge/omnivla-edge.pth"))
+    ap.add_argument(
+        "--weights", default=os.path.join(REPO, "models/omnivla-edge/omnivla-edge.pth")
+    )
     ap.add_argument("--out", default=os.path.join(REPO, "app/assets/models/omnivla_edge.onnx"))
     ap.add_argument("--opset", type=int, default=17)
     args = ap.parse_args()
@@ -131,8 +138,10 @@ def main():
     model = OmniVLA_edge(**MODEL_PARAMS)
 
     state = torch.load(args.weights, map_location="cpu")
-    if isinstance(state, dict) and "model" in state and not any(
-        k.startswith(("obs_encoder", "decoder")) for k in state
+    if (
+        isinstance(state, dict)
+        and "model" in state
+        and not any(k.startswith(("obs_encoder", "decoder")) for k in state)
     ):
         state = state["model"]
     model.load_state_dict(state, strict=True)
@@ -162,7 +171,7 @@ def main():
             do_constant_folding=True,
             dynamic_axes=None,  # batch=1 固定
             dynamo=False,  # 旧型の動的制御フロー(index_select/in-place slice)には
-                           # レガシー TorchScript エクスポータが安定
+            # レガシー TorchScript エクスポータが安定
         )
     size_mb = os.path.getsize(args.out) / (1024 * 1024)
     print(f"[onnx] wrote {args.out} ({size_mb:.1f} MB)")

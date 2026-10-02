@@ -22,6 +22,7 @@ Waypoints are expected in the robot frame (x forward, y left), already scaled to
 metres (the adapter applies ``metric_waypoint_spacing``). Pure numpy/math — no
 ROS, no torch — so it is unit-testable without a running node.
 """
+
 from __future__ import annotations
 
 import math
@@ -66,7 +67,7 @@ class WaypointPD:
         angular_clip: float = 1.0,
     ) -> None:
         if dt <= 0.0:
-            raise ValueError('dt must be > 0')
+            raise ValueError("dt must be > 0")
         self.max_v = max_v
         self.max_w = max_w
         self.waypoint_select = waypoint_select
@@ -117,13 +118,16 @@ class WaypointPD:
             if abs(angular) <= maxw:
                 return TwistCmd(linear, angular)
             rd = linear / angular
-            return TwistCmd(maxw * math.copysign(1.0, linear) * abs(rd),
-                            maxw * math.copysign(1.0, angular))
+            return TwistCmd(
+                maxw * math.copysign(1.0, linear) * abs(rd), maxw * math.copysign(1.0, angular)
+            )
         if abs(angular) <= 0.001:
             return TwistCmd(maxv * math.copysign(1.0, linear), 0.0)
         rd = linear / angular
         if abs(rd) >= maxv / maxw:
-            return TwistCmd(maxv * math.copysign(1.0, linear),
-                            maxv * math.copysign(1.0, angular) / abs(rd))
-        return TwistCmd(maxw * math.copysign(1.0, linear) * abs(rd),
-                        maxw * math.copysign(1.0, angular))
+            return TwistCmd(
+                maxv * math.copysign(1.0, linear), maxv * math.copysign(1.0, angular) / abs(rd)
+            )
+        return TwistCmd(
+            maxw * math.copysign(1.0, linear) * abs(rd), maxw * math.copysign(1.0, angular)
+        )

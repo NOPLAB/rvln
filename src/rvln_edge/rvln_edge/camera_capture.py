@@ -1,4 +1,5 @@
 """In-process V4L2 camera capture for the edge node."""
+
 from __future__ import annotations
 
 import threading
@@ -40,7 +41,9 @@ class V4L2CameraCapture:
             return
         self._stop.clear()
         self._thread = threading.Thread(
-            target=self.capture_loop, name='camera-capture', daemon=True,
+            target=self.capture_loop,
+            name="camera-capture",
+            daemon=True,
         )
         self._thread.start()
 
@@ -66,7 +69,7 @@ class V4L2CameraCapture:
             if self._stop.is_set():
                 return
             if not ok:
-                self._warn('camera read failed; retrying')
+                self._warn("camera read failed; retrying")
                 time.sleep(0.1)
                 continue
             self._frames.put(cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB))

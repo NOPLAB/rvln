@@ -1,4 +1,5 @@
 """Pure Pursuit path follower."""
+
 from __future__ import annotations
 
 import math
@@ -21,7 +22,7 @@ class Waypoint:
 
 @dataclass
 class TwistCmd:
-    linear: float   # m/s
+    linear: float  # m/s
     angular: float  # rad/s
 
 
@@ -50,7 +51,10 @@ class PurePursuit:
         self.kw = kw
 
     def compute(
-        self, *, robot: Pose2D, path: Sequence[Waypoint],
+        self,
+        *,
+        robot: Pose2D,
+        path: Sequence[Waypoint],
     ) -> TwistCmd:
         if not path:
             return TwistCmd(0.0, 0.0)

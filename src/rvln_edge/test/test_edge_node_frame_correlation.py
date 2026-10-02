@@ -8,6 +8,7 @@ and the action tick handing that frame to the adapter as ``past_image_rgb``.
 
 No gRPC / no lifecycle: the node's internals are driven directly.
 """
+
 import time
 
 import numpy as np
@@ -20,7 +21,7 @@ from rvln_edge.embedding_cache import EmbeddingCache
 from rvln_msgs.msg import ActionEmbedding, GoalSpec as GoalSpecMsg
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def ros_runtime():
     rclpy.init()
     yield
@@ -47,7 +48,7 @@ def _embedding(frame_id: int) -> ActionEmbedding:
     msg.embed_dim = 4
     msg.embedding = values.tolist()
     msg.inference_ms = 1.0
-    msg.model_version = 'test'
+    msg.model_version = "test"
     return msg
 
 
@@ -98,16 +99,16 @@ def test_action_tick_passes_embedding_frame_as_past_image(node):
     adapter = _RecordingAdapter()
     node._adapter = adapter
     node._path_pub = _StubPub()
-    node._camera_frames.put(_frame(200))      # newest camera frame
+    node._camera_frames.put(_frame(200))  # newest camera frame
     node._observations._sent_frames = {1: _frame(10)}  # cloud frame
     node._on_embedding_received(_embedding(1))
 
     node._action_tick()
 
-    assert adapter.calls, 'adapter was not invoked'
+    assert adapter.calls, "adapter was not invoked"
     call = adapter.calls[-1]
-    np.testing.assert_array_equal(call['cur_image_rgb'], _frame(200))
-    np.testing.assert_array_equal(call['past_image_rgb'], _frame(10))
+    np.testing.assert_array_equal(call["cur_image_rgb"], _frame(200))
+    np.testing.assert_array_equal(call["past_image_rgb"], _frame(10))
 
 
 def test_action_tick_falls_back_to_cur_when_frame_uncorrelated(node):
@@ -121,7 +122,7 @@ def test_action_tick_falls_back_to_cur_when_frame_uncorrelated(node):
     node._action_tick()
 
     call = adapter.calls[-1]
-    np.testing.assert_array_equal(call['past_image_rgb'], _frame(200))
+    np.testing.assert_array_equal(call["past_image_rgb"], _frame(200))
 
 
 def test_action_tick_safe_stops_on_stale_camera_frame(node):
@@ -159,7 +160,7 @@ def test_send_tick_skips_stale_camera_frame(node):
     node._camera_frames.put(_frame(200), stamp_ns=time.monotonic_ns() - int(10e9))
     goal = GoalSpecMsg()
     goal.mode = GoalSpecMsg.MODE_TEXT
-    goal.text = 'go forward'
+    goal.text = "go forward"
     node._observations.change_goal(goal, lambda floor: None)
 
     node._send_observation_tick()

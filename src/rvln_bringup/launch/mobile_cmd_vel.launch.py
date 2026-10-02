@@ -18,6 +18,7 @@ Launch args:
   cmd_vel_topic     - follower output topic (default: /cmd_vel_vla, non-motor)
   chunk_max_age_sec - watchdog: no chunk for this long => empty Path (safe-stop)
 """
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
@@ -28,24 +29,28 @@ from rvln_edge.launch_util import follower_node
 
 
 def generate_launch_description():
-    return LaunchDescription([
-        DeclareLaunchArgument('listen_host', default_value='0.0.0.0'),
-        DeclareLaunchArgument('listen_port', default_value='50061'),
-        # Default to a non-motor topic so the real robot is never driven.
-        DeclareLaunchArgument('cmd_vel_topic', default_value='/cmd_vel_vla'),
-        DeclareLaunchArgument('chunk_max_age_sec', default_value='1.0'),
-        Node(
-            package='rvln_edge',
-            executable='edge_action_grpc_server',
-            name='edge_action_grpc',
-            output='screen',
-            parameters=[{
-                'host': LaunchConfiguration('listen_host'),
-                'port': ParameterValue(
-                    LaunchConfiguration('listen_port'), value_type=int),
-                'chunk_max_age_sec': ParameterValue(
-                    LaunchConfiguration('chunk_max_age_sec'), value_type=float),
-            }],
-        ),
-        follower_node(cmd_vel_topic=LaunchConfiguration('cmd_vel_topic')),
-    ])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument("listen_host", default_value="0.0.0.0"),
+            DeclareLaunchArgument("listen_port", default_value="50061"),
+            # Default to a non-motor topic so the real robot is never driven.
+            DeclareLaunchArgument("cmd_vel_topic", default_value="/cmd_vel_vla"),
+            DeclareLaunchArgument("chunk_max_age_sec", default_value="1.0"),
+            Node(
+                package="rvln_edge",
+                executable="edge_action_grpc_server",
+                name="edge_action_grpc",
+                output="screen",
+                parameters=[
+                    {
+                        "host": LaunchConfiguration("listen_host"),
+                        "port": ParameterValue(LaunchConfiguration("listen_port"), value_type=int),
+                        "chunk_max_age_sec": ParameterValue(
+                            LaunchConfiguration("chunk_max_age_sec"), value_type=float
+                        ),
+                    }
+                ],
+            ),
+            follower_node(cmd_vel_topic=LaunchConfiguration("cmd_vel_topic")),
+        ]
+    )

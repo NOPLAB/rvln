@@ -1,4 +1,5 @@
 """Tests for edge image preprocessing."""
+
 import numpy as np
 import pytest
 
@@ -16,7 +17,7 @@ def test_resize_and_jpeg_returns_bytes_and_target_size():
     assert isinstance(raw, (bytes, bytearray))
     assert (w, h) == (224, 224)
     # JPEG magic
-    assert raw[:3] == b'\xff\xd8\xff'
+    assert raw[:3] == b"\xff\xd8\xff"
 
 
 def test_resize_and_jpeg_round_trip_within_jpeg_tolerance():

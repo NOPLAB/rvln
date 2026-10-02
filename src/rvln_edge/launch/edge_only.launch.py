@@ -22,34 +22,38 @@ Use cases:
   ros2 launch rvln_bringup edge_only.launch.py \\
       adapter_kind:=asyncvla with_follower:=true
 """
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 
 from rvln_edge.launch_util import (
-    camera_nodes, edge_camera_overrides, edge_lifecycle_actions,
-    edge_params_path, follower_node,
+    camera_nodes,
+    edge_camera_overrides,
+    edge_lifecycle_actions,
+    edge_params_path,
+    follower_node,
 )
 
 
 def generate_launch_description():
-    adapter_kind = LaunchConfiguration('adapter_kind')
-    image_topic = LaunchConfiguration('image_topic')
-    with_follower = LaunchConfiguration('with_follower')
-    cmd_vel_topic = LaunchConfiguration('cmd_vel_topic')
-    asyncvla_weights_path = LaunchConfiguration('asyncvla_weights_path')
-    asyncvla_resume_step = LaunchConfiguration('asyncvla_resume_step')
-    asyncvla_device = LaunchConfiguration('asyncvla_device')
+    adapter_kind = LaunchConfiguration("adapter_kind")
+    image_topic = LaunchConfiguration("image_topic")
+    with_follower = LaunchConfiguration("with_follower")
+    cmd_vel_topic = LaunchConfiguration("cmd_vel_topic")
+    asyncvla_weights_path = LaunchConfiguration("asyncvla_weights_path")
+    asyncvla_resume_step = LaunchConfiguration("asyncvla_resume_step")
+    asyncvla_device = LaunchConfiguration("asyncvla_device")
 
     # Per-launch parameter overrides; only emit the ones that were set explicitly
     # (default '' means "leave the YAML value alone").
     overrides = {
-        'adapter_kind': adapter_kind,
-        'image_topic': image_topic,
-        'asyncvla_weights_path': asyncvla_weights_path,
-        'asyncvla_resume_step': asyncvla_resume_step,
-        'asyncvla_device': asyncvla_device,
+        "adapter_kind": adapter_kind,
+        "image_topic": image_topic,
+        "asyncvla_weights_path": asyncvla_weights_path,
+        "asyncvla_resume_step": asyncvla_resume_step,
+        "asyncvla_device": asyncvla_device,
         # camera_kind=v4l2 -> the edge grabs camera_device in-process.
         **edge_camera_overrides(),
     }
@@ -61,18 +65,21 @@ def generate_launch_description():
         condition=IfCondition(with_follower),
     )
 
-    return LaunchDescription([
-        DeclareLaunchArgument('adapter_kind', default_value='stub'),
-        DeclareLaunchArgument('image_topic', default_value='/camera/image_raw'),
-        DeclareLaunchArgument('camera_kind', default_value=''),
-        DeclareLaunchArgument('camera_device', default_value=''),
-        DeclareLaunchArgument('with_follower', default_value='false'),
-        DeclareLaunchArgument('cmd_vel_topic', default_value='/cmd_vel'),
-        DeclareLaunchArgument('asyncvla_weights_path',
-                              default_value='/workspace/models/AsyncVLA_release'),
-        DeclareLaunchArgument('asyncvla_resume_step', default_value='750000'),
-        DeclareLaunchArgument('asyncvla_device', default_value='cpu'),
-        *edge_actions,
-        follower,
-        *camera_nodes(image_topic=image_topic),
-    ])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument("adapter_kind", default_value="stub"),
+            DeclareLaunchArgument("image_topic", default_value="/camera/image_raw"),
+            DeclareLaunchArgument("camera_kind", default_value=""),
+            DeclareLaunchArgument("camera_device", default_value=""),
+            DeclareLaunchArgument("with_follower", default_value="false"),
+            DeclareLaunchArgument("cmd_vel_topic", default_value="/cmd_vel"),
+            DeclareLaunchArgument(
+                "asyncvla_weights_path", default_value="/workspace/models/AsyncVLA_release"
+            ),
+            DeclareLaunchArgument("asyncvla_resume_step", default_value="750000"),
+            DeclareLaunchArgument("asyncvla_device", default_value="cpu"),
+            *edge_actions,
+            follower,
+            *camera_nodes(image_topic=image_topic),
+        ]
+    )

@@ -1,4 +1,5 @@
 """Thread-safe cache for the latest action embedding from the remote VLA."""
+
 from __future__ import annotations
 
 import threading
@@ -12,8 +13,8 @@ import numpy as np
 @dataclass
 class CachedEmbedding:
     frame_id: int
-    recv_time_ns: int           # monotonic ns at time of insertion
-    embedding: np.ndarray       # shape (num_tokens * embed_dim,), dtype float32
+    recv_time_ns: int  # monotonic ns at time of insertion
+    embedding: np.ndarray  # shape (num_tokens * embed_dim,), dtype float32
     num_tokens: int
     embed_dim: int
     inference_ms: float
@@ -28,14 +29,14 @@ class CachedEmbedding:
 class EmbeddingCache:
     """Holds the single latest embedding. Frame-id monotonic, age-aware."""
 
-    STATUS_WAITING = 'WAITING_REMOTE'
-    STATUS_OK = 'OK'
-    STATUS_DEGRADED = 'DEGRADED'
-    STATUS_STALE = 'STALE'
+    STATUS_WAITING = "WAITING_REMOTE"
+    STATUS_OK = "OK"
+    STATUS_DEGRADED = "DEGRADED"
+    STATUS_STALE = "STALE"
 
     def __init__(self, *, max_age_sec: float, hard_timeout_sec: float) -> None:
         if hard_timeout_sec < max_age_sec:
-            raise ValueError('hard_timeout_sec must be >= max_age_sec')
+            raise ValueError("hard_timeout_sec must be >= max_age_sec")
         self._max_age_ns = int(max_age_sec * 1e9)
         self._hard_ns = int(hard_timeout_sec * 1e9)
         self._lock = threading.Lock()

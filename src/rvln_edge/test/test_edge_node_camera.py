@@ -3,6 +3,7 @@
 No real V4L2 device in CI: the open-failure path and the capture-loop
 bookkeeping are tested; the happy-path open is exercised on the robot.
 """
+
 import numpy as np
 import pytest
 import rclpy
@@ -11,7 +12,7 @@ from rclpy.lifecycle import TransitionCallbackReturn
 from rvln_edge.edge_node import VLAEdgeNode
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def ros_runtime():
     rclpy.init()
     yield
@@ -26,9 +27,11 @@ def node(ros_runtime):
 
 
 def test_configure_fails_when_camera_device_cannot_be_opened(node):
-    node.set_parameters([
-        rclpy.parameter.Parameter('camera_device', value='/dev/nonexistent-video99'),
-    ])
+    node.set_parameters(
+        [
+            rclpy.parameter.Parameter("camera_device", value="/dev/nonexistent-video99"),
+        ]
+    )
     assert node.on_configure(None) == TransitionCallbackReturn.FAILURE
     assert node._camera._cap is None
     assert node._image_sub is None  # no fallback subscription in camera mode
@@ -80,10 +83,10 @@ def test_compressed_image_callback_decodes_jpeg_to_rgb(node):
 
     bgr = np.zeros((32, 32, 3), dtype=np.uint8)
     bgr[..., 0] = 255  # blue plane in BGR
-    ok, jpeg = cv2.imencode('.jpg', bgr, [cv2.IMWRITE_JPEG_QUALITY, 95])
+    ok, jpeg = cv2.imencode(".jpg", bgr, [cv2.IMWRITE_JPEG_QUALITY, 95])
     assert ok
     msg = CompressedImage()
-    msg.format = 'jpeg'
+    msg.format = "jpeg"
     msg.data = jpeg.tobytes()
 
     node._on_compressed_image(msg)
@@ -96,11 +99,14 @@ def test_compressed_image_callback_decodes_jpeg_to_rgb(node):
 
 
 def test_compressed_topic_selects_compressed_subscription(node):
-    node.set_parameters([
-        rclpy.parameter.Parameter('image_topic', value='/camera/image_raw/compressed'),
-    ])
+    node.set_parameters(
+        [
+            rclpy.parameter.Parameter("image_topic", value="/camera/image_raw/compressed"),
+        ]
+    )
     assert node.on_configure(None) == TransitionCallbackReturn.SUCCESS
     from sensor_msgs.msg import CompressedImage
+
     assert node._image_sub is not None
     assert node._image_sub.msg_type is CompressedImage
     node.on_cleanup(None)

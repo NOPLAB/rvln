@@ -5,6 +5,7 @@ test_omnivla_edge_local_adapter); torch must still be importable because
 ``predict_path`` builds its input tensors with it (the test image ships CPU
 torch).
 """
+
 import math
 
 import numpy as np
@@ -54,9 +55,9 @@ class _StubEdgeAdapterModel:
 
 
 def _make_adapter(delta: np.ndarray) -> mod.AsyncVLAEdgeAdapter:
-    torch = pytest.importorskip('torch')
+    torch = pytest.importorskip("torch")
     adapter = mod.AsyncVLAEdgeAdapter.__new__(mod.AsyncVLAEdgeAdapter)
-    adapter._device = torch.device('cpu')
+    adapter._device = torch.device("cpu")
     adapter._dtype = torch.float32
     adapter._model = _StubEdgeAdapterModel(delta)
     return adapter

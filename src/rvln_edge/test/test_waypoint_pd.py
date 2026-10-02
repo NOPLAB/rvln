@@ -5,6 +5,7 @@ several metres ahead) Pure Pursuit produced a near-zero angular velocity and the
 robot only crawled straight. WaypointPD must instead command a real turn on the
 same path.
 """
+
 import math
 
 import pytest
@@ -26,8 +27,8 @@ _OMNIVLA_PATH = [
 
 
 def _pp(**kw) -> WaypointPD:
-    kw.setdefault('max_v', 0.4)
-    kw.setdefault('max_w', 1.0)
+    kw.setdefault("max_v", 0.4)
+    kw.setdefault("max_w", 1.0)
     return WaypointPD(**kw)
 
 
@@ -35,7 +36,7 @@ def test_turns_meaningfully_on_omnivla_path():
     # Pure Pursuit gave ~0.02-0.13 rad/s here; the PD law must turn far harder.
     cmd = _pp().compute(path=_OMNIVLA_PATH)
     assert cmd.linear == pytest.approx(0.4, abs=1e-6)
-    assert cmd.angular > 0.25          # left turn toward +y, actually reflected
+    assert cmd.angular > 0.25  # left turn toward +y, actually reflected
     assert cmd.angular == pytest.approx(0.309, abs=0.02)
 
 

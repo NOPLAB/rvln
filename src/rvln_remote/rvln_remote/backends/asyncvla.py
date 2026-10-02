@@ -16,6 +16,7 @@ Note: importing prismatic.models.small_head pulls vint_train at module load
 time. The MBRA submodule's `train/` directory must be on PYTHONPATH (set by
 ``Dockerfile.asyncvla``).
 """
+
 from __future__ import annotations
 
 import logging
@@ -38,7 +39,7 @@ class AsyncVLABackend(OpenVLAOFTBackendBase):
         *,
         vla_path: str,
         resume_step: int = 750000,
-        device: str = 'cuda:0',
+        device: str = "cuda:0",
         dtype: torch.dtype = torch.bfloat16,
         num_images_in_input: int = 2,
     ) -> None:
@@ -57,14 +58,19 @@ class AsyncVLABackend(OpenVLAOFTBackendBase):
 
         # AsyncVLA-only: cloud action projector that compresses
         # (B, NUM_ACTIONS_CHUNK*ACTION_DIM, llm_dim) -> (B, NUM_ACTIONS_CHUNK, 1024).
-        _LOG.info('loading Proj_Actiontokens (step=%d)', resume_step)
-        self._action_proj = Proj_Actiontokens(
-            input_dim=self._vla.llm_dim,
-            hidden_dim=self._vla.llm_dim,
-            action_dim=self._cloud_action_dim,
-        ).to(dtype).to(self._device).eval()
+        _LOG.info("loading Proj_Actiontokens (step=%d)", resume_step)
+        self._action_proj = (
+            Proj_Actiontokens(
+                input_dim=self._vla.llm_dim,
+                hidden_dim=self._vla.llm_dim,
+                action_dim=self._cloud_action_dim,
+            )
+            .to(dtype)
+            .to(self._device)
+            .eval()
+        )
         self._action_proj.load_state_dict(
-            load_checkpoint('action_proj', vla_path, resume_step, device=str(self._device)),
+            load_checkpoint("action_proj", vla_path, resume_step, device=str(self._device)),
         )
 
     @property
@@ -72,7 +78,9 @@ class AsyncVLABackend(OpenVLAOFTBackendBase):
         return self._cloud_action_dim
 
     def _project_actions(
-        self, actions_hidden: torch.Tensor, modality_id: torch.Tensor,
+        self,
+        actions_hidden: torch.Tensor,
+        modality_id: torch.Tensor,
     ) -> torch.Tensor:
         # Project the action hidden states down to the (NUM_ACTIONS_CHUNK, 1024)
         # tensor that the edge's Edge_adapter expects.
@@ -80,8 +88,8 @@ class AsyncVLABackend(OpenVLAOFTBackendBase):
 
     def model_info(self) -> ModelInfoDict:
         return ModelInfoDict(
-            model_name='NHirose/AsyncVLA_release',
-            model_version=f'asyncvla-step{self._resume_step}',
+            model_name="NHirose/AsyncVLA_release",
+            model_version=f"asyncvla-step{self._resume_step}",
             num_tokens=self._num_actions_chunk,
             embed_dim=self._cloud_action_dim,
             device=str(self._device),

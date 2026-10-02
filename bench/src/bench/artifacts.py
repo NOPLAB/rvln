@@ -1,4 +1,5 @@
 """Common result artifact helpers, independent of benchmark datasets."""
+
 from __future__ import annotations
 
 import hashlib
@@ -13,11 +14,17 @@ def write_json(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = None
     try:
-        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', newline='\n',
-                                         prefix=f'.{path.name}.', suffix='.tmp',
-                                         dir=path.parent, delete=False) as stream:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            newline="\n",
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            dir=path.parent,
+            delete=False,
+        ) as stream:
             temporary = Path(stream.name)
-            stream.write(json.dumps(data, indent=2) + '\n')
+            stream.write(json.dumps(data, indent=2) + "\n")
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, path)
@@ -28,7 +35,7 @@ def write_json(path: Path, data: dict) -> None:
 
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
-    with path.open('rb') as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()

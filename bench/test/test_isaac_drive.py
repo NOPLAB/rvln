@@ -1,4 +1,5 @@
 """Check the Raspicat differential drive command contract independently of Isaac."""
+
 import unittest
 
 from isaac_rvln.sim import wheel_velocities
@@ -14,5 +15,5 @@ class DriveTest(unittest.TestCase):
             wheel_velocities(0.0, 0.0, 0.0, 0.2)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

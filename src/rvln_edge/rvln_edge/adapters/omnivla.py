@@ -7,6 +7,7 @@ dim packs ``(x, y, cos(theta), sin(theta))``, x/y already scaled to metres
 (both cloud backends apply metric_waypoint_spacing before serializing).
 The edge just builds the Path.
 """
+
 from __future__ import annotations
 
 from typing import Optional, Tuple
@@ -26,9 +27,9 @@ class OmniVLAEdgeAdapter(EdgeAdapter):
         *,
         embedding: np.ndarray,
         embedding_shape: Tuple[int, int, int],
-        cur_image_rgb: Optional[np.ndarray] = None,    # noqa: ARG002 (unused)
-        past_image_rgb: Optional[np.ndarray] = None,   # noqa: ARG002 (unused)
-        frame_id: str = 'base_link',
+        cur_image_rgb: Optional[np.ndarray] = None,  # noqa: ARG002 (unused)
+        past_image_rgb: Optional[np.ndarray] = None,  # noqa: ARG002 (unused)
+        frame_id: str = "base_link",
     ) -> Path:
         wp = np.asarray(embedding, dtype=np.float32).reshape(embedding_shape[1:])
         # Waypoints arrive already in metres (the cloud scales them), so spacing=1.

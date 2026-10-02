@@ -30,6 +30,7 @@ Limitations (v1):
 - The ring buffer is per-engine, not per-client. One engine serves one robot
   stream. (Both callers instantiate one engine per node/server, so this holds.)
 """
+
 from __future__ import annotations
 
 import logging
@@ -54,9 +55,9 @@ _GOAL_DIST_THRESHOLD_M = 30.0
 
 # Modality ids from run_omnivla_edge.run_forward_pass. We only expose the
 # single-goal subset reachable from the proto GoalSpec.
-_MODALITY_POSE = 4      # pose only
-_MODALITY_IMAGE = 6     # image only
-_MODALITY_TEXT = 7      # language only
+_MODALITY_POSE = 4  # pose only
+_MODALITY_IMAGE = 6  # image only
+_MODALITY_TEXT = 7  # language only
 _MODALITY_TEXT_POSE = 8  # language + pose (unused in v1; here for completeness)
 
 # Model hyper-parameters — straight from run_omnivla_edge.py's model_params.
@@ -65,7 +66,7 @@ _MODEL_PARAMS = dict(
     context_size=5,
     len_traj_pred=8,
     learn_angle=True,
-    obs_encoder='efficientnet-b0',
+    obs_encoder="efficientnet-b0",
     obs_encoding_size=1024,
     late_fusion=False,
     mha_num_attention_heads=4,
@@ -78,7 +79,7 @@ def _normalize_chw(image_rgb: np.ndarray, size: int) -> np.ndarray:
     """RGB uint8 HxWx3 -> (3, size, size) ImageNet-normalized float32 (CHW)."""
     if image_rgb.dtype != np.uint8 or image_rgb.ndim != 3 or image_rgb.shape[2] != 3:
         raise ValueError(
-            f'expected uint8 HxWx3 RGB, got dtype={image_rgb.dtype} shape={image_rgb.shape}'
+            f"expected uint8 HxWx3 RGB, got dtype={image_rgb.dtype} shape={image_rgb.shape}"
         )
     img = cv2.resize(image_rgb, (size, size), interpolation=cv2.INTER_AREA)
     arr = img.astype(np.float32) / 255.0
@@ -93,11 +94,11 @@ def _black_chw(size: int) -> np.ndarray:
 
 def _modality_id_for(mode: str) -> int:
     """Map a proto goal mode string to an OmniVLA-edge modality id."""
-    if mode == 'text':
+    if mode == "text":
         return _MODALITY_TEXT
-    if mode == 'pose':
+    if mode == "pose":
         return _MODALITY_POSE
-    if mode == 'image':
+    if mode == "image":
         return _MODALITY_IMAGE
     raise ValueError(f"unknown goal mode {mode!r} (expected 'text'|'pose'|'image')")
 
@@ -115,8 +116,11 @@ def _pose_goal_vector(pose_xy_theta) -> np.ndarray:
     is already robot-relative metres (no edge tf in v1), so no swap here. Range
     is clamped to thres_dist first.
     """
-    x_fwd, y_left, theta = float(pose_xy_theta[0]), float(
-        pose_xy_theta[1]), float(pose_xy_theta[2])
+    x_fwd, y_left, theta = (
+        float(pose_xy_theta[0]),
+        float(pose_xy_theta[1]),
+        float(pose_xy_theta[2]),
+    )
     radius = math.hypot(x_fwd, y_left)
     if radius > _GOAL_DIST_THRESHOLD_M:
         scale = _GOAL_DIST_THRESHOLD_M / radius
@@ -142,7 +146,7 @@ def _stack_frames(frames: List[np.ndarray], need: int) -> np.ndarray:
     testable without torch.
     """
     if not frames:
-        raise RuntimeError('no observation frames buffered yet')
+        raise RuntimeError("no observation frames buffered yet")
     padded = list(frames)
     while len(padded) < need:
         padded.insert(0, padded[0])
@@ -163,34 +167,34 @@ class OmniVLAEdgeEngine:
     def __init__(
         self,
         *,
-        weights_path: str = '/workspace/models/omnivla-edge/omnivla-edge.pth',
-        clip_type: str = 'ViT-B/32',
-        device: str = 'cuda:0',
+        weights_path: str = "/workspace/models/omnivla-edge/omnivla-edge.pth",
+        clip_type: str = "ViT-B/32",
+        device: str = "cuda:0",
     ) -> None:
         import torch
         import clip
 
-        if str(device).startswith('cpu'):
+        if str(device).startswith("cpu"):
             raise ValueError(
                 "OmniVLAEdgeEngine requires CUDA: the vendored OmniVLA_edge "
                 "forward pass uses tensor.get_device() which is GPU-only. Pass a "
                 "cuda device (e.g. 'cuda:0')."
             )
         if not torch.cuda.is_available():
-            raise RuntimeError('CUDA not available but device=%r requested' % device)
+            raise RuntimeError("CUDA not available but device=%r requested" % device)
 
         from .models.omnivla_edge_model import OmniVLA_edge
 
         self._torch = torch
         self._clip = clip
         self._device = torch.device(device)
-        self._context_size = int(_MODEL_PARAMS['context_size'])
-        self._len_traj_pred = int(_MODEL_PARAMS['len_traj_pred'])
+        self._context_size = int(_MODEL_PARAMS["context_size"])
+        self._len_traj_pred = int(_MODEL_PARAMS["len_traj_pred"])
 
         if not os.path.exists(weights_path):
-            raise FileNotFoundError(f'omnivla-edge weights not found at {weights_path}')
+            raise FileNotFoundError(f"omnivla-edge weights not found at {weights_path}")
 
-        _LOG.info('loading OmniVLA_edge from %s', weights_path)
+        _LOG.info("loading OmniVLA_edge from %s", weights_path)
         model = OmniVLA_edge(**_MODEL_PARAMS)
         state_dict = torch.load(weights_path, map_location=str(self._device))
         # The released omnivla-edge.pth is a bare state_dict (utils_policy.load_model
@@ -198,7 +202,7 @@ class OmniVLAEdgeEngine:
         model.load_state_dict(state_dict, strict=True)
         self._model = model.to(self._device).eval()
 
-        _LOG.info('loading CLIP %s', clip_type)
+        _LOG.info("loading CLIP %s", clip_type)
         text_encoder, _preprocess = clip.load(clip_type, device=self._device, jit=False)
         self._text_encoder = text_encoder.to(torch.float32).to(self._device).eval()
 
@@ -247,7 +251,7 @@ class OmniVLAEdgeEngine:
         torch = self._torch
         if text == self._text_cache_key and self._text_cache_feat is not None:
             return self._text_cache_feat
-        tokens = self._clip.tokenize(text or 'xxxx', truncate=True).to(self._device)
+        tokens = self._clip.tokenize(text or "xxxx", truncate=True).to(self._device)
         with torch.no_grad():
             feat = self._text_encoder.encode_text(tokens).to(torch.float32)
         self._text_cache_key = text
@@ -261,7 +265,7 @@ class OmniVLAEdgeEngine:
         *,
         cur_image_rgb: np.ndarray,
         goal_mode: str,
-        goal_text: str = '',
+        goal_text: str = "",
         goal_pose_xy_theta=None,
         goal_image_rgb: Optional[np.ndarray] = None,
     ) -> np.ndarray:
@@ -272,18 +276,20 @@ class OmniVLAEdgeEngine:
         run_forward_pass. Callers scale x/y by :attr:`metric_waypoint_spacing`.
         """
         if cur_image_rgb is None:
-            raise ValueError('OmniVLAEdgeEngine.infer_chunk requires cur_image_rgb')
+            raise ValueError("OmniVLAEdgeEngine.infer_chunk requires cur_image_rgb")
 
         torch = self._torch
 
         # 1. Observation history.
         self._push_frame(_normalize_chw(cur_image_rgb, 96))
-        obs_np = self._stack_obs()                       # (1, 18, 96, 96)
+        obs_np = self._stack_obs()  # (1, 18, 96, 96)
         obs_images = torch.from_numpy(obs_np).to(torch.float32).to(self._device)
-        obs_image_cur = obs_images[:, -3:, :, :]         # last frame, (1, 3, 96, 96)
-        cur_large = torch.from_numpy(
-            _normalize_chw(cur_image_rgb, 224)[None, ...]
-        ).to(torch.float32).to(self._device)             # (1, 3, 224, 224)
+        obs_image_cur = obs_images[:, -3:, :, :]  # last frame, (1, 3, 96, 96)
+        cur_large = (
+            torch.from_numpy(_normalize_chw(cur_image_rgb, 224)[None, ...])
+            .to(torch.float32)
+            .to(self._device)
+        )  # (1, 3, 224, 224)
 
         # 2. Goal tensors.
         modality_id = _modality_id_for(goal_mode)
@@ -294,7 +300,7 @@ class OmniVLAEdgeEngine:
             goal_pose_np = np.zeros(4, dtype=np.float32)
         goal_pose = torch.from_numpy(goal_pose_np[None, ...]).to(torch.float32).to(self._device)
 
-        if goal_mode == 'image' and goal_image_rgb is not None:
+        if goal_mode == "image" and goal_image_rgb is not None:
             goal_img_np = _normalize_chw(goal_image_rgb, 96)[None, ...]
         else:
             goal_img_np = self._black96_chw[None, ...]
@@ -304,7 +310,7 @@ class OmniVLAEdgeEngine:
         black96 = torch.from_numpy(self._black96_chw[None, ...]).to(torch.float32).to(self._device)
         map_images = torch.cat((black96, black96, obs_image_cur), dim=1)  # (1, 9, 96, 96)
 
-        feat_text = self._text_features(goal_text if goal_mode == 'text' else '')
+        feat_text = self._text_features(goal_text if goal_mode == "text" else "")
 
         modality_id_t = torch.tensor([modality_id], device=self._device)
 

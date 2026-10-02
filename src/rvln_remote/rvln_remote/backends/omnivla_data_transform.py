@@ -9,6 +9,7 @@ Modality flags (lang / pose / image) are passed in by the backend; this
 function does not pick them. The collator is inlined (single-instance only,
 no padding to a longer sequence).
 """
+
 from __future__ import annotations
 
 import math
@@ -99,14 +100,14 @@ def _goal_pose_cos_sin(
 
 def _build_conversation(lang_instruction: str, action_chunk_string: str) -> list:
     """Mirror run_omnivla.py:343-353. Empty / 'xxxx' lang -> placeholder turn."""
-    if not lang_instruction or lang_instruction == 'xxxx':
+    if not lang_instruction or lang_instruction == "xxxx":
         return [
-            {'from': 'human', 'value': 'No language instruction'},
-            {'from': 'gpt', 'value': action_chunk_string},
+            {"from": "human", "value": "No language instruction"},
+            {"from": "gpt", "value": action_chunk_string},
         ]
     return [
-        {'from': 'human', 'value': f'What action should the robot take to {lang_instruction}?'},
-        {'from': 'gpt', 'value': action_chunk_string},
+        {"from": "human", "value": f"What action should the robot take to {lang_instruction}?"},
+        {"from": "gpt", "value": action_chunk_string},
     ]
 
 
@@ -138,15 +139,16 @@ def build_inference_batch(
     actions = np.zeros((num_actions_chunk, action_dim), dtype=np.float32)
     current_action = actions[0]
     future_actions = actions[1:]
-    action_chunk_string = action_tokenizer(
-        current_action) + ''.join(action_tokenizer(future_actions))
+    action_chunk_string = action_tokenizer(current_action) + "".join(
+        action_tokenizer(future_actions)
+    )
     action_chunk_len = len(action_chunk_string)
 
     # 2. Build conversation + prompt + tokenize.
     conversation = _build_conversation(lang_instruction, action_chunk_string)
-    builder = prompt_builder_cls('openvla')
+    builder = prompt_builder_cls("openvla")
     for turn in conversation:
-        builder.add_turn(turn['from'], turn['value'])
+        builder.add_turn(turn["from"], turn["value"])
     base_tokenizer = processor.tokenizer
     input_ids = torch.tensor(
         base_tokenizer(builder.get_prompt(), add_special_tokens=True).input_ids,
@@ -160,9 +162,7 @@ def build_inference_batch(
     # 4. Image transform.
     pixel_values_current = processor.image_processor.apply_transform(current_image)
     pixel_values_goal = (
-        processor.image_processor.apply_transform(goal_image)
-        if goal_image is not None
-        else None
+        processor.image_processor.apply_transform(goal_image) if goal_image is not None else None
     )
 
     # 5. Single-instance collation (mirrors collator_custom).
@@ -191,9 +191,9 @@ def build_inference_batch(
     ).unsqueeze(0)
 
     return {
-        'input_ids': input_ids_b,
-        'attention_mask': attention_mask,
-        'pixel_values': pixel_values,
-        'labels': labels_b,
-        'goal_pose': goal_pose,
+        "input_ids": input_ids_b,
+        "attention_mask": attention_mask,
+        "pixel_values": pixel_values,
+        "labels": labels_b,
+        "goal_pose": goal_pose,
     }

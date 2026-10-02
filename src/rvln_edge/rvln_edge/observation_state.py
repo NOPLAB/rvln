@@ -1,4 +1,5 @@
 """Thread-safe camera frame and goal/observation correlation state."""
+
 from __future__ import annotations
 
 import threading

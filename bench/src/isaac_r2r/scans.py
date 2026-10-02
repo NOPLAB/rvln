@@ -1,4 +1,5 @@
 """Import licensed MP3D GLB scans as static, collidable Isaac USD assets."""
+
 from __future__ import annotations
 
 import asyncio
@@ -13,18 +14,21 @@ def validate_scan(source: Path, output: Path) -> tuple[Path, Path]:
     """Reject missing or invalid GLB inputs before starting Kit."""
     source = source.expanduser().resolve()
     output = output.expanduser().resolve()
-    if source == output or output.exists() or output.with_suffix('.json').exists():
-        raise ValueError('output USD must be a new file distinct from the source')
-    if source.suffix.lower() != '.glb' or not source.is_file():
-        raise ValueError(f'missing MP3D GLB: {source}')
-    if output.suffix.lower() not in ('.usd', '.usda', '.usdc'):
-        raise ValueError('output must have a USD extension')
-    with source.open('rb') as stream:
+    if source == output or output.exists() or output.with_suffix(".json").exists():
+        raise ValueError("output USD must be a new file distinct from the source")
+    if source.suffix.lower() != ".glb" or not source.is_file():
+        raise ValueError(f"missing MP3D GLB: {source}")
+    if output.suffix.lower() not in (".usd", ".usda", ".usdc"):
+        raise ValueError("output must have a USD extension")
+    with source.open("rb") as stream:
         header = stream.read(12)
-    if (len(header) != 12 or header[:4] != b'glTF'
-            or int.from_bytes(header[4:8], 'little') != 2
-            or int.from_bytes(header[8:12], 'little') != source.stat().st_size):
-        raise ValueError(f'invalid GLB v2 header or length: {source}')
+    if (
+        len(header) != 12
+        or header[:4] != b"glTF"
+        or int.from_bytes(header[4:8], "little") != 2
+        or int.from_bytes(header[8:12], "little") != source.stat().st_size
+    ):
+        raise ValueError(f"invalid GLB v2 header or length: {source}")
     return source, output
 
 
@@ -34,10 +38,10 @@ def add_static_collisions(stage) -> dict:
 
     up_axis = UsdGeom.GetStageUpAxis(stage)
     if up_axis not in (UsdGeom.Tokens.y, UsdGeom.Tokens.z):
-        raise ValueError(f'unsupported imported up axis: {up_axis}')
+        raise ValueError(f"unsupported imported up axis: {up_axis}")
     metres = UsdGeom.GetStageMetersPerUnit(stage)
     if not math.isclose(metres, 1.0, rel_tol=0, abs_tol=1e-6):
-        raise ValueError(f'converted scan must use metres, got {metres}')
+        raise ValueError(f"converted scan must use metres, got {metres}")
     # Instance proxies cannot be edited and otherwise remain noncollidable.
     # Expand imported glTF instances so every visible mesh receives collision.
     instances_deinstanced = 0
@@ -49,10 +53,10 @@ def add_static_collisions(stage) -> dict:
             prim.SetInstanceable(False)
         instances_deinstanced += len(instances)
         if instances_deinstanced > 100_000:
-            raise ValueError('converted scan has too many nested instances')
+            raise ValueError("converted scan has too many nested instances")
     meshes = [prim for prim in stage.Traverse() if prim.IsA(UsdGeom.Mesh)]
     if not meshes:
-        raise ValueError('converted scan has no mesh prims')
+        raise ValueError("converted scan has no mesh prims")
     vertices = 0
     triangles = 0
     for prim in meshes:
@@ -60,10 +64,14 @@ def add_static_collisions(stage) -> dict:
         points = mesh.GetPointsAttr().Get() or []
         face_counts = mesh.GetFaceVertexCountsAttr().Get() or []
         indices = mesh.GetFaceVertexIndicesAttr().Get() or []
-        if (not points or not face_counts or len(indices) != sum(face_counts)
-                or any(count < 3 for count in face_counts)
-                or any(index < 0 or index >= len(points) for index in indices)):
-            raise ValueError(f'imported mesh has missing or invalid geometry: {prim.GetPath()}')
+        if (
+            not points
+            or not face_counts
+            or len(indices) != sum(face_counts)
+            or any(count < 3 for count in face_counts)
+            or any(index < 0 or index >= len(points) for index in indices)
+        ):
+            raise ValueError(f"imported mesh has missing or invalid geometry: {prim.GetPath()}")
         vertices += len(points)
         triangles += sum(count - 2 for count in face_counts)
     if up_axis == UsdGeom.Tokens.y:
@@ -72,22 +80,26 @@ def add_static_collisions(stage) -> dict:
             prim = stage.GetPrimAtPath(path)
             xform = UsdGeom.Xformable(prim)
             if not xform:
-                raise ValueError(f'cannot rotate imported root: {path}')
+                raise ValueError(f"cannot rotate imported root: {path}")
             original = xform.GetOrderedXformOps()
             reset = xform.GetResetXformStack()
             axis_rotation = xform.AddRotateXOp(
-                precision=UsdGeom.XformOp.PrecisionDouble,
-                opSuffix='isaac_y_up_to_z_up')
+                precision=UsdGeom.XformOp.PrecisionDouble, opSuffix="isaac_y_up_to_z_up"
+            )
             axis_rotation.Set(90.0)
             xform.SetXformOpOrder([axis_rotation, *original], resetXformStack=reset)
         UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
     for prim in meshes:
         UsdPhysics.CollisionAPI.Apply(prim)
         collision = UsdPhysics.MeshCollisionAPI.Apply(prim)
-        collision.CreateApproximationAttr().Set('none')
-    return {'meshes': len(meshes), 'vertices': vertices, 'triangles': triangles,
-            'instances_deinstanced': instances_deinstanced,
-            'source_up_axis': str(up_axis)}
+        collision.CreateApproximationAttr().Set("none")
+    return {
+        "meshes": len(meshes),
+        "vertices": vertices,
+        "triangles": triangles,
+        "instances_deinstanced": instances_deinstanced,
+        "source_up_axis": str(up_axis),
+    }
 
 
 def convert_scan(source: Path, output: Path) -> dict:
@@ -96,13 +108,12 @@ def convert_scan(source: Path, output: Path) -> dict:
     from isaacsim import SimulationApp
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    app = SimulationApp({'headless': True, 'multi_gpu': False,
-                         'enable_crashreporter': False})
+    app = SimulationApp({"headless": True, "multi_gpu": False, "enable_crashreporter": False})
     try:
         from isaacsim.core.utils.extensions import enable_extension
         from pxr import Usd
 
-        enable_extension('omni.kit.asset_converter')
+        enable_extension("omni.kit.asset_converter")
         import omni.kit.asset_converter
 
         context = omni.kit.asset_converter.AssetConverterContext()
@@ -111,34 +122,38 @@ def convert_scan(source: Path, output: Path) -> dict:
 
         async def import_glb():
             task = omni.kit.asset_converter.get_instance().create_converter_task(
-                str(source), str(output), lambda *_: None, context)
+                str(source), str(output), lambda *_: None, context
+            )
             if not await task.wait_until_finished():
-                raise RuntimeError(f'Isaac asset conversion failed: '
-                                   f'{task.get_status()}: {task.get_error_message()}')
+                raise RuntimeError(
+                    f"Isaac asset conversion failed: "
+                    f"{task.get_status()}: {task.get_error_message()}"
+                )
 
         future = asyncio.ensure_future(import_glb())
         while not future.done() and app.is_running():
             app.update()
         if not future.done():
-            raise RuntimeError('Isaac stopped before GLB conversion finished')
+            raise RuntimeError("Isaac stopped before GLB conversion finished")
         future.result()
         stage = Usd.Stage.Open(str(output))
         if stage is None:
-            raise RuntimeError(f'Isaac did not write a USD stage: {output}')
+            raise RuntimeError(f"Isaac did not write a USD stage: {output}")
         geometry = add_static_collisions(stage)
         stage.GetRootLayer().Save()
         metadata = {
-            'schema': 1,
-            'source_glb': str(source),
-            'source_sha256': sha256(source),
-            'usd': str(output),
+            "schema": 1,
+            "source_glb": str(source),
+            "source_sha256": sha256(source),
+            "usd": str(output),
             **geometry,
         }
-        output.with_suffix('.json').write_text(json.dumps(metadata, indent=2) + '\n',
-                                               encoding='utf-8')
+        output.with_suffix(".json").write_text(
+            json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
+        )
     except BaseException:
         output.unlink(missing_ok=True)
-        output.with_suffix('.json').unlink(missing_ok=True)
+        output.with_suffix(".json").unlink(missing_ok=True)
         raise
     finally:
         app.close()

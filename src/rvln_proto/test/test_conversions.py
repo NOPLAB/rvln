@@ -1,4 +1,5 @@
 """Tests for mobile fp16 conversion helpers."""
+
 import numpy as np
 from rvln_proto.conversions import (
     fp16_bytes_to_float32_list,
