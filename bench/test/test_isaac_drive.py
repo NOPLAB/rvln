@@ -2,7 +2,7 @@
 
 import unittest
 
-from isaac_rvln.sim import wheel_velocities
+from usim.simulation import wheel_velocities
 
 
 class DriveTest(unittest.TestCase):

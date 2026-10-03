@@ -4,12 +4,15 @@
 execution, artifact helpers, and the `rvln-bench` plugin host. It discovers
 implementations through package entry points and does not import either adapter.
 `bench/src/isaac_r2r` owns R2R-CE split loading, scoring, result aggregation,
-Habitat coordinate and action adapters, and evaluation. Generic Isaac rendering
-and movement belong to the usim port.
+Habitat coordinate and action adapters, discrete Isaac rendering and movement,
+and evaluation. The discrete episode adapter is separate from usim's continuous
+ROS-driven robot lifecycle.
 `bench/src/isaac_rvln` configures the generic usim Isaac/ROS bridge for
 Raspicat and delegates SDF conversion to usim. RVLN owns the three pilot worlds. New Isaac commands enter
 through `rvln-bench`; the historical Gazebo tools remain Python modules under
 `bench/src/bench/legacy_gazebo`.
+The `rvln` command directly registers usim's execution handler with Raspicat
+defaults; usim owns configuration validation, ROS loading, contacts and cleanup.
 
 Benchmark resources resolve under `RVLN_BENCH_ROOT`, defaulting to this source
 checkout's `bench/`. They never resolve through `USIM_ROOT`. For source-only CPU

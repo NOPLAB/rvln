@@ -61,14 +61,6 @@ class EpisodeSimulator(ABC):
         """Release simulator resources."""
 
 
-class ContinuousSimulator(ABC):
-    """Long-running simulator bridge for a ROS-driven benchmark."""
-
-    @abstractmethod
-    def run(self, configuration) -> None:
-        """Execute until the configured deadline or an external stop."""
-
-
 class Policy(ABC):
     """Action policy with an explicit per-episode history reset."""
 

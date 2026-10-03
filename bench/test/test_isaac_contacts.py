@@ -2,13 +2,15 @@
 
 import unittest
 
-from isaac_rvln.contacts import ObstacleContactLog
+from usim.ports.isaac.contacts import ObstacleContactLog
 
 
 class ContactLogTest(unittest.TestCase):
     def test_filters_ground_self_and_merges_continuous_obstacle_contact(self):
         now = [10.0]
-        log = ObstacleContactLog({"left_wall"}, lambda: now[0])
+        log = ObstacleContactLog(
+            {"left_wall"}, lambda: now[0], robot_prim_path="/World/Raspicat"
+        )
         robot = "/World/Raspicat/base/collision"
         wall = "/World/Environment/left_wall/Body"
         ground = "/World/Environment/Ground/Body"

@@ -3,7 +3,7 @@
 import unittest
 from pathlib import Path
 
-from isaac_rvln.worlds import parse_boxes
+from usim.ports.isaac.worlds import parse_boxes
 
 
 ROOT = Path(__file__).resolve().parents[2]

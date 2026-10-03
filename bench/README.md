@@ -4,6 +4,11 @@ The Isaac Sim benchmark is under `bench/src/`: `bench` owns dataset-independent
 contracts, execution, and the `rvln-bench` plugin host. `isaac_r2r` owns its
 R2R protocol and scoring; `isaac_rvln` owns Raspicat preparation and RVLN protocol adapters. Generic
 physics, world conversion, and ROS bridges are imported from `usim`.
+The `rvln` command uses usim's CLI handler directly with Raspicat defaults;
+configuration validation and engine lifecycle are owned by usim. There is no
+benchmark-specific continuous simulator or ROS bridge wrapper. R2R's discrete
+camera and action adapter stays in `isaac_r2r` because it implements the
+evaluation protocol rather than a ROS-driven robot.
 
 The package stays `rvln-bench`, with its own `rvln_bench.plugins` discovery.
 `bench/pyproject.toml` installs usim editable from the `external/usim`
