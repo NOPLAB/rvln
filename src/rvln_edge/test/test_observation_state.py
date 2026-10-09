@@ -31,3 +31,14 @@ def test_camera_frame_expires_and_clears():
     assert not frames.has_fresh(10, now_ns=111)
     frames.clear()
     assert frames.fresh(10, now_ns=105) is None
+
+
+def test_snapshot_pairs_pixels_with_original_capture_stamp():
+    frames = CameraFrameStore()
+    frame = np.ones((2, 2, 3), dtype=np.uint8)
+    frames.put(frame, stamp_ns=100, source_stamp_ns=1234)
+
+    image, capture_ns = frames.fresh_with_stamp(10, now_ns=105)
+
+    np.testing.assert_array_equal(image, frame)
+    assert capture_ns == 1234

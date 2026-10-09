@@ -16,23 +16,38 @@ class CameraFrameStore:
         self._lock = threading.Lock()
         self._image: Optional[np.ndarray] = None
         self._stamp_ns = 0
+        self._source_stamp_ns = 0
 
-    def put(self, image: np.ndarray, *, stamp_ns: Optional[int] = None) -> None:
+    def put(
+        self, image: np.ndarray, *, stamp_ns: Optional[int] = None, source_stamp_ns: int = 0
+    ) -> None:
         with self._lock:
             self._image = image
             self._stamp_ns = time.monotonic_ns() if stamp_ns is None else stamp_ns
+            self._source_stamp_ns = source_stamp_ns
 
     def clear(self) -> None:
         with self._lock:
             self._image = None
             self._stamp_ns = 0
+            self._source_stamp_ns = 0
 
     def fresh(self, max_age_ns: int, *, now_ns: Optional[int] = None) -> Optional[np.ndarray]:
+        frame = self.fresh_with_stamp(max_age_ns, now_ns=now_ns)
+        return None if frame is None else frame[0]
+
+    def fresh_with_stamp(
+        self,
+        max_age_ns: int,
+        *,
+        now_ns: Optional[int] = None,
+    ) -> Optional[Tuple[np.ndarray, int]]:
+        """Atomically pair copied pixels with the original acquisition stamp."""
         now_ns = time.monotonic_ns() if now_ns is None else now_ns
         with self._lock:
             if self._image is None or now_ns - self._stamp_ns > max_age_ns:
                 return None
-            return self._image.copy()
+            return self._image.copy(), self._source_stamp_ns
 
     def has_fresh(self, max_age_ns: int, *, now_ns: Optional[int] = None) -> bool:
         now_ns = time.monotonic_ns() if now_ns is None else now_ns

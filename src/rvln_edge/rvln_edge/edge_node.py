@@ -404,7 +404,9 @@ class VLAEdgeNode(LifecycleNode):
         except Exception as exc:  # noqa: BLE001
             self.get_logger().warn(f"cv_bridge failed: {exc}")
             return
-        self._camera_frames.put(cv_img)
+        self._camera_frames.put(
+            cv_img, source_stamp_ns=msg.header.stamp.sec * 1_000_000_000 + msg.header.stamp.nanosec
+        )
 
     def _on_compressed_image(self, msg: CompressedImage) -> None:
         buf = np.frombuffer(bytes(msg.data), dtype=np.uint8)
@@ -413,7 +415,9 @@ class VLAEdgeNode(LifecycleNode):
             self.get_logger().warn("compressed image decode failed", throttle_duration_sec=5.0)
             return
         rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-        self._camera_frames.put(rgb)
+        self._camera_frames.put(
+            rgb, source_stamp_ns=msg.header.stamp.sec * 1_000_000_000 + msg.header.stamp.nanosec
+        )
 
     def _ros_goal_to_edge_goal(self, goal: GoalSpecMsg) -> Optional[EdgeGoal]:
         """Convert a GoalSpec ROS msg to the adapter-facing EdgeGoal.
@@ -487,10 +491,12 @@ class VLAEdgeNode(LifecycleNode):
     def _send_observation_tick(self) -> None:
         if self._observation_pub is None:
             return
-        img = self._fresh_image()
+        max_age_ns = int(float(self.get_parameter("image_max_age_sec").value) * 1e9)
+        capture = self._camera_frames.fresh_with_stamp(max_age_ns)
         goal, generation = self._observations.snapshot_goal()
-        if img is None or goal is None:
+        if capture is None or goal is None:
             return
+        img, capture_ns = capture
         if goal.mode == GoalSpecMsg.MODE_POSE:
             frame = goal.pose.header.frame_id or "base_link"
             if frame == "odom":
@@ -521,7 +527,8 @@ class VLAEdgeNode(LifecycleNode):
             return
         obs = ObservationMsg()
         obs.frame_id = frame_id
-        obs.image.header.stamp = self.get_clock().now().to_msg()
+        obs.image.header.stamp.sec = capture_ns // 1_000_000_000
+        obs.image.header.stamp.nanosec = capture_ns % 1_000_000_000
         obs.image.format = "jpeg"
         obs.image.data = jpeg
         obs.goal = goal

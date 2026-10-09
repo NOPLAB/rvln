@@ -166,3 +166,28 @@ def test_send_tick_skips_stale_camera_frame(node):
     node._send_observation_tick()
 
     assert not publisher.sent
+
+
+@pytest.mark.parametrize("compressed", [False, True])
+def test_observation_preserves_camera_acquisition_stamp(node, compressed):
+    """A delayed pre-stop exposure must not be relabeled as a post-stop image."""
+    publisher = _StubPub()
+    node._observation_pub = publisher
+    if compressed:
+        image = node._bridge.cv2_to_compressed_imgmsg(_frame(50), dst_format="jpg")
+    else:
+        image = node._bridge.cv2_to_imgmsg(_frame(50), encoding="rgb8")
+    image.header.stamp.sec = 5
+    image.header.stamp.nanosec = 123456789
+    if compressed:
+        node._on_compressed_image(image)
+    else:
+        node._on_image(image)
+    goal = GoalSpecMsg()
+    goal.mode = GoalSpecMsg.MODE_TEXT
+    goal.text = "forward"
+    node._observations.change_goal(goal, lambda floor: None)
+
+    node._send_observation_tick()
+
+    assert publisher.published[-1].image.header.stamp == image.header.stamp

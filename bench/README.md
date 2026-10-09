@@ -102,3 +102,52 @@ PYTHONPATH=/workspace/bench/src python3 -m bench.live_bridge \
 This bridge currently supports text goals and one episode per server process.
 Stop the Slurm job after the test. Route benchmarking needs a reset-aware
 runner, stop provenance, contacts, and a checked shortest-path oracle.
+
+## Real NaVIDA executor
+
+`bench.live_navida` is the real-robot executor recovered from the October 1–5
+NaVIDA tests. It is separate from the Gazebo episode runner. It consumes the
+first metric action token and then executes the remaining actions from
+`diagnostics.raw_response` in order. Fused `/odom` pose and angular velocity
+close the motion loop; a completed primitive is not executed again just because
+its response remains available.
+
+The executor checks motor-power acknowledgements and measured cessation before
+using a new camera exposure. Edge preserves the camera message's acquisition
+timestamp in `/rvln/observation`; publication time must not replace it. Use a
+ROS camera source with valid image header timestamps for this executor. The
+in-process V4L2 path has no ROS acquisition timestamp and is not an input path
+for these post-stop NaVIDA checks.
+
+On the ROS 2 Humble edge host, with the remote NaVIDA server already running:
+
+```bash
+PYTHONPATH="$PWD/bench/src${PYTHONPATH:+:$PYTHONPATH}" \
+  python3 -m bench.live_navida \
+  --url http://<inference-host>:8765 --odom-topic /odom \
+  --max-v 0.1 --max-w 0.35
+```
+
+This node owns `/cmd_vel` and `/rvln/follower_stop`; do not run it alongside the
+generic path follower. Goal changes and forced stops invalidate in-flight
+responses. Keep motor-power and ESTOP operation under the existing robot
+operating procedure; this command does not change ESTOP state. When stopping an
+executor inside a container, signal the actual `bench.live_navida` process,
+not only the shell that launched it.
+
+The remote-specific restored Slurm script is covered by the existing
+`bench/scripts/slurm_live.sbatch`: select `--backend navida`, the same checkpoint,
+and set `RVLN_BENCH_PYTHON` to the prepared NaVIDA environment. GPU inference
+still requires a Slurm allocation.
+
+Run the recovered CPU regression checks on a ROS 2 Humble host or test container:
+
+```bash
+bash bench/scripts/run_navida_qa.sh
+```
+
+The checks use synthetic odometry clocks, an event-driven local HTTP server,
+and a motor-service fake. They build the ROS interfaces and do not launch
+hardware or a GPU model. `ROS_DOMAIN_ID=77` and `ROS_LOCALHOST_ONLY=1` isolate the
+test graph. Real camera-height and image-geometry experiment outputs stay under
+`bench/runs/validation/`, outside versioned application source.
