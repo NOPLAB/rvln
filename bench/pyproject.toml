@@ -21,11 +21,11 @@ isaac = [
   "isaacsim[all,extscache]==6.1.0.0",
   "numpy==2.3.1",
   "pillow>=12.1.1,<13",
-  "torch==2.11.0",
+  "torch==2.13.0",
   "torchvision==0.26.0",
 ]
 omnivla-edge-inference = [
-  "torch==2.11.0",
+  "torch==2.13.0",
   "torchvision==0.26.0",
   "numpy>=2.3,<3",
   "pillow>=11.3,<13",
