@@ -20,7 +20,7 @@ usd = ["usd-core==25.5", "numpy>=1.26,<2"]
 isaac = [
   "isaacsim[all,extscache]==6.1.0.0",
   "numpy==2.3.1",
-  "pillow>=12.1.1,<13",
+  "pillow>=13,<14",
   "torch==2.11.0",
   "torchvision==0.26.0",
 ]
@@ -28,7 +28,7 @@ omnivla-edge-inference = [
   "torch==2.11.0",
   "torchvision==0.26.0",
   "numpy>=2.3,<3",
-  "pillow>=11.3,<13",
+  "pillow>=13,<14",
   "opencv-python-headless>=4.13,<5",
   "openai-clip==1.0.1",
   "efficientnet-pytorch==0.7.1",
